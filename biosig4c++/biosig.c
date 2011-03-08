@@ -5740,7 +5740,15 @@ if (VERBOSE_LEVEL>8)
 	}
 
 	else if (hdr->TYPE==CFS) {
+/*
+		hdr->HeadLen = count;
 
+    		sopen_zzztest(hdr);
+
+	}
+
+	else if (0) {
+*/
 		// DO NOT USE THESE STRUCTS UNLESS YOU ARE SURE THERE ARE NO ALIGNMENT ERRORS
 		struct CFSGeneralHeader_t {
 			char 	Marker[8];
@@ -5872,6 +5880,8 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"\n******* DS variable information *********
 		datapos = LastDataSectionHeaderOffset; //H1LEN + H2LEN*hdr->NS + n*36;
 		// reverse order of data sections
 		uint32_t *DATAPOS = (uint32_t*)malloc(sizeof(uint32_t)*NumberOfDataSections);
+		hdr->NRec = NumberOfDataSections;
+		size_t SPR = 0, SZ = 0;
 
 		uint16_t m;
 		for (m = NumberOfDataSections; 0 < m; ) {
@@ -5879,15 +5889,21 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"\n******* DS variable information *********
 			datapos = leu32p(hdr->AS.Header + datapos);
 		}
 
+		if (hdr->AS.SegSel[0] > NumberOfDataSections) {
+			fprintf(stderr,"Warning loading CFS file: selected sweep number is larger than number of sweeps - no data is loaded\n",hdr->AS.SegSel[0], NumberOfDataSections);
+			NumberOfDataSections = 0;	
+		}
+		else if (0 < hdr->AS.SegSel[0]) {
+			// hack: if sweep is selected, use same method than for data with a single sweep 	
+			DATAPOS[0] = DATAPOS[hdr->AS.SegSel[0]-1];
+			NumberOfDataSections = 1; 
+		}
+
 //		void *VarChanInfoPos = hdr->AS.Header + datapos + 30;  // unused
 		char flag_ChanInfoChanged = 0;
-		hdr->NRec = NumberOfDataSections;
-		size_t SPR = 0, SZ = 0;
 		for (m = 0; m < NumberOfDataSections; m++) {
 			datapos = DATAPOS[m];
 			if (!leu32p(hdr->AS.Header+datapos+8)) continue; 	// empty segment
-
-//			flag_ChanInfoChanged |= memcmp(VarChanInfoPos, hdr->AS.Header + datapos + 30, 24*hdr->NS);
 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"\n******* DATA SECTION --%03i-- %i *********\n",m,flag_ChanInfoChanged);
 if (VERBOSE_LEVEL>7) fprintf(stdout,"\n[DS#%3i] 0x%x 0x%x [0x%x 0x%x szChanData=%i] 0x02%x\n", m, FileHeaderSize, datapos, leu32p(hdr->AS.Header+datapos), leu32p(hdr->AS.Header+datapos+4), leu32p(hdr->AS.Header+datapos+8), leu16p(hdr->AS.Header+datapos+12));
@@ -6034,7 +6050,10 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 419: SPR=%i=%i NRec=%i  @%p\n",SPR,hdr-
 
 		hdr->AS.first = 0;
 		hdr->EVENT.SampleRate = hdr->SampleRate;
-		if (NumberOfDataSections<=1) {
+		if (NumberOfDataSections < 1) {
+			hdr->SPR = 0; 	
+		}
+		else if (NumberOfDataSections == 1) {
 			// hack: copy data into a single block, only if more than one section
 			hdr->FLAG.UCAL = 0;
 			hdr->SPR  = SPR;
