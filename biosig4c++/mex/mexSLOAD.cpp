@@ -225,29 +225,31 @@ void mexFunction(
 		return; 
 	}
 
+/*
+ 	improve checks for input arguments
+*/
 	/* process input arguments */
-	for (k = 0; k < nrhs; k++)
-	{	
+	for (k = 0; k < nrhs; k++) {	
 		arg = prhs[k];
-		if (mxIsEmpty(arg))
+		if (mxIsEmpty(arg) && (k>0))
 #ifdef DEBUG		
 			mexPrintf("arg[%i] Empty\n",k)
 #endif
 			;
-		else if (mxIsCell(arg))
+		else if ((k==0) && mxIsCell(arg) && mxGetNumberOfElements(arg)==1 && mxGetCell(arg,0) && mxIsChar(mxGetCell(arg,0))) {
+			FileName = mxArrayToString(mxGetCell(arg,0));
 #ifdef DEBUG		
 			mexPrintf("arg[%i] IsCell\n",k)
 #endif
-			;
-		else if (mxIsStruct(arg)) {
+		}
+		else if ((k==0) && mxIsStruct(arg)) {
+			FileName = mxArrayToString(mxGetField(prhs[k],0,"FileName"));
 #ifdef DEBUG		
 			mexPrintf("arg[%i] IsStruct\n",k);
 #endif
-			if (k==0)			
-				FileName = mxArrayToString(mxGetField(prhs[k],0,"FileName"));
 		}
 #ifdef CHOLMOD_H
-		else if (mxIsSparse(arg) && (k==1)) {
+		else if ((k==1) && mxIsSparse(arg)) {
 			rr = sputil_get_sparse(arg,&RR,&dummy,0);
 		}
 #endif 
@@ -258,33 +260,37 @@ void mexFunction(
 			ChanList = (double*)mxGetData(prhs[k]);
 			NS = mxGetNumberOfElements(prhs[k]);
 		}	
-		else if (mxIsSingle(arg))
-#ifdef DEBUG		
-			mexPrintf("arg[%i] IsSingle\n",k)
-#endif
-			;
 		else if (mxIsChar(arg)) {
 #ifdef DEBUG		
 			mexPrintf("arg[%i]=%s \n",k,mxArrayToString(prhs[k]));
 #endif
 			if (k==0)			
 				FileName = mxArrayToString(prhs[k]);
-			else if (!strcmp(mxArrayToString(prhs[k]),"CNT32"))
+			else if (!strcmp(mxArrayToString(prhs[k]), "CNT32"))
 				FLAG_CNT32 = 1;
-			else if (!strcmp(mxArrayToString(prhs[k]),"OVERFLOWDETECTION:ON"))
+			else if (!strcmp(mxArrayToString(prhs[k]), "OVERFLOWDETECTION:ON"))
 				FlagOverflowDetection = 1;
-			else if (!strcmp(mxArrayToString(prhs[k]),"OVERFLOWDETECTION:OFF"))
+			else if (!strcmp(mxArrayToString(prhs[k]), "OVERFLOWDETECTION:OFF"))
 				FlagOverflowDetection = 0;
-			else if (!strcmp(mxArrayToString(prhs[k]),"UCAL:ON")) 
+			else if (!strcmp(mxArrayToString(prhs[k]), "UCAL:ON")) 
 				FlagUCAL = 1;
-			else if (!strcmp(mxArrayToString(prhs[k]),"UCAL:OFF"))
+			else if (!strcmp(mxArrayToString(prhs[k]), "UCAL:OFF"))
 				FlagUCAL = 0;
 //			else if (!strcmp(mxArrayToString(prhs[k]),"OUTPUT:SINGLE"))
 //				FlagMXclass = mxSINGLE_CLASS;
 			else if (!strncmp(mxArrayToString(prhs[k]),"TARGETSEGMENT:",14))
 				TARGETSEGMENT = atoi(mxArrayToString(prhs[k])+14);
-			else if (!strcmpi(mxArrayToString(prhs[k]),"SWEEP") && (prhs[k+1]!=NULL) && mxIsNumeric(prhs[k+1]))
-				argSweepSel = ++k;	 
+			else if (!strcmpi(mxArrayToString(prhs[k]), "SWEEP") && (prhs[k+1] != NULL) && mxIsNumeric(prhs[k+1]))
+				argSweepSel = ++k;
+		}
+		else {
+#ifndef mexSOPEN
+			mexPrintf("mexSLOAD: argument #%i is invalid.",k+1);	
+			mexErrMsgTxt("mexSLOAD failes because of unknown parameter\n");	
+#else
+			mexPrintf("mexSOPEN: argument #%i is invalid.",k+1);	
+			mexErrMsgTxt("mexSOPEN fails because of unknown parameter\n");	
+#endif
 		}
 	}
 
@@ -316,22 +322,16 @@ void mexFunction(
 		mexPrintf("120: going to sopen\n");
 
 	hdr = sopen(FileName, "r", hdr);
-
+/*
 #ifdef WITH_PDP 
 	if (B4C_ERRNUM) {
 		B4C_ERRNUM = 0;
 		sopen_pdp_read(hdr);
 	}	
 #endif
-
-#ifdef CHOLMOD_H
-	RerefCHANNEL(hdr,rr,2);
-#endif
-
-	if (hdr->FLAG.OVERFLOWDETECTION != FlagOverflowDetection)
-		mexPrintf("Warning mexSLOAD: Overflowdetection not supported in file %s\n",hdr->FileName);
-	if (hdr->FLAG.UCAL != FlagUCAL)
-		mexPrintf("Warning mexSLOAD: Flag UCAL is %i instead of %i (%s)\n",hdr->FLAG.UCAL,FlagUCAL,hdr->FileName);
+*/
+	if (VERBOSE_LEVEL>7) 
+		mexPrintf("121: sopen done\n");
 
 	if ((status=serror())) {
 
@@ -366,7 +366,15 @@ void mexFunction(
 			sprintf(msg,"Error %i mexSLOAD: Cannot open file %s - format %s not supported [%s].\n", status, FileName, GetFileTypeString(hdr->TYPE), B4C_ERRMSG);
 			
 		mxSetField(HDR,0,"ErrMsg",mxCreateString(msg));
+
+	if (VERBOSE_LEVEL>7) 
+		mexPrintf("737: abort mexSLOAD - sopen failed\n");
+
+
 		destructHDR(hdr);
+
+	if (VERBOSE_LEVEL>7) 
+		mexPrintf("757: abort mexSLOAD - sopen failed\n");
 
 #ifdef mexSOPEN
 		plhs[0] = HDR; 
@@ -374,8 +382,21 @@ void mexFunction(
 		plhs[0] = mxCreateDoubleMatrix(0,0, mxREAL);
 		plhs[1] = HDR; 
 #endif 		 
+	if (VERBOSE_LEVEL>7) 
+		mexPrintf("777: abort mexSLOAD - sopen failed\n");
+
 		return; 
 	}
+
+#ifdef CHOLMOD_H
+	RerefCHANNEL(hdr,rr,2);
+#endif
+
+	if (hdr->FLAG.OVERFLOWDETECTION != FlagOverflowDetection)
+		mexPrintf("Warning mexSLOAD: Overflowdetection not supported in file %s\n",hdr->FileName);
+	if (hdr->FLAG.UCAL != FlagUCAL)
+		mexPrintf("Warning mexSLOAD: Flag UCAL is %i instead of %i (%s)\n",hdr->FLAG.UCAL,FlagUCAL,hdr->FileName);
+
 
 	if (VERBOSE_LEVEL>7) 
 		fprintf(stderr,"[112] SOPEN-R finished NS=%i %i\n",hdr->NS,NS);
