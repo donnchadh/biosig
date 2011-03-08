@@ -6,7 +6,7 @@
   _CRTIMP int __cdecl __MINGW_NOTHROW open (const char*, int, ...);
   _CRTIMP int __cdecl __MINGW_NOTHROW read (int, void*, unsigned int);
   _CRTIMP int __cdecl __MINGW_NOTHROW setmode (int, int);
-+ #if __UNISTD_H_SOURCED__
++ #if !__UNISTD_H_SOURCED__
   _CRTIMP int __cdecl __MINGW_NOTHROW sopen (const char*, int, int, ...);
 + #endif
   _CRTIMP long __cdecl __MINGW_NOTHROW tell (int);
