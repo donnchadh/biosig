@@ -22,6 +22,10 @@
     
  */
 
+// T1T2 is an experimental flag for testing segment selection 
+#define T1T2
+
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,7 +55,7 @@ int main(int argc, char **argv){
     HDRTYPE 	*hdr; 
     size_t 	count, k1, ne=0;
     uint16_t 	numopt = 0;
-    char 	*source, *dest, tmp[1024]; 
+    char 	*source, *dest, tmp[1024], *tmpstr; 
     enum FileFormat SOURCE_TYPE, TARGET_TYPE=GDF; 		// type of file format
     int		COMPRESSION_LEVEL=0;
     int		status, k; 
@@ -59,16 +63,13 @@ int main(int argc, char **argv){
     int 	VERBOSE	= 1; 
     char	FLAG_CNT32 = 0; 	// assume CNT format is 16bit
     char	*argsweep = NULL;
+    double	t1=0.0, t2=1.0/0.0;
 #ifdef CHOLMOD_H
     cholmod_sparse *rr  = NULL; 
     char        *rrFile = NULL;
 #endif 
 	
-    if (argc<2)
-    	;
-    else 
-    {
-    	for (k=1; k<argc && argv[k][0]=='-'; k++)
+    for (k=1; k<argc; k++) {
     	if (!strcmp(argv[k],"-v") || !strcmp(argv[k],"--version") ) {
 		fprintf(stdout,"save2gdf (BioSig4C++) v%04.2f\n", BIOSIG_VERSION);
 		fprintf(stdout,"Copyright (C) 2006,2007,2008,2009 by Alois Schloegl and others\n");
@@ -89,6 +90,10 @@ int main(int argc, char **argv){
 		fprintf(stdout,"\n  Supported OPTIONS are:\n");
 		fprintf(stdout,"   -v, --version\n\tprints version information\n");
 		fprintf(stdout,"   -h, --help   \n\tprints this information\n");
+#ifdef T1T2
+		fprintf(stdout,"   [t1,t2]\n\tstart and end time in seconds (do not use any spaces). \n");
+		fprintf(stdout,"\tTHIS FEATURE IS CURRENTLY EXPERIMENTAL !!!\n");
+#endif
 #ifdef CHOLMOD_H
 		fprintf(stdout,"   -r, --ref=MM  \n\trereference data with matrix file MM. \n\tMM must be a 'MatrixMarket matrix coordinate real general' file.\n");
 #endif
@@ -167,16 +172,27 @@ int main(int argc, char **argv){
 	}
 #endif
 
-    	else if (!strncmp(argv[k],"-s=",3))  	{
+    	else if (!strncmp(argv[k],"-s=",3))  {
     		TARGETSEGMENT = atoi(argv[k]+3);
 	}
 
-    	else if (!strncmp(argv[k],"-cnt32",3))  	{
+    	else if (!strncmp(argv[k],"-cnt32",3))  {
     		FLAG_CNT32 = 1;
 	}
 
-	numopt = k-1;	
-		
+    	else if (argv[k][0]=='[' && argv[k][strlen(argv[k])-1]==']' && (tmpstr=strchr(argv[k],',')) )  	{
+		t1 = strtod(argv[k]+1,NULL);
+		t2 = strtod(tmpstr+1,NULL);
+	}
+	
+	else {
+		numopt = k-1;
+		break; 		
+	}
+
+//	if (VERBOSE_LEVEL>7) 
+	fprintf(stdout,"[103] save2gdf: arg%i = <%s>\n", k, argv[k]);
+
     }
 
 
@@ -229,6 +245,14 @@ int main(int argc, char **argv){
 
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"[112] SOPEN-R finished\n");
 
+	t1 *= hdr->SampleRate / hdr->SPR;
+	t2 *= hdr->SampleRate / hdr->SPR;
+	if (t1 - floor(t1) || t2 - floor(t2)) {
+		fprintf(stderr,"ERROR SAVE2GDF: cutting from parts of blocks not supported; t1 and t2 must be a multiple of block duration %f\n", hdr->SPR / hdr->SampleRate);
+		B4C_ERRNUM = B4C_UNSPECIFIC_ERROR;
+		B4C_ERRMSG = "blocks must not be split";
+	} 
+
 	if ((status=serror())) {
 		destructHDR(hdr);
 		exit(status); 
@@ -258,23 +282,26 @@ int main(int argc, char **argv){
 	hdr->FLAG.ROW_BASED_CHANNELS = flagREREF;
 	
 #ifdef CHOLMOD_H
-	if (VERBOSE_LEVEL>8) 
+	if (VERBOSE_LEVEL>7) 
         	fprintf(stdout,"[121] %p %p Flag.ReRef=%i\n",hdr->Calib, hdr->rerefCHANNEL,flagREREF);
 #endif
 
-	if (dest!=NULL)
-		count = sread(NULL, 0, hdr->NRec, hdr);
+	if (VERBOSE_LEVEL>7) 
+		fprintf(stdout,"\n[123] SREAD [%f,%f].\n",t1,t2);
+
+	if (dest != NULL)
+		count = sread(NULL, t1, t2, hdr);
 
 	biosig_data_type* data = hdr->data.block;
 	if ((VERBOSE_LEVEL>8) && (hdr->data.size[0]*hdr->data.size[1]>500))
-		fprintf(stdout,"[122] UCAL=%i %e %e %e \n",hdr->FLAG.UCAL,data[100],data[110],data[500+hdr->SPR]);
+		fprintf(stdout,"[125] UCAL=%i %e %e %e \n",hdr->FLAG.UCAL,data[100],data[110],data[500+hdr->SPR]);
 	
 	if ((status=serror())) {
 		destructHDR(hdr);
 		exit(status);
 	};
 
-	if (VERBOSE_LEVEL>8) 
+	if (VERBOSE_LEVEL>7) 
 		fprintf(stdout,"\n[129] SREAD on %s successful [%i,%i].\n",hdr->FileName,hdr->data.size[0],hdr->data.size[1]);
 
 //	fprintf(stdout,"\n %f,%f.\n",hdr->FileName,hdr->data.block[3*hdr->SPR],hdr->data.block[4*hdr->SPR]);
@@ -349,22 +376,27 @@ int main(int argc, char **argv){
    /********************************* 
    	Write data 
    *********************************/
-    {	
 
 	//************ identify Max/Min **********
 	
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"[201]\n");
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"[201]\n");
 
         double PhysMaxValue0 = -INF; //hdr->data.block[0];
 	double PhysMinValue0 = +INF; //hdr->data.block[0];
 	biosig_data_type val; 
-	char FLAG_CONVERSION_TESTED = 1; 
-	size_t N = hdr->NRec*hdr->SPR;
+	char FLAG_CONVERSION_TESTED = 1;
+	size_t N; 
+#ifdef T1T2
+	N = hdr->FLAG.ROW_BASED_CHANNELS ? hdr->data.size[1] : hdr->data.size[0];   
+	hdr->NRec = N/hdr->SPR;
+#else
+	N = hdr->NRec*hdr->SPR;
+#endif
 	int k2=0;
     	for (k=0; k<hdr->NS; k++)
     	if (hdr->CHANNEL[k].OnOff && hdr->CHANNEL[k].SPR) 
     	{
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"[204] #%i\n",k);
+	if (VERBOSE_LEVEL > 7) fprintf(stdout,"[204] #%i\n",k);
 	
 		double MaxValue;
 		double MinValue;
@@ -450,7 +482,7 @@ int main(int argc, char **argv){
 	}
 	if (!FLAG_CONVERSION_TESTED) 
 		fprintf(stderr,"Warning SAVE2GDF: conversion from %s to %s not tested\n",GetFileTypeString(SOURCE_TYPE),GetFileTypeString(TARGET_TYPE));
-    }
+
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"[205] UCAL=%i\n", hdr->FLAG.UCAL);
 
 	/* write file */
@@ -476,6 +508,7 @@ int main(int argc, char **argv){
 		fprintf(stdout,"\n[221] File %s opened. %i %i %Li Des=%i\n",hdr->FileName,hdr->AS.bpb,hdr->NS,hdr->NRec,hdr->FILE.Des);
 
 	swrite(data, hdr->NRec, hdr);
+
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"[231] SWRITE finishes\n");
 	if ((status=serror())) { 
 		destructHDR(hdr);
