@@ -5880,8 +5880,6 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"\n******* DS variable information *********
 		datapos = LastDataSectionHeaderOffset; //H1LEN + H2LEN*hdr->NS + n*36;
 		// reverse order of data sections
 		uint32_t *DATAPOS = (uint32_t*)malloc(sizeof(uint32_t)*NumberOfDataSections);
-		hdr->NRec = NumberOfDataSections;
-		size_t SPR = 0, SZ = 0;
 
 		uint16_t m;
 		for (m = NumberOfDataSections; 0 < m; ) {
@@ -5901,6 +5899,8 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"\n******* DS variable information *********
 
 //		void *VarChanInfoPos = hdr->AS.Header + datapos + 30;  // unused
 		char flag_ChanInfoChanged = 0;
+		hdr->NRec = NumberOfDataSections;
+		size_t SPR = 0, SZ = 0;
 		for (m = 0; m < NumberOfDataSections; m++) {
 			datapos = DATAPOS[m];
 			if (!leu32p(hdr->AS.Header+datapos+8)) continue; 	// empty segment
