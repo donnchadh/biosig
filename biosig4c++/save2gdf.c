@@ -98,8 +98,8 @@ int main(int argc, char **argv){
 		fprintf(stdout,"\tCurrently are supported: HL7aECG, SCP_ECG (EN1064), GDF, EDF, BDF, CFWB, BIN, ASCII, BVA (BrainVision)\n"); 
 		fprintf(stdout,"   -z=#, -z#\n\t# indicates the compression level (#=0 no compression; #=9 best compression, default #=1)\n");
 		fprintf(stdout,"   -s=#\tselect target segment # (in the multisegment file format EEG1100)\n");
-		fprintf(stdout,"   -VERBOSE=#, verbosity level #\n\t0=silent [default], 9=debugging");
-		fprintf(stdout,"   -SWEEP=ne,ng,ns\tsweep selection of HEKA/PM files");
+		fprintf(stdout,"   -SWEEP=ne,ng,ns\n\tsweep selection of HEKA/PM files\n\tne,ng, and ns select the number of experiment, the number of group, and the sweep number, resp.\n");
+		fprintf(stdout,"   -VERBOSE=#, verbosity level #\n\t0=silent [default], 9=debugging\n");
 		fprintf(stdout,"\n\n");
 		return(0);
 	}	
@@ -489,3 +489,4 @@ int main(int argc, char **argv){
 	destructHDR(hdr);
 	exit(serror()); 
 }
+
