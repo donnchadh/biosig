@@ -34,8 +34,8 @@ LIBEXT        = a
 MEX_OPTION    = -largeArrayDims # turn on for 64 bit Matlab, otherwise empty
 PathToSigViewer = ../sigviewer
 PathToSigViewerWIN32 = ../sigviewer4win32
-PathToMinGW   = $(HOME)/R/src/mingw-cross-env
-PathToMinGW64   = $(HOME)/R/src/mce-w64
+PathToMinGW   = $(HOME)/src/mingw-cross-env
+PathToMinGW64   = $(HOME)/src/mce-w64
 
 ## default options 
 
@@ -175,11 +175,11 @@ MinGWOBJECTS  = \
 		win32/sandbox.obj \
 
 
-TARGET        = save2gdf save2aecg save2scp libbiosig.a mex4o libbiosig.so
+TARGET        = save2gdf save2aecg save2scp libbiosig.a mex4o 
 
 first: $(TARGET)
 all:   $(TARGET) mex4o biosig4python win32 biosig_client biosig_server mma java tcl perl php ruby #sigviewer 
-lib:	libbiosig.a libbiosig.so win32/libbiosig.dll win32/libbiosig.a
+lib:	libbiosig.a win32/libbiosig.dll win32/libbiosig.a
 
 #############################################################
 #	Compilation: Implicit, default rules
@@ -360,7 +360,7 @@ win32/save2gdf.exe: save2gdf.c win32/libbiosig.a
 win32/pdp2gdf.exe: pdp2gdf.c win32/libbiosig.a
 	$(MinGWLINK) $(MinGWCFLAGS) "$<" $(MinGWLIBS) -o "$@"
 
-win32 exe: win32/save2gdf.exe win32/libbiosig.dll win32/libbiosig.a mexw32 win32mma 
+win32 exe: win32/save2gdf.exe win32/libbiosig.dll win32/libbiosig.a #mexw32 win32mma 
 
 
 #############################################################
