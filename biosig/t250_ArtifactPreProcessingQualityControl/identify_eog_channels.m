@@ -21,7 +21,7 @@ function chEOG=identify_eog_channels(fn,x);
 %	A fully automated correction method of EOG artifacts in EEG recordings.
 %	Clin Neurophysiol. 2007 Jan;118(1):98-104. Epub 2006 Nov 7.
 % 	http://dx.doi.org/10.1016/j.clinph.2006.09.003
-%       http://www.dpmi.tugraz.at/~schloegl/publications/schloegl2007eog.pdf
+%       http://pub.ist.ac.at/~schloegl/publications/schloegl2007eog.pdf
 
 %	$Id$
 %	Copyright (C) 2006,2007,2009,2010 by Alois Schloegl 

@@ -35,7 +35,7 @@
 clear 
 
 if ~exist('l1.gdf','file') % download test file if not available
-        system('wget http://hci.tugraz.at/schloegl/bci/bci7/l1.gdf');
+        system('wget http://pub.ist.ac.at/~schloegl/bci/bci7/l1.gdf');
 end;
 
 K=0; tic; t0=cputime();

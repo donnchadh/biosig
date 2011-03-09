@@ -10,8 +10,8 @@ function [HDR] = getfiletype(arg1)
 % see also: SOPEN 
 %
 % Reference(s): 
-%   [1] http://www.dpmi.tu-graz.ac.at/~schloegl/matlab/eeg/
-%   [2] http://www.dpmi.tu-graz.ac.at/~schloegl/biosig/TESTED 
+%   [1] http://pub.ist.ac.at/~schloegl/matlab/eeg/
+%   [2] http://pub.ist.ac.at/~schloegl/biosig/TESTED 
 
 
 % This program is free software; you can redistribute it and/or

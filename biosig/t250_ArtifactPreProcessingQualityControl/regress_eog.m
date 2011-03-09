@@ -41,7 +41,7 @@ function [R,S] = regress_eog(D,ny,nx)
 %	A fully automated correction method of EOG artifacts in EEG recordings.
 %	Clin Neurophysiol. 2007 Jan;118(1):98-104. Epub 2006 Nov 7.
 % 	http://dx.doi.org/10.1016/j.clinph.2006.09.003
-%       http://hci.tugraz.at/~schloegl/publications/schloegl2007eog.pdf
+%       http://pub.ist.ac.at/~schloegl/publications/schloegl2007eog.pdf
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License

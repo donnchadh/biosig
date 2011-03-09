@@ -55,7 +55,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 filename = 'B0101T.gdf';
 if ~exist(filename,'file')
-	unix('wget http://hci.tugraz.at/~schloegl/bci/competition2008/B0101T.gdf');
+	unix('wget http://pub.ist.ac.at/~schloegl/bci/competition2008/B0101T.gdf');
 end; 
 	
 % Step 1a: load data ============================%

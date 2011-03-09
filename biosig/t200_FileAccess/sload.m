@@ -23,7 +23,7 @@ function [signal,H] = sload(FILENAME,varargin)
 %       'CNT32', '32bit'			force CNT 32bit format 
 %	
 % The list of supported formats is available here: 
-% http://hci.tugraz.at/~schloegl/biosig/TESTED
+% http://pub.ist.ac.at/~schloegl/biosig/TESTED
 %
 %    SLOAD loads all the data (of the selected channels)
 %    at once. In case of large data files, This can be 
@@ -284,6 +284,7 @@ end;
 FlagLoaded = 0;
 if exist('mexSLOAD','file')==3,
 	try
+	abc_dsdf
 		valid_rerefmx = 1;
 		if ischar(CHAN)
 		        HDR = sopen(CHAN,'r'); HDR=sclose(HDR); 
@@ -1402,4 +1403,5 @@ if any(ratiomissing>.1)
 	fprintf(2,'Warning SLOAD: ratio of missing samples exceeds 10%% in file %s.\n',H.FileName);
 	ix = find(ratiomissing); 
 	fprintf(1,'#%3i:  %4.1f%%\n',[ix;ratiomissing(ix)*100])
-end;	
+end;
+

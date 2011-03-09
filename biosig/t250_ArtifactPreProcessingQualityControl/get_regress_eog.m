@@ -49,7 +49,7 @@ function [h0, s00] = get_regress_eog(fn,Mode)
 %	A fully automated correction method of EOG artifacts in EEG recordings.
 %	Clin Neurophysiol. 2007 Jan;118(1):98-104. Epub 2006 Nov 7.
 % 	http://dx.doi.org/10.1016/j.clinph.2006.09.003
-%       http://www.dpmi.tugraz.at/~schloegl/publications/schloegl2007eog.pdf
+%       http://pub.ist.ac.at/~schloegl/publications/schloegl2007eog.pdf
 % [2] Berg P, Scherg M.
 %	A multiple source approach to the correction of eye artifacts.
 %	Electroencephalogr Clin Neurophysiol. 1994 Mar;90(3):229-41.

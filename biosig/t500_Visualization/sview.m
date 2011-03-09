@@ -7,7 +7,7 @@ function [argout,s]=sview(s,varargin),
 % See also: SLOAD 
 
 %	$Id$ 
-%	Copyright (c) 2004,2006,2008 by Alois Schlögl <a.schloegl@ieee.org>	
+%	Copyright (c) 2004,2006,2008 by Alois Schl?gl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
@@ -262,7 +262,6 @@ else
 end;
 %box('off'); 
 
-EVENT,EVENT.Desc',
 ix = find(EVENT.POS>0 & EVENT.POS<=length(t));
 if isfield(EVENT,'Desc') && ~isempty(ix) %& ~exist('OCTAVE_VERSION','builtin')
 	ix2 = find((EVENT.POS>0) & (EVENT.POS<=length(t))); % & (EVENT.DUR>0));

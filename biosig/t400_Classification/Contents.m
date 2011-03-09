@@ -20,7 +20,7 @@
 %
 % Several core functions (like train_sc, test_sc, xval) have been included in the NaN-toolbox
 % and will primarily be maintained there. For more details see: 
-%   http://hci.tugraz.at/~schloegl/matlab/NaN 
+%   http://pub.ist.ac.at/~schloegl/matlab/NaN 
 %
 % REFERENCES: 
 % [1] Schloegl A, Neuper C, Pfurtscheller G

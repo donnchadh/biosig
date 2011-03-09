@@ -42,7 +42,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 
 
 %	$Id$
-%	(C) 1997-2006,2007,2008,2009 by Alois Schloegl <a.schloegl@ieee.org>	
+%	(C) 1997-2006,2007,2008,2009.2011 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 %    BioSig is free software: you can redistribute it and/or modify
@@ -604,7 +604,7 @@ end;
 	                        	fprintf(2,'WARNING SOPEN(EDF): Physical Max/Min values of EDF data are not necessarily defining the dynamic range.\n'); 
 	                        	fprintf(2,'   Hence, OVERFLOWDETECTION might not work correctly. See also EEG2HIST and read \n'); 
 	                        	fprintf(2,'   http://dx.doi.org/10.1016/S1388-2457(99)00172-8 (A. Schlögl et al. Quality Control ... Clin. Neurophysiol. 1999, Dec; 110(12): 2165 - 2170).\n'); 
-	                        	fprintf(2,'   A copy is available here, too: http://www.dpmi.tugraz.at/schloegl/publications/neurophys1999_2165.pdf \n'); 
+	                        	fprintf(2,'   A copy is available here, too: http://pub.ist.ac.at/~schloegl/publications/neurophys1999_2165.pdf \n'); 
 				end;
 			end; 
 	                if any(HDR.PhysMax==HDR.PhysMin), HDR.ErrNum=[1029,HDR.ErrNum]; end;	
@@ -1880,7 +1880,7 @@ elseif strmatch(HDR.TYPE,{'CNT';'AVG';'EEG'},'exact')
                 	if HDR.FLAG.OVERFLOWDETECTION,
 	                       fprintf(2,'WARNING SOPEN(CNT): OVERFLOWDETECTION might not work correctly. See also EEG2HIST and read \n'); 
         	               fprintf(2,'   http://dx.doi.org/10.1016/S1388-2457(99)00172-8 (A. Schlögl et al. Quality Control ... Clin. Neurophysiol. 1999, Dec; 110(12): 2165 - 2170).\n'); 
-        	               fprintf(2,'   A copy is available here, too: http://www.dpmi.tugraz.at/schloegl/publications/neurophys1999_2165.pdf \n'); 
+        	               fprintf(2,'   A copy is available here, too: http://pub.ist.ac.at/~schloegl/publications/neurophys1999_2165.pdf \n'); 
         	        end;        
 			[datatyp,limits,datatypes,numbits,GDFTYP]=gdfdatatype(HDR.GDFTYP);
 			HDR.THRESHOLD = repmat(limits,HDR.NS,1);
@@ -5045,7 +5045,7 @@ elseif strcmp(HDR.TYPE,'DDF'),
                 end;
                 fseek(HDR.FILE.FID,pos,'bof'); 	% position file identifier
                 if 0;%DataSource(length(DataSource))~=26,
-                        fprintf(1,'Warning: DDF header seems to be incorrenct. Contact <alois.schloegl@tugraz.at> Subject: BIOSIG/DATAFORMAT/DDF  \n');
+                        fprintf(1,'Warning: DDF header seems to be incorrenct. Contact <alois.schloegl@ist.ac.at> Subject: BIOSIG/DATAFORMAT/DDF  \n');
                 end;
                 HDR.DDF.CPUidentifier  = fread(HDR.FILE.FID,[1,2],'uint8=>char');
                 HDR.HeadLen(1) = fread(HDR.FILE.FID,1,'uint16');
@@ -5063,7 +5063,7 @@ elseif strcmp(HDR.TYPE,'DDF'),
                 fread(HDR.FILE.FID,1,'uint16');	% size of a block Header
                 tmp = fread(HDR.FILE.FID,1,'uint16');
                 if tmp ~= isfield(HDR.FILE,'DATA')
-                        fprintf(1,'Warning: DDF header seems to be incorrenct. Contact <alois.schloegl@tugraz.at> Subject: BIOSIG/DATAFORMAT/DDF  \n');
+                        fprintf(1,'Warning: DDF header seems to be incorrenct. Contact <alois.schloegl@ist.ac.at> Subject: BIOSIG/DATAFORMAT/DDF  \n');
                 end;
                 HDR.NS = fread(HDR.FILE.FID,1,'uint16');
                 HDR.Delay = fread(HDR.FILE.FID,1,'double');

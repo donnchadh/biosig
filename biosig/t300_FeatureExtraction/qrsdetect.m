@@ -21,7 +21,7 @@ function [H2,HDR,s] = qrsdetect(fn,arg2,arg3)
 % Reference(s):
 % [1] M.-E. Nygards, L. Sörnmo, Delineation of the QRS complex using the envelope of the e.c.g
 %       Med. & Biol. Eng. & Comput., 1983, 21, 538-547.
-% [2] V. Afonso, W. Tompkins, T. Nguyen, and S. Luo, "ECG beat detection using filter banks,"
+% [2] V. Afonso, W. Tompkins, T. Nguyen, and S. Luo, "ECG beat detection using filter banks."
 % 	IEEE Trans. Biomed. Eng. 46(2):192-202, Feb. 1999.
 
 % $Id$

@@ -34,7 +34,7 @@
 %       LEADIDCODEXYZ        
 %
 % REFERENCES: 
-% [1] http://hci.tugraz.at/~schloegl/biosig/
+% [1] http://pub.ist.ac.at/~schloegl/biosig/
 % [2] http://biosig.sf.net/
 %
 
