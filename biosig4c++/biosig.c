@@ -2653,7 +2653,7 @@ void struct2gdfbin(HDRTYPE *hdr)
 	     	/* end */
 
 		if (hdr->TYPE==GDF) {
-			hdr->VERSION = 2.21;
+			hdr->VERSION = 2.22;
 			if (hdr->HeadLen & 0x00ff)	// in case of GDF v2, make HeadLen a multiple of 256.
 			hdr->HeadLen = (hdr->HeadLen & 0xff00) + 256;
 		}
@@ -2808,6 +2808,7 @@ void struct2gdfbin(HDRTYPE *hdr)
 			else {
 			     	*(double*)(Header2 + 8*k2 + 120*NS) = l_endian_f64(hdr->CHANNEL[k].DigMin);
 			     	*(double*)(Header2 + 8*k2 + 128*NS) = l_endian_f64(hdr->CHANNEL[k].DigMax);
+			     	if (hdr->VERSION >= 2.22) *(float*) (Header2 + 4*k2 + 200*NS) = l_endian_f32(hdr->CHANNEL[k].TOffset);	// GDF222
 			     	*(float*) (Header2 + 4*k2 + 204*NS) = l_endian_f32(hdr->CHANNEL[k].LowPass);
 			     	*(float*) (Header2 + 4*k2 + 208*NS) = l_endian_f32(hdr->CHANNEL[k].HighPass);
 			     	*(float*) (Header2 + 4*k2 + 212*NS) = l_endian_f32(hdr->CHANNEL[k].Notch);
@@ -3118,7 +3119,7 @@ int gdfbin2struct(HDRTYPE *hdr)
 				hc->LowPass  = NaN;
 				hc->HighPass = NaN;
 				hc->Notch    = NaN;
-				hc->TOffset = NaN;
+				hc->TOffset  = NaN;
 				float lf,hf;
 				if (sscanf(PreFilt,"%f - %f Hz",&lf,&hf)==2) {
 					hc->LowPass  = hf;
@@ -3140,7 +3141,11 @@ int gdfbin2struct(HDRTYPE *hdr)
 				hc->XYZ[2]   = lef32p(Header2+ 4*k + 232*hdr->NS);
 				// memcpy(&hc->XYZ,Header2 + 4*k + 224*hdr->NS,12);
 				hc->Impedance= ldexp(1.0, (uint8_t)Header2[k + 236*hdr->NS]/8);
-				hc->TOffset  = NaN;
+
+			     	if (hdr->VERSION < 2.22)
+					hc->TOffset  = NaN;
+			     	else
+			     		hc->TOffset  = lef32p(Header2 + 4 * k + 200 * hdr->NS);
 
         		     	if (hdr->VERSION < (float)2.19)
         				hc->Impedance = ldexp(1.0, (uint8_t)Header2[k + 236*hdr->NS]/8);
@@ -12161,9 +12166,9 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 			else if (cp->GDFTYP>511) fprintf(fid, " bit%i  ", cp->GDFTYP-511);
 			else if (cp->GDFTYP>255) fprintf(fid, " bit%i  ", cp->GDFTYP-255);
 
-			fprintf(fid,"%e %e %s\t%g\t%g\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f",
+			fprintf(fid,"%e %e %s\t%g\t%g\t%5f\t%5f\t%5f\t%5f\t%5f\t%5gs\t%5f\t%5f\t%5f",
 				cp->Cal, cp->Off, p,
-				cp->PhysMax, cp->PhysMin, cp->DigMax, cp->DigMin,cp->HighPass,cp->LowPass,cp->Notch,
+				cp->PhysMax, cp->PhysMin, cp->DigMax, cp->DigMin,cp->HighPass,cp->LowPass,cp->Notch,cp->TOffset,
 				cp->XYZ[0],cp->XYZ[1],cp->XYZ[2]);
 			//fprintf(fid,"\t %3i", cp->SPR);
 		}

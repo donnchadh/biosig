@@ -190,8 +190,8 @@ int main(int argc, char **argv){
 		break; 		
 	}
 
-//	if (VERBOSE_LEVEL>7) 
-	fprintf(stdout,"[103] save2gdf: arg%i = <%s>\n", k, argv[k]);
+	if (VERBOSE_LEVEL>7) 
+		fprintf(stdout,"[103] save2gdf: arg%i = <%s>\n", k, argv[k]);
 
     }
 
@@ -245,10 +245,15 @@ int main(int argc, char **argv){
 
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"[112] SOPEN-R finished\n");
 
+	if ((status=serror())) {
+		destructHDR(hdr);
+		exit(status); 
+	} 
+	
 	t1 *= hdr->SampleRate / hdr->SPR;
 	t2 *= hdr->SampleRate / hdr->SPR;
-	if (t1 - floor(t1) || t2 - floor(t2)) {
-		fprintf(stderr,"ERROR SAVE2GDF: cutting from parts of blocks not supported; t1 and t2 must be a multiple of block duration %f\n", hdr->SPR / hdr->SampleRate);
+	if ((t1 - floor(t1)) || ( (t2 - floor(t2)) && (t2 < INF))) {
+		fprintf(stderr,"ERROR SAVE2GDF: cutting from parts of blocks not supported; t1 (%f) and t2 (%f) must be a multiple of block duration %f\n", t1,t2,hdr->SPR / hdr->SampleRate);
 		B4C_ERRNUM = B4C_UNSPECIFIC_ERROR;
 		B4C_ERRMSG = "blocks must not be split";
 	} 
