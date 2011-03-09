@@ -100,9 +100,12 @@ HDR.PhysMax = [100;100;100;100;100;100];
 HDR.PhysMin = [0;0;0;0;0;0];
 HDR.DigMax  = [100;100;100;100;100;1000];
 HDR.DigMin  = [0;0;0;0;0;0];
+% define filter settings 
 HDR.Filter.Lowpass = [0,0,0,NaN,NaN,NaN];
 HDR.Filter.Highpass = [100,100,100,NaN,NaN,NaN];
 HDR.Filter.Notch = [0,0,0,0,0,0];
+% define sampling delay between channels  
+HDR.TOffset = [0:5]*1e-6;
 
 
 % define physical dimension
@@ -112,7 +115,7 @@ HDR.fZ = [NaN,NaN,NaN,400000,NaN,NaN];                % probe frequency in Hz fo
 
 t = [100:100:size(x,1)]';
 %HDR.NRec = 100;
-HDR.VERSION = 2.21;        % experimental  
+HDR.VERSION = 2.22;        % experimental  
 HDR = sopen(HDR,'w');
 %HDR.SIE.RAW = 0; % [default] channel data mode, one column is one channel 
 %HDR.SIE.RAW = 1; % switch to raw data mode, i.e. one column for one EDF-record

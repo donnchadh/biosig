@@ -572,7 +572,12 @@ end;
 	                        HDR.PhysMax    =       fread(HDR.FILE.FID,[1,HDR.NS],'float64');	
  	                        HDR.DigMin     =       fread(HDR.FILE.FID,[1,HDR.NS],'float64');
  	                        HDR.DigMax     =       fread(HDR.FILE.FID,[1,HDR.NS],'float64');
-                                HDR.PreFilt    =  char(fread(HDR.FILE.FID,[80-12,HDR.NS],'uint8')');	%	
+ 	                        if (HDR.VERSION < 2.22)
+                                	HDR.PreFilt = char(fread(HDR.FILE.FID,[80-12,HDR.NS],'uint8')');	%
+                                else
+                                	HDR.PreFilt = char(fread(HDR.FILE.FID,[80-12-4,HDR.NS],'uint8')');	%
+	                                HDR.TOffset = fread(HDR.FILE.FID,[1,HDR.NS],'float32');		% 
+                                end;
                                 HDR.Filter.LowPass  =  fread(HDR.FILE.FID,[1,HDR.NS],'float32');	% 
                                 HDR.Filter.HighPass =  fread(HDR.FILE.FID,[1,HDR.NS],'float32');	%
                                 HDR.Filter.Notch    =  fread(HDR.FILE.FID,[1,HDR.NS],'float32');	%
@@ -1044,7 +1049,7 @@ end;
                         elseif (HDR.VERSION < 2.19)
                                 HDR.VERSION = 2.11;     %% stable version 
                         else
-                                HDR.VERSION = 2.21;     %% experimental 
+                                HDR.VERSION = 2.22;     %% experimental 
                         end;        
                 elseif strcmp(HDR.TYPE,'BDF'),
                         HDR.VERSION = -1;
@@ -1429,6 +1434,12 @@ end;
                         else
                                 HDR.PhysMin=HDR.PhysMin(1:HDR.NS);
                         end;
+                        if ~isfield(HDR,'TOffset')
+                                HDR.TOffset=repmat(nan,HDR.NS,1);
+                        else
+                                HDR.TOffset=[HDR.TOffset(:);repmat(NaN,HDR.NS,1)];
+                                HDR.TOffset=HDR.TOffset(1:HDR.NS);
+                        end;
                         if ~isfield(HDR,'PhysMax')
                                 if HDR.NS>0,
                                         fprintf('Warning SOPEN (GDF/EDF/BDF)-W: HDR.PhysMax not defined\n');
@@ -1787,7 +1798,12 @@ end;
                                         fwrite(HDR.FILE.FID, HDR.DigMin(1:HDR.NS), 'float64');
                                         fwrite(HDR.FILE.FID, HDR.DigMax(1:HDR.NS), 'float64');
                                         
-                                        fwrite(HDR.FILE.FID, abs(HDR.PreFilt(1:HDR.NS,1:68))','uint8');
+	 	                        if (HDR.VERSION < 2.22)
+        	                                fwrite(HDR.FILE.FID, abs(HDR.PreFilt(1:HDR.NS,1:68))','uint8');
+                	                else
+                        	                fwrite(HDR.FILE.FID, abs(HDR.PreFilt(1:HDR.NS,1:64))','uint8');
+                        	                fwrite(HDR.FILE.FID, HDR.TOffset(1:HDR.NS), 'float32');
+                                	end;
                                         fwrite(HDR.FILE.FID, HDR.Filter.LowPass(1:HDR.NS),'float32');
                                         fwrite(HDR.FILE.FID, HDR.Filter.HighPass(1:HDR.NS),'float32');
                                         fwrite(HDR.FILE.FID, HDR.Filter.Notch(1:HDR.NS),'float32');
