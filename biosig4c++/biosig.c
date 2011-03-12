@@ -3426,7 +3426,12 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
                 case 1: {
                         HDRTYPE *RR = sopen((char*)arg2,"r",NULL);
                         ReRef       = RR->Calib;
-                        flagLabelIsSet = (RR->rerefCHANNEL != NULL); 
+                        if (RR->rerefCHANNEL != NULL) {
+                                flagLabelIsSet = 1; 
+                        	if (hdr->rerefCHANNEL) free(hdr->rerefCHANNEL); 
+                        	hdr->rerefCHANNEL = RR->rerefCHANNEL;
+                        	RR->rerefCHANNEL = NULL; 
+                        }
                         RR->Calib   = NULL; // do not destroy ReRef
                         destructHDR(RR);
                         break;
@@ -3438,10 +3443,10 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
                 if ((ReRef==NULL) || !Mode) {
                         // reset rereferencing
         		if (hdr->Calib != NULL)
-                                cholmod_free_sparse(&hdr->Calib,&c);
+				 cholmod_free_sparse(&hdr->Calib,&c);
 
                         hdr->Calib = ReRef;
-        		free(hdr->rerefCHANNEL);
+        		if (hdr->rerefCHANNEL) free(hdr->rerefCHANNEL);
         		hdr->rerefCHANNEL = NULL;
                         cholmod_finish (&c) ;
         	        return(0);
@@ -3462,7 +3467,7 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
 		if (hdr->Calib != NULL)
                         cholmod_free_sparse(&hdr->Calib,&c);
 
-		if (VERBOSE_LEVEL>6) {
+		if (VERBOSE_LEVEL>8) {
 			c.print = 5;
 			cholmod_print_sparse(ReRef,"HDR.Calib", &c);
 		}
@@ -3471,6 +3476,7 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
                 hdr->Calib = ReRef;
                 if (hdr->rerefCHANNEL==NULL)
 			hdr->rerefCHANNEL = (CHANNEL_TYPE*) realloc(hdr->rerefCHANNEL, A->ncol*sizeof(CHANNEL_TYPE));
+
 		CHANNEL_TYPE *NEWCHANNEL = hdr->rerefCHANNEL; 
                 hdr->FLAG.ROW_BASED_CHANNELS = 1;
 
@@ -3498,8 +3504,17 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
 				}
 				if (v) {
 					if (pix == -1) {
-                				memcpy(NEWCHANNEL+i, hdr->CHANNEL+r, sizeof(CHANNEL_TYPE));
-						pix = 0;
+                				//memcpy(NEWCHANNEL+i, hdr->CHANNEL+r, sizeof(CHANNEL_TYPE));
+					        NEWCHANNEL[i].PhysDimCode = hdr->CHANNEL[r].PhysDimCode;
+					        NEWCHANNEL[i].LowPass 	  = hdr->CHANNEL[r].LowPass;
+					        NEWCHANNEL[i].HighPass    = hdr->CHANNEL[r].HighPass;
+					        NEWCHANNEL[i].Notch 	  = hdr->CHANNEL[r].Notch;
+					        NEWCHANNEL[i].SPR 	  = hdr->CHANNEL[r].SPR;
+					        NEWCHANNEL[i].GDFTYP      = hdr->CHANNEL[r].GDFTYP;
+				                NEWCHANNEL[i].Impedance   = fabs(v)*hdr->CHANNEL[r].Impedance;
+						NEWCHANNEL[i].OnOff       = 1;
+						if (!flagLabelIsSet) memcpy(NEWCHANNEL[i].Label, hdr->CHANNEL[r].Label, MAX_LENGTH_LABEL);
+				                pix = 0;
 					}
 					else {
 					        if (NEWCHANNEL[i].PhysDimCode != hdr->CHANNEL[r].PhysDimCode)
@@ -3526,16 +3541,16 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
 				}
 			}
 
+			// heuristic to determine hdr->CHANNEL[k].Label;
 			if (oix>-1) r=oix;        // use the info from channel with a scaling of 1.0 ;
 			else if (mix>-1) r=mix;   // use the info from channel with the largest scale;
 			else r = -1;
 
 			if (flagLabelIsSet)
-				; 
+                               ; 
 			else if (!flag && (r<hdr->NS) && (r>=0)) {
 			        // if successful
 			        memcpy(NEWCHANNEL[i].Label, hdr->CHANNEL[r].Label, MAX_LENGTH_LABEL);
-				NEWCHANNEL[i].GDFTYP = 16; // float
                         }
 			else {
 			        sprintf(NEWCHANNEL[i].Label,"component #%i",i);
@@ -8675,20 +8690,27 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 			if ((line[0]=='%') && (line[1]=='%') && isspace(line[2])) {
 				if (!strncmp(line+3,"LABELS",6)) 
 					status = 1;
-				else if (!strncmp(line+3,"ENDLABEL",8)) 
+				else if (!strncmp(line+3,"ENDLABEL",8)) {
 					status = 0;
-
+					break;
+				}
 				if (status) {
 					int k = 3;
 					while (isspace(line[k])) k++; 
 					unsigned long ch = strtoul(line+k, &line, 10);
-					while (isspace(line[k])) k++;
+					while (isspace(line[0])) line++;
 					if (ch >= ns) {	
 						hdr->rerefCHANNEL = (CHANNEL_TYPE*)realloc(hdr->rerefCHANNEL, ch*sizeof(CHANNEL_TYPE));
-						while (ns < ch) hdr->rerefCHANNEL[ns++].Label[0] = 0;
+
+						while (ns < ch) {
+							hdr->rerefCHANNEL[ns].Label[0] = 0;
+							hdr->rerefCHANNEL[ns].OnOff = 1;
+							ns++;
+						}
 					}	 
-					strncpy(hdr->rerefCHANNEL[ch-1].Label, line+k, MAX_LENGTH_LABEL);
-		if (VERBOSE_LEVEL>7) fprintf(stdout,"[MM 027] %i <%s>\n",ch,line+k);
+					strncpy(hdr->rerefCHANNEL[ch-1].Label, line, MAX_LENGTH_LABEL);
+					hdr->rerefCHANNEL[ch-1].Label[MAX_LENGTH_LABEL] = 0;
+		if (VERBOSE_LEVEL>7) fprintf(stdout,"[MM 027] %i <%s>\n",ch,line);
 				}
 			}
 			line = strtok(NULL,"\x0a\x0d");
@@ -10237,7 +10259,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			else
 				tmpstr = hdr->CHANNEL[k].Label;
 		     	len = strlen(tmpstr);
-			if (len>15)
+			if (len>16)
 			//fprintf(stderr,"Warning: Label (%s) of channel %i is to long.\n",hdr->CHANNEL[k].Label,k);
 		     	fprintf(stderr,"Warning: Label of channel %i,%i is too long (%i>16).\n",k,k2, len);
 		     	memcpy(Header2+16*k2,tmpstr,min(len,16));

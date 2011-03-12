@@ -1,7 +1,7 @@
 /*
 
     $Id$
-    Copyright (C) 2000,2005,2007,2008,2009,2010 Alois Schloegl <a.schloegl@ieee.org>
+    Copyright (C) 2000,2005,2007,2008,2009,2010,2011 Alois Schloegl <alois.schloegl@gmail.com>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -42,7 +42,7 @@ extern "C" {
 #endif 
 int savelink(const char* filename);
 #ifdef __cplusplus
-}
+} 
 #endif 
 
 #ifdef WITH_PDP 
@@ -67,6 +67,7 @@ int main(int argc, char **argv){
 #ifdef CHOLMOD_H
     cholmod_sparse *rr  = NULL; 
     char        *rrFile = NULL;
+    int refarg          = 0;
 #endif 
 	
     for (k=1; k<argc; k++) {
@@ -164,11 +165,9 @@ int main(int argc, char **argv){
 	}
 
 #ifdef CHOLMOD_H
-    	else if (!strncmp(argv[k],"-r=",3) || !strncmp(argv[k],"--ref=",6) )	{
-    	        // re-referencing matrix 
-    	        rrFile = strchr(argv[k],'=')+1;
-    	        if (!rrFile) 
-                        fprintf(stdout,"error: option %s not supported \n",argv[k]); 
+    	else if ( !strncmp(argv[k],"-r=",3) || !strncmp(argv[k],"--ref=",6) )	{
+    	        // re-referencing matrix
+		refarg = k; 
 	}
 #endif
 
@@ -183,6 +182,7 @@ int main(int argc, char **argv){
     	else if (argv[k][0]=='[' && argv[k][strlen(argv[k])-1]==']' && (tmpstr=strchr(argv[k],',')) )  	{
 		t1 = strtod(argv[k]+1,NULL);
 		t2 = strtod(tmpstr+1,NULL);
+		fprintf(stdout,"[%f,%f\n]",t1,t2);
 	}
 	
 	else {
@@ -239,8 +239,11 @@ int main(int argc, char **argv){
 	}	
 #endif
 #ifdef CHOLMOD_H
-        if (RerefCHANNEL(hdr,rrFile,1))
-                fprintf(stdout,"error: option %s not supported (link with -lcholmod)\n",argv[k]); 
+	if (refarg > 0) {
+    	        rrFile = strchr(argv[refarg], '=') + 1;
+	        if (RerefCHANNEL(hdr, rrFile, 1))
+	                fprintf(stdout,"error: option %s not supported\n",argv[refarg]);
+	} 
 #endif
 
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"[112] SOPEN-R finished\n");
@@ -252,7 +255,9 @@ int main(int argc, char **argv){
 	
 	t1 *= hdr->SampleRate / hdr->SPR;
 	t2 *= hdr->SampleRate / hdr->SPR;
-	if ((t1 - floor(t1)) || ( (t2 - floor(t2)) && (t2 < INF))) {
+	if (isnan(t1)) t1 = 0.0;
+	t2 = min(t2,hdr->NRec-t1);
+	if ( ( t1 - floor (t1) ) || ( ( t2 - floor(t2) ) && (t2 < INF) ) ) {
 		fprintf(stderr,"ERROR SAVE2GDF: cutting from parts of blocks not supported; t1 (%f) and t2 (%f) must be a multiple of block duration %f\n", t1,t2,hdr->SPR / hdr->SampleRate);
 		B4C_ERRNUM = B4C_UNSPECIFIC_ERROR;
 		B4C_ERRMSG = "blocks must not be split";
@@ -278,7 +283,7 @@ int main(int argc, char **argv){
     	}	
 
 #ifdef CHOLMOD_H
-        int flagREREF = hdr->Calib && hdr->rerefCHANNEL;
+        int flagREREF = hdr->Calib != NULL && hdr->rerefCHANNEL != NULL;
 #else
         int flagREREF = 0;
 #endif
@@ -359,23 +364,37 @@ int main(int argc, char **argv){
 	    	hdr->NRec *= asGCD;
 	    	for (k=0; k<hdr->NS; k++)
     			hdr->CHANNEL[k].SPR /= asGCD;
+		if (hdr->Calib) 
+		    	for (k=0; k<hdr->Calib->nrow; k++)
+	    			hdr->rerefCHANNEL[k].SPR /= asGCD;
     	}
 
    /********************************* 
    	re-referencing
     *********************************/
 
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"[199] %p %p\n",hdr->CHANNEL,hdr->rerefCHANNEL);
 #ifdef CHOLMOD_H
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"[199] %p %p\n",hdr->CHANNEL,hdr->rerefCHANNEL);
 
         if (hdr->Calib && hdr->rerefCHANNEL) {
-		hdr->NS = hdr->Calib->ncol; 
-                free(hdr->CHANNEL);
-                hdr->CHANNEL = hdr->rerefCHANNEL;
-                RerefCHANNEL(hdr,NULL,0);	// clear HDR.Calib und HDR.rerefCHANNEL
 	        if (VERBOSE_LEVEL>6) 
         	        hdr2ascii(hdr,stdout,3);
-        } else                
+
+		hdr->NS = hdr->Calib->ncol; 
+
+                free(hdr->CHANNEL);
+                hdr->CHANNEL = hdr->rerefCHANNEL;
+                hdr->rerefCHANNEL = NULL;
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"[200-]\n");
+
+//                RerefCHANNEL(hdr,NULL,0);	// clear HDR.Calib und HDR.rerefCHANNEL
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"[200+]\n");
+                hdr->Calib = NULL;
+
+	        if (VERBOSE_LEVEL>6) 
+        	        hdr2ascii(hdr,stdout,3);
+        } 
 #endif
 
    /********************************* 
@@ -445,7 +464,7 @@ int main(int argc, char **argv){
 		}
 		else if ((SOURCE_TYPE==GDF) && (TARGET_TYPE==GDF)) 
 			;
-		else if ((TARGET_TYPE==SCP_ECG) && !hdr->FLAG.UCAL) {
+		else if ((TARGET_TYPE==SCP_ECG || TARGET_TYPE==EDF ) && !hdr->FLAG.UCAL) {
 			double scale = PhysDimScale(hdr->CHANNEL[k].PhysDimCode) *1e9;
 			if (hdr->FLAG.ROW_BASED_CHANNELS) {
 				for (k1=0; k1<N; k1++)
