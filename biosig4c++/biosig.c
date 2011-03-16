@@ -7579,7 +7579,12 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 
 	    		else if (!strncmp(line,"X SetScale/P x,",15)) {
 	    			strtok(line,",");
-	    			strtok(NULL,",");
+	    			double TOffset = atof(strtok(NULL,","));
+				if (isnan(hdr->CHANNEL[ns].TOffset)) 
+					hdr->CHANNEL[ns].TOffset = TOffset;
+				else if (fabs(hdr->CHANNEL[ns].TOffset - TOffset) > 1e-12)
+					fprintf(stderr,"Warning TOffsets in channel #%i do not match (%f,%f)", ns, hdr->CHANNEL[ns].TOffset, TOffset);
+
 	    			double dur = atof(strtok(NULL,","));
 	    			char *p = strchr(line,'"');
 	    			if (p != NULL) {
@@ -7638,6 +7643,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 				hc->Transducer[0] = '\0';
 				hc->LowPass  = NaN;
 				hc->HighPass = NaN;
+				hc->TOffset  = NaN;
 				hc->PhysMax  = hc->Cal * hc->DigMax;
 				hc->PhysMin  = hc->Cal * hc->DigMin;
 				hc->PhysDimCode = 0;
