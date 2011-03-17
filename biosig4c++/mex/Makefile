@@ -44,8 +44,15 @@ ifneq ($(shell which matlab), )
   MEX         = $(MATLABDIR)mex
   MEX_EXT    := $(shell $(MATLABDIR)mexext)
 endif
-octVER        = # default
-OCT           = mkoctfile$(octVER)
+
+# Octave - local install (e.g. compiled from sources) 
+OCTAVE_VERSION 	= -3.4.0
+INCOCTAVE 	= -I /usr/local/include/octave$(OCTAVE_VERSION)/octave 
+# Octave - global install  (e.g. from debian package)
+OCTAVE_VERSION 	= 
+INCOCTAVE 	= -I /usr/include/octave 
+
+OCT           	= mkoctfile$(OCTAVE_VERSION)
 ##########################################################
 
 ../libbiosig.$(LIBEXT):
