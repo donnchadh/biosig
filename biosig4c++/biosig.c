@@ -3533,6 +3533,7 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
 					        NEWCHANNEL[i].GDFTYP      = hdr->CHANNEL[r].GDFTYP;
 				                NEWCHANNEL[i].Impedance   = fabs(v)*hdr->CHANNEL[r].Impedance;
 						NEWCHANNEL[i].OnOff       = 1;
+						NEWCHANNEL[i].LeadIdCode  = 0;
 						if (!flagLabelIsSet) memcpy(NEWCHANNEL[i].Label, hdr->CHANNEL[r].Label, MAX_LENGTH_LABEL);
 				                pix = 0;
 					}

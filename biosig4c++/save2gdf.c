@@ -506,7 +506,7 @@ int main(int argc, char **argv){
 	    		hdr->CHANNEL[k].DigMin = -hdr->CHANNEL[k].DigMax;
 			hdr->CHANNEL[k].PhysMax = MaxValueF;
 			hdr->CHANNEL[k].PhysMin = MinValueF;
-	    		hdr->CHANNEL[k].Cal = (hdr->CHANNEL[k].PhysMax - hdr->CHANNEL[k].PhysMin)/(2^16-1);
+	    		hdr->CHANNEL[k].Cal = (hdr->CHANNEL[k].PhysMax - hdr->CHANNEL[k].PhysMin) / (hdr->CHANNEL[k].DigMax - hdr->CHANNEL[k].DigMin);
 	    		hdr->CHANNEL[k].Off = hdr->CHANNEL[k].PhysMin - hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal;
 		}
 		else if ((hdr->CHANNEL[k].GDFTYP<10 ) && (TARGET_TYPE==GDF || TARGET_TYPE==CFWB)) {
