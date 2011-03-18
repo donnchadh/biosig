@@ -284,7 +284,6 @@ end;
 FlagLoaded = 0;
 if exist('mexSLOAD','file')==3,
 	try
-	abc_dsdf
 		valid_rerefmx = 1;
 		if ischar(CHAN)
 		        HDR = sopen(CHAN,'r'); HDR=sclose(HDR); 

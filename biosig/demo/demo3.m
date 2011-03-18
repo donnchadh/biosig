@@ -4,7 +4,7 @@
 % 
 
 %	$Id$
-%	Copyright (C) 2000-2005,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
+%	Copyright (C) 2000-2005,2006,2007,2008,2011 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 %    BioSig is free software: you can redistribute it and/or modify
@@ -39,13 +39,6 @@ HDR.TYPE='GDF';
 % set Filename
 HDR.FileName = ['TEST_',VER([1,3]),cname(1:3),'_e1.',HDR.TYPE];
 
-% person identification, max 80 char
-HDR.Patient.ID = 'P0000';	
-HDR.Patient.Sex = 'F';
-HDR.Patient.Birthday = [1951 05 13 0 0 0];
-HDR.Patient.Name = 'X';		% for privacy protection  
-HDR.Patient.Handedness = 0; 	% unknown, 1:left, 2:right, 3: equal
-
 % description of recording device 
 HDR.Manufacturer.Name = 'BioSig'; 
 HDR.Manufacturer.Model = 'demo3.m'; 
@@ -59,10 +52,11 @@ HDR.REC.Techician  = 'Mister Muster';
 HDR.REC.Equipment  = 'biosig';
 HDR.REC.IPaddr	   = [127,0,0,1];	% IP address of recording system 	
 HDR.Patient.Name   = 'anonymous';  
-HDR.Patient.Id     = '007';
+HDR.Patient.Id     = 'P0000';	
+HDR.Patient.Birthday = [1951 05 13 0 0 0];
 HDR.Patient.Weight = 0; 	% undefined 
 HDR.Patient.Height = 0; 	% undefined 
-HDR.Patient.Sex    = 0; 	% 0: undefined,	1: male, 2: female 
+HDR.Patient.Sex    = 'f'; 	% 0: undefined,	1: male, 2: female 
 HDR.Patient.Birthday = zeros(1,6); %    undefined 
 HDR.Patient.Impairment.Heart = 0;  %	0: unknown 1: NO 2: YES 3: pacemaker 
 HDR.Patient.Impairment.Visual = 0; %	0: unknown 1: NO 2: YES 3: corrected (with visual aid) 
