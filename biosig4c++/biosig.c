@@ -75,6 +75,13 @@ int B4C_STATUS  = 0;
 int B4C_ERRNUM  = 0;
 const char *B4C_ERRMSG;
 
+#ifdef WITH_CHOLMOD
+    #include <suitesparse/cholmod.h>
+#ifdef TEST_GLOBAL_CHOLMOD
+    cholmod_common CHOLMOD_COMMON_VAR;
+#endif
+#endif
+
 #ifndef VERBOSE_LEVEL
 int VERBOSE_LEVEL = 0;
 #endif
@@ -1983,12 +1990,16 @@ void destructHDR(HDRTYPE* hdr) {
 	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free HDR.rerefCHANNEL\n");
 
 #ifdef CHOLMOD_H
-        cholmod_common c ;
-        cholmod_start (&c) ; /* start CHOLMOD */
-        //if (hdr->Calib) cholmod_print_sparse(hdr->Calib,"destructHDR hdr->Calib",&c);
+#ifndef TEST_GLOBAL_CHOLMOD
+        cholmod_common CHOLMOD_COMMON_VAR ;
+        cholmod_start (&CHOLMOD_COMMON_VAR) ; /* start CHOLMOD */
+#endif
+        //if (hdr->Calib) cholmod_print_sparse(hdr->Calib,"destructHDR hdr->Calib",&CHOLMOD_COMMON_VAR);
 	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free hdr->Calib\n");
-	if (hdr->Calib) cholmod_free_sparse(&hdr->Calib,&c);
-        cholmod_finish (&c) ;
+	if (hdr->Calib) cholmod_free_sparse(&hdr->Calib, &CHOLMOD_COMMON_VAR);
+#ifndef TEST_GLOBAL_CHOLMOD
+        cholmod_finish (& CHOLMOD_COMMON_VAR) ;
+#endif
 	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free hdr->rerefCHANNEL %p\n",hdr->rerefCHANNEL);
 	if (hdr->rerefCHANNEL) free(hdr->rerefCHANNEL);
 	hdr->rerefCHANNEL = NULL;
@@ -3419,8 +3430,10 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
                 size_t i,j,k;
                 long r;
 		char flagLabelIsSet = 0; 
-                cholmod_common c ;
-                cholmod_start (&c) ; /* start CHOLMOD */
+#ifndef TEST_GLOBAL_CHOLMOD
+                cholmod_common CHOLMOD_COMMON_VAR;
+                cholmod_start (&CHOLMOD_COMMON_VAR) ; /* start CHOLMOD */
+#endif
 
                 switch (Mode) {
                 case 1: {
@@ -3442,13 +3455,16 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
 
                 if ((ReRef==NULL) || !Mode) {
                         // reset rereferencing
+	// TODO: deleting of (cholmod_sparse*) hdr->Calib can cause seg-fault - check why 
         		if (hdr->Calib != NULL)
-				 cholmod_free_sparse(&hdr->Calib,&c);
+				 cholmod_free_sparse(&hdr->Calib, &CHOLMOD_COMMON_VAR);
 
                         hdr->Calib = ReRef;
         		if (hdr->rerefCHANNEL) free(hdr->rerefCHANNEL);
         		hdr->rerefCHANNEL = NULL;
-                        cholmod_finish (&c) ;
+#ifndef TEST_GLOBAL_CHOLMOD
+                        cholmod_finish (&CHOLMOD_COMMON_VAR) ;
+#endif
         	        return(0);
                 }
                 cholmod_sparse *A = ReRef;
@@ -3459,19 +3475,23 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
                 if (NS - A->nrow) {
                         B4C_ERRNUM = B4C_REREF_FAILED;
                         B4C_ERRMSG = "Error REREF_CHAN: size of data does not fit ReRef-matrix";
-                        cholmod_finish (&c) ;
+#ifndef TEST_GLOBAL_CHOLMOD
+                        cholmod_finish (&CHOLMOD_COMMON_VAR) ;
+#endif
                         return(1);
                 }
 
                 // allocate memory
 		if (hdr->Calib != NULL)
-                        cholmod_free_sparse(&hdr->Calib,&c);
+                        cholmod_free_sparse(&hdr->Calib, &CHOLMOD_COMMON_VAR);
 
 		if (VERBOSE_LEVEL>8) {
-			c.print = 5;
-			cholmod_print_sparse(ReRef,"HDR.Calib", &c);
+			CHOLMOD_COMMON_VAR.print = 5;
+			cholmod_print_sparse(ReRef,"HDR.Calib", &CHOLMOD_COMMON_VAR);
 		}
-                cholmod_finish (&c) ;        // stop cholmod
+#ifndef TEST_GLOBAL_CHOLMOD
+                cholmod_finish (&CHOLMOD_COMMON_VAR) ;		// stop cholmod
+#endif
 
                 hdr->Calib = ReRef;
                 if (hdr->rerefCHANNEL==NULL)
@@ -8725,14 +8745,18 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 		if (VERBOSE_LEVEL>7) fprintf(stdout,"[MM 033]\n");
 
 		ifseek(hdr,0,SEEK_SET);
-                cholmod_common c ;
-                cholmod_start (&c) ; /* start CHOLMOD */
-                c.print = 5;
-                hdr->Calib = cholmod_read_sparse (hdr->FILE.FID, &c); /* read in a matrix */
+#ifndef TEST_GLOBAL_CHOLMOD
+                cholmod_common CHOLMOD_COMMON_VAR ;
+                cholmod_start (&CHOLMOD_COMMON_VAR) ; /* start CHOLMOD */
+#endif
+                CHOLMOD_COMMON_VAR.print = 5;
+                hdr->Calib = cholmod_read_sparse (hdr->FILE.FID, &CHOLMOD_COMMON_VAR); /* read in a matrix */
 
                 if (VERBOSE_LEVEL>7)
-                        cholmod_print_sparse (hdr->Calib, "Calib", &c); /* print the matrix */
-                cholmod_finish (&c) ; /* finish CHOLMOD */
+                        cholmod_print_sparse (hdr->Calib, "Calib", &CHOLMOD_COMMON_VAR); /* print the matrix */
+#ifndef TEST_GLOBAL_CHOLMOD
+                cholmod_finish (&CHOLMOD_COMMON_VAR) ; /* finish CHOLMOD */
+#endif
 
 		ifclose(hdr);
 		if (VERBOSE_LEVEL>7) fprintf(stdout,"[MM 999]\n");
@@ -11421,12 +11445,15 @@ int V = VERBOSE_LEVEL;
 
 			double alpha[]={1,0},beta[]={0,0};
 
-                        cholmod_common c ;
-                        cholmod_start (&c) ; // start CHOLMOD
+#ifndef TEST_GLOBAL_CHOLMOD
+                        cholmod_common CHOLMOD_COMMON_VAR ;
+                        cholmod_start (&CHOLMOD_COMMON_VAR) ; // start CHOLMOD
+#endif
 
-			cholmod_sdmult(hdr->Calib,1,alpha,beta,&X,&Y,&c);
-                        cholmod_finish (&c) ; /* finish CHOLMOD */
-
+			cholmod_sdmult(hdr->Calib,1,alpha,beta,&X,&Y,&CHOLMOD_COMMON_VAR);
+#ifndef TEST_GLOBAL_CHOLMOD
+                        cholmod_finish (&CHOLMOD_COMMON_VAR) ; /* finish CHOLMOD */
+#endif
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"%f -> %f\n",*(double*)X.x,*(double*)Y.x);
 			free(X.x);
 			if (data==NULL)

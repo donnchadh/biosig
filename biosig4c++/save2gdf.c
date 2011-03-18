@@ -68,6 +68,9 @@ int main(int argc, char **argv){
     cholmod_sparse *rr  = NULL; 
     char        *rrFile = NULL;
     int refarg          = 0;
+#ifdef TEST_GLOBAL_CHOLMOD
+    cholmod_start (&CHOLMOD_COMMON_VAR) ; /* start CHOLMOD */
+#endif
 #endif 
 	
     for (k=1; k<argc; k++) {
@@ -92,7 +95,7 @@ int main(int argc, char **argv){
 		fprintf(stdout,"   -v, --version\n\tprints version information\n");
 		fprintf(stdout,"   -h, --help   \n\tprints this information\n");
 #ifdef T1T2
-		fprintf(stdout,"   [t1,t2]\n\tstart and end time in seconds (do not use any spaces). \n");
+		fprintf(stdout,"   [t0,dt]\n\tstart time and duriation in seconds (do not use any spaces). \n");
 		fprintf(stdout,"\tTHIS FEATURE IS CURRENTLY EXPERIMENTAL !!!\n");
 #endif
 #ifdef CHOLMOD_H
@@ -256,8 +259,9 @@ int main(int argc, char **argv){
 	t1 *= hdr->SampleRate / hdr->SPR;
 	t2 *= hdr->SampleRate / hdr->SPR;
 	if (isnan(t1)) t1 = 0.0;
-	t2 = min(t2,hdr->NRec-t1);
-	if ( ( t1 - floor (t1) ) || ( ( t2 - floor(t2) ) && (t2 < INF) ) ) {
+	if (t2+t1 > hdr->NRec) t2 = hdr->NRec - t1;
+
+	if ( ( t1 - floor (t1) ) || ( t2 - floor(t2) ) ) {
 		fprintf(stderr,"ERROR SAVE2GDF: cutting from parts of blocks not supported; t1 (%f) and t2 (%f) must be a multiple of block duration %f\n", t1,t2,hdr->SPR / hdr->SampleRate);
 		B4C_ERRNUM = B4C_UNSPECIFIC_ERROR;
 		B4C_ERRMSG = "blocks must not be split";
@@ -299,6 +303,8 @@ int main(int argc, char **argv){
 	if (VERBOSE_LEVEL>7) 
 		fprintf(stdout,"\n[123] SREAD [%f,%f].\n",t1,t2);
 
+
+	if (t2+t1 > hdr->NRec) t2 = hdr->NRec - t1;
 	if (dest != NULL)
 		count = sread(NULL, t1, t2, hdr);
 
@@ -373,7 +379,6 @@ int main(int argc, char **argv){
    	re-referencing
     *********************************/
 
-	if (VERBOSE_LEVEL>7) fprintf(stdout,"[199] %p %p\n",hdr->CHANNEL,hdr->rerefCHANNEL);
 #ifdef CHOLMOD_H
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"[199] %p %p\n",hdr->CHANNEL,hdr->rerefCHANNEL);
 
@@ -386,9 +391,12 @@ int main(int argc, char **argv){
                 free(hdr->CHANNEL);
                 hdr->CHANNEL = hdr->rerefCHANNEL;
                 hdr->rerefCHANNEL = NULL;
+
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"[200-]\n");
 
-//                RerefCHANNEL(hdr,NULL,0);	// clear HDR.Calib und HDR.rerefCHANNEL
+	// TODO: deleting of (cholmod_sparse*) hdr->Calib can cause seg-fault - check why 
+        RerefCHANNEL(hdr,NULL,0);	// clear HDR.Calib und HDR.rerefCHANNEL
+
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"[200+]\n");
                 hdr->Calib = NULL;
 
@@ -424,6 +432,10 @@ int main(int argc, char **argv){
 	
 		double MaxValue;
 		double MinValue;
+		double MaxValueF;
+		double MinValueF;
+		double MaxValueD;
+		double MinValueD;
 		if (hdr->FLAG.ROW_BASED_CHANNELS) {
 			MaxValue = hdr->data.block[k2];
 			MinValue = hdr->data.block[k2];
@@ -444,27 +456,33 @@ int main(int argc, char **argv){
 		}
 
 		if (!hdr->FLAG.UCAL) {
-			MaxValue = (MaxValue - hdr->CHANNEL[k].Off)/hdr->CHANNEL[k].Cal;
-			MinValue = (MinValue - hdr->CHANNEL[k].Off)/hdr->CHANNEL[k].Cal;
+			if (PhysMaxValue0 < val) PhysMaxValue0 = val;
+			if (PhysMinValue0 > val) PhysMinValue0 = val;
+			MaxValueF = MaxValue;
+			MinValueF = MinValue;
+			MaxValueD = (MaxValue - hdr->CHANNEL[k].Off) / hdr->CHANNEL[k].Cal;
+			MinValueD = (MinValue - hdr->CHANNEL[k].Off) / hdr->CHANNEL[k].Cal;
+		} 
+		else {
+			MaxValueF = MaxValue * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
+			if (PhysMaxValue0 < MaxValueF) PhysMaxValue0 = MaxValueF;
+			MinValueF = MinValue * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
+			if (PhysMinValue0 > MinValue) PhysMinValue0 = MinValueF;
 		}
-		val = MaxValue * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
-		if (PhysMaxValue0 < val) PhysMaxValue0 = val;
-		val = MinValue * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
-		if (PhysMinValue0 > val) PhysMinValue0 = val;
 
 		if ((SOURCE_TYPE==alpha) && (hdr->CHANNEL[k].GDFTYP==(255+12)) && (TARGET_TYPE==GDF)) 
 			// 12 bit into 16 bit 
 			; //hdr->CHANNEL[k].GDFTYP = 3;
 		else if ((SOURCE_TYPE==ETG4000) && (TARGET_TYPE==GDF)) {
 			hdr->CHANNEL[k].GDFTYP  = 16;
-			hdr->CHANNEL[k].PhysMax = MaxValue * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
-			hdr->CHANNEL[k].PhysMin = MinValue * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
-			hdr->CHANNEL[k].DigMax  = MaxValue;
-			hdr->CHANNEL[k].DigMin  = MinValue;
+			hdr->CHANNEL[k].PhysMax = MaxValueF;
+			hdr->CHANNEL[k].PhysMin = MinValueF;
+			hdr->CHANNEL[k].DigMax  = MaxValueD;
+			hdr->CHANNEL[k].DigMin  = MinValueD;
 		}
 		else if ((SOURCE_TYPE==GDF) && (TARGET_TYPE==GDF)) 
 			;
-		else if ((TARGET_TYPE==SCP_ECG || TARGET_TYPE==EDF ) && !hdr->FLAG.UCAL) {
+		else if (TARGET_TYPE==SCP_ECG && !hdr->FLAG.UCAL) {
 			double scale = PhysDimScale(hdr->CHANNEL[k].PhysDimCode) *1e9;
 			if (hdr->FLAG.ROW_BASED_CHANNELS) {
 				for (k1=0; k1<N; k1++)
@@ -476,11 +494,20 @@ int main(int argc, char **argv){
 			}
 	    		hdr->CHANNEL[k].GDFTYP = 3;
 	    		hdr->CHANNEL[k].PhysDimCode = 4276;	// nV
-	    		hdr->CHANNEL[k].DigMax = 2^15-1;
+	    		hdr->CHANNEL[k].DigMax = ldexp(1.0,15)-1.0;
 	    		hdr->CHANNEL[k].DigMin = -hdr->CHANNEL[k].DigMax;
 			double PhysMax = max(fabs(PhysMaxValue0),fabs(PhysMinValue0)) * scale;
 	    		hdr->CHANNEL[k].PhysMax = PhysMax;
 	    		hdr->CHANNEL[k].PhysMin = -PhysMax;
+		}
+		else if (TARGET_TYPE==EDF) {
+	    		hdr->CHANNEL[k].GDFTYP = 3;
+	    		hdr->CHANNEL[k].DigMax = ldexp(1.0,15)-1.0;
+	    		hdr->CHANNEL[k].DigMin = -hdr->CHANNEL[k].DigMax;
+			hdr->CHANNEL[k].PhysMax = MaxValueF;
+			hdr->CHANNEL[k].PhysMin = MinValueF;
+	    		hdr->CHANNEL[k].Cal = (hdr->CHANNEL[k].PhysMax - hdr->CHANNEL[k].PhysMin)/(2^16-1);
+	    		hdr->CHANNEL[k].Off = hdr->CHANNEL[k].PhysMin - hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal;
 		}
 		else if ((hdr->CHANNEL[k].GDFTYP<10 ) && (TARGET_TYPE==GDF || TARGET_TYPE==CFWB)) {
 			/* heuristic to determine optimal data type */
@@ -544,6 +571,10 @@ int main(int argc, char **argv){
 	sclose(hdr);
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"[241] SCLOSE finished\n");
 	destructHDR(hdr);
+
+#ifdef TEST_GLOBAL_CHOLMOD
+        cholmod_finish (&CHOLMOD_COMMON_VAR) ;
+#endif
 	exit(serror()); 
 }
 
