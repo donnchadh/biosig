@@ -253,7 +253,7 @@ void mexFunction(
 			rr = sputil_get_sparse(arg,&RR,&dummy,0);
 		}
 #endif 
-		else if (mxIsNumeric(arg)) {
+		else if ((k==1) && mxIsNumeric(arg)) {
 #ifdef DEBUG		
 			mexPrintf("arg[%i] IsNumeric\n",k);
 #endif

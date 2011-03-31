@@ -235,15 +235,10 @@ char *IgorChanLabel(char *inLabel, HDRTYPE *hdr, size_t *ngroup, size_t *nseries
 }
 
 
-int sopen_zzztest(HDRTYPE* hdr) {
+int sopen_heka(HDRTYPE* hdr, FILE *itx) {
 	size_t count = hdr->HeadLen;
 
-	if (0) {
-
-	}
-
-	else if (hdr->TYPE==HEKA && hdr->VERSION == 2) {
-
+	if (hdr->TYPE==HEKA && hdr->VERSION > 0) {
 
 /* TODO:
 	+ support for resampling (needed by mexSLOAD, SigViewer, save2gdf)
@@ -304,7 +299,14 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 114\n");
 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 121 nItems=%i\n",nItems);
 
-		if (hdr->VERSION == 2)
+		if (hdr->VERSION == 1) {
+			Sizes.Rec.Root   = 544;
+			Sizes.Rec.Group  = 128;
+			Sizes.Rec.Series = 1120;
+			Sizes.Rec.Sweep  = 160;
+			Sizes.Rec.Root   = 296;
+		}
+		else if (hdr->VERSION == 2)
 		for (k=0; k < min(12,nItems); k++) {
 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 131 nItems=%i\n",k);
@@ -380,7 +382,8 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 989: \n");
 		char flagModifiedTraceHeaders = 0;
 		double t;
 		size_t pos;
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 995\n");
+
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 995 %i %i \n",StartOfPulse, Sizes.Rec.Root);
 
 		// read K1
 		if (SWAP) {
@@ -710,6 +713,22 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%
 		}
 #undef _BI
 
+		char *WAVENAME = NULL; 
+		if (itx) {
+			fprintf(itx, "IGOR\r\nX Silent 1\r\n");
+			char *fn = strrchr(hdr->FileName,'\\');
+			if (fn) fn++;
+			else fn = strrchr(hdr->FileName,'/');
+			if (fn) fn++;
+			else fn = hdr->FileName;
+
+			size_t len = strspn(fn,"."); 
+			WAVENAME = malloc(strlen(hdr->FileName)+7);
+			if (len) 
+				strncpy(WAVENAME, fn, len); 
+			else 
+				strcpy(WAVENAME, fn); 
+		}
 
 if (VERBOSE_LEVEL>7) hdr2ascii(hdr,stdout,4);
 
@@ -764,7 +783,9 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L3 @%i=\t%i/%i %i/%i %i/%i sel=%i\n",p
 						uint32_t ns      = (*(uint32_t*)(hdr->AS.Header+pos+36));
 						uint32_t DataPos = (*(uint32_t*)(hdr->AS.Header+pos+40));
 						spr              = (*(uint32_t*)(hdr->AS.Header+pos+44));
-						//uint16_t pdc     = PhysDimCode((char*)(hdr->AS.Header + pos + 96));
+						double Toffset   = (*(double*)(hdr->AS.Header+pos+80));		// time offset of 
+						uint16_t pdc     = PhysDimCode((char*)(hdr->AS.Header + pos + 96));
+						char *physdim    = (char*)(hdr->AS.Header + pos + 96);
 						uint64_t dT_i    = *(uint64_t*)(hdr->AS.Header+pos+104);
 						double YRange    = (*(double*)(hdr->AS.Header+pos+128));
 						double YOffset   = (*(double*)(hdr->AS.Header+pos+136));
@@ -790,7 +811,8 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L3 @%i=\t%i/%i %i/%i %i/%i sel=%i\n",p
 							*(uint64_t*)&PhysMax = bswap_64(*(uint64_t*)&PhysMax);
 							*(uint64_t*)&PhysMin = bswap_64(*(uint64_t*)&PhysMin);
  						}
-                                                double Fs  = round(1.0 / *(double*)(&dT_i));
+						double dT = *(double*)(&dT_i);
+                                                double Fs  = round(1.0 / dT);
 						DIV = round(hdr->SampleRate / Fs);
 
 						char *Label = (char*)(hdr->AS.Header+pos+4);
@@ -806,6 +828,32 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L4 @%i= #%i,%i,%i/%i %s\t%i/%i %i/%i %
 #else
 #define _BI (hc->bi)
 #endif
+						if (itx) {
+							uint32_t k5;
+							fprintf(itx, "\r\nWAVES %s_%i_%i_%i_%i\r\nBEGIN\r\n", WAVENAME,k1+1,k2+1,k3+1,k4+1);
+							switch (hc->GDFTYP) {
+							case 3:  
+								for (k5 = 0; k5 < spr; ++k5)
+									fprintf(itx,"%i\n", *(int16_t*)(hdr->AS.Header + DataPos + k5 * 2));
+								break;
+							case 5:
+								for (k5 = 0; k5 < spr; ++k5)
+									fprintf(itx,"%i\n", *(int32_t*)(hdr->AS.Header + DataPos + k5 * 4));
+								break;
+							case 16: 
+								for (k5 = 0; k5 < spr; ++k5)
+									fprintf(itx,"%e\n", *(int32_t*)(hdr->AS.Header + DataPos + k5 * 4));
+								break;
+							case 17: 
+								for (k5 = 0; k5 < spr; ++k5)
+									fprintf(itx,"%e\n", *(int32_t*)(hdr->AS.Header + DataPos + k5 * 8));
+								break;
+							}
+							fprintf(itx, "END\r\nX SetScale/P x, %g, %g, \"s\", %s_%i_%i_%i_%i\r\n", Toffset, dT, WAVENAME, k1+1,k2+1,k3+1,k4+1);
+							fprintf(itx, "X SetScale y,0,0,\"%s\", %s_%i_%i_%i_%i\n", physdim, WAVENAME, k1+1,k2+1,k3+1,k4+1);
+						}	
+
+
 						double *data = (double*)hdr->AS.rawdata;
 						// no need to check byte order because File.Endian is set and endian conversion is done in sread
 						if ((DIV==1) && (gdftyp == hc->GDFTYP))	{
@@ -826,9 +874,6 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L4 @%i= #%i,%i,%i/%i %s\t%i/%i %i/%i %
 								case 3: 
 									for (k5 = 0; k5 < spr; ++k5) {
 										int16_t ival = *(int16_t*)(hdr->AS.Header + DataPos + k5 * 2);
-
-if (VERBOSE_LEVEL>8) fprintf(stdout,"HEKA re-arrange data: [%i,%i,%i,%i] %i,%i,%i,@%i,@%i = %i\n",k1,k2,k3,k4,DIV,k5,k6,DataPos + k5 * 2,_BI + (SPR + k5*DIV + k6) * 2, ival);
-
 										for (k6 = 0; k6 < DIV; ++k6) 
 											*(int16_t*)(hdr->AS.rawdata + _BI + (SPR + k5*DIV + k6) * 2) = ival;
 									}
@@ -914,6 +959,7 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"HEKA re-arrange data: [%i,%i,%i,%i] %i,%i,%
 						}
 #undef _BI
 						pos += Sizes.Rec.Trace+4;
+
 					}
 					if (flagSweepSelected) SPR += spr * DIV;
 				}
@@ -933,8 +979,12 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"HEKA re-arrange data: [%i,%i,%i,%i] %i,%i,%
 		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 		B4C_ERRMSG = "Heka/Patchmaster format has unsupported version number.";
         }
+}
 
-	else if (hdr->TYPE==ITX) {
+int sopen_zzztest(HDRTYPE* hdr) {
+	size_t count = hdr->HeadLen;
+
+	if (hdr->TYPE==ITX) {
 
 		fprintf(stdout,"Warning: support for ITX is very experimental\n");
 

@@ -103,6 +103,7 @@ int sopen_trc_read   (HDRTYPE* hdr);
 int sopen_unipro_read   (HDRTYPE* hdr);
 int sopen_eeprobe(HDRTYPE* hdr);
 int sopen_fef_read(HDRTYPE* hdr);
+int sopen_heka(HDRTYPE* hdr,FILE *fid);
 int sclose_fef_read(HDRTYPE* hdr);
 int sopen_zzztest(HDRTYPE* hdr);
 #ifdef WITH_DICOM
@@ -7552,7 +7553,12 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
     		// HEKA PatchMaster file format
 		hdr->HeadLen = count;
 
-    		sopen_zzztest(hdr);
+		FILE *itx = fopen((char*)hdr->aECG, "w");
+		hdr->aECG = NULL; 	// reset auxillary pointer
+		
+    		sopen_heka(hdr, itx);
+
+		if (itx) fclose(itx);
 
 	}
 

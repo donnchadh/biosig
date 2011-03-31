@@ -421,7 +421,7 @@ typedef struct {
 		char*		bci2000;
 	} AS ATT_ALI;
 
-	void *aECG;
+	void *aECG;				/* used as an pointer to (non-standard) auxilary information - mostly used for hacks */
 
 } HDRTYPE;
 

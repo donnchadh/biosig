@@ -104,7 +104,7 @@ int main(int argc, char **argv){
 		fprintf(stdout,"   -cnt32\n\tmust be set for reading 32 bit CNT files\n");
 		fprintf(stdout,"   -f=FMT  \n\tconverts data into format FMT\n");
 		fprintf(stdout,"\tFMT must represent a valid target file format\n"); 
-		fprintf(stdout,"\tCurrently are supported: HL7aECG, SCP_ECG (EN1064), GDF, EDF, BDF, CFWB, BIN, ASCII, BVA (BrainVision)\n"); 
+		fprintf(stdout,"\tCurrently are supported: HL7aECG, SCP_ECG (EN1064), GDF, EDF, BDF, CFWB, BIN, ASCII, BVA (BrainVision)\n\tas well as HEKA v2 -> ITX\n"); 
 		fprintf(stdout,"   -z=#, -z#\n\t# indicates the compression level (#=0 no compression; #=9 best compression, default #=1)\n");
 		fprintf(stdout,"   -s=#\tselect target segment # (in the multisegment file format EEG1100)\n");
 		fprintf(stdout,"   -SWEEP=ne,ng,ns\n\tsweep selection of HEKA/PM files\n\tne,ng, and ns select the number of experiment, the number of group, and the sweep number, resp.\n");
@@ -161,6 +161,8 @@ int main(int argc, char **argv){
 			TARGET_TYPE=SCP_ECG;
 //    		else if (!strncmp(argv[k],"-f=TMSi",7))
 //			TARGET_TYPE=TMSiLOG;
+    		else if (!strncmp(argv[k],"-f=ITX",6))
+			TARGET_TYPE=ITX;
 		else {
 			fprintf(stderr,"format %s not supported.\n",argv[k]);
 			return(-1);
@@ -234,12 +236,21 @@ int main(int argc, char **argv){
 	}
 
 	hdr->FileName = source;
+	if (TARGET_TYPE==ITX) {
+		// hack: HEKA->ITX conversion will be done in SOPEN	
+		hdr->aECG = dest;
+	}
+
 	hdr = sopen(source, "r", hdr);
+	if (hdr->TYPE==HEKA) {
+		// hack: HEKA->ITX conversion is already done in SOPEN	
+		dest = NULL; 
+	}
 #ifdef WITH_PDP 
 	if (B4C_ERRNUM) {
 		B4C_ERRNUM = 0;  
 		sopen_pdp_read(hdr);
-	}	
+	}
 #endif
 #ifdef CHOLMOD_H
 	if (refarg > 0) {
