@@ -8824,9 +8824,10 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 				val[0] = 0;
 				while (isspace(*(++val))) {};
 
-				if (!strncmp(t,"Data", 7))
+				if (!strncmp(t,"Data", 7)) {
 					status=2;
-
+					spr = 0;
+				}
 				else if (!strcmp(t,"SampleInt"))
 					hdr->SampleRate = 1.0 / atof(val);
 
@@ -8850,12 +8851,23 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 				}
 			}
 			else if (status==2) {
-				*(double*)(hdr->AS.rawdata + spr*sizeof(double)) = atof(t);
+				if (strpbrk(t,"0123456789")) {
+					// ignore non-numeric (e.g. emtpy) lines
+					*(double*)(hdr->AS.rawdata + spr*sizeof(double)) = atof(t);
+					spr++;
+				}
+				if (spr >= hdr->NRec) {
+					void *ptr = realloc(hdr->AS.rawdata, 2 * min(spr, hdr->NRec) * sizeof(double));
+					if (ptr==NULL) break; 
+					hdr->AS.rawdata = ptr; 
+				}
 			}
 			t = strtok(NULL, "\x0A\x0D");
 		}
 		free(hdr->AS.Header); 
 		hdr->AS.Header = NULL;
+		hdr->AS.first  = 0;
+		hdr->AS.length = spr;
 	}
 
 
