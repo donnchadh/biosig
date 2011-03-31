@@ -235,23 +235,30 @@ int main(int argc, char **argv){
 		} while (argsweep[0]==',' && (k < 5) );
 	}
 
-	hdr->FileName = source;
+	// HEKA2ITX hack
 	if (TARGET_TYPE==ITX) {
 		// hack: HEKA->ITX conversion will be done in SOPEN	
 		hdr->aECG = dest;
 	}
 
+	hdr->FileName = source;
 	hdr = sopen(source, "r", hdr);
-	if (hdr->TYPE==HEKA) {
-		// hack: HEKA->ITX conversion is already done in SOPEN	
-		dest = NULL; 
-	}
 #ifdef WITH_PDP 
 	if (B4C_ERRNUM) {
 		B4C_ERRNUM = 0;  
 		sopen_pdp_read(hdr);
 	}
 #endif
+	// HEKA2ITX hack
+	if (hdr->TYPE==HEKA) {
+		// hack: HEKA->ITX conversion is already done in SOPEN	
+		dest = NULL; 
+	} 
+	else if (TARGET_TYPE==ITX) {
+                fprintf(stdout,"error: only HEKA->ITX is supported - source file is not HEKA file");
+		B4C_ERRNUM = B4C_UNSPECIFIC_ERROR;
+	}
+
 #ifdef CHOLMOD_H
 	if (refarg > 0) {
     	        rrFile = strchr(argv[refarg], '=') + 1;

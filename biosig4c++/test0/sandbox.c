@@ -830,23 +830,25 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L4 @%i= #%i,%i,%i/%i %s\t%i/%i %i/%i %
 #endif
 						if (itx) {
 							uint32_t k5;
+							double Cal = hdr->CHANNEL[ns].Cal;
+							double Off = hdr->CHANNEL[ns].Off;
 							fprintf(itx, "\r\nWAVES %s_%i_%i_%i_%i\r\nBEGIN\r\n", WAVENAME,k1+1,k2+1,k3+1,k4+1);
 							switch (hc->GDFTYP) {
 							case 3:  
 								for (k5 = 0; k5 < spr; ++k5)
-									fprintf(itx,"%i\n", *(int16_t*)(hdr->AS.Header + DataPos + k5 * 2));
+									fprintf(itx,"% e\n", (double)*(int16_t*)(hdr->AS.Header + DataPos + k5 * 2) * Cal + Off);
 								break;
 							case 5:
 								for (k5 = 0; k5 < spr; ++k5)
-									fprintf(itx,"%i\n", *(int32_t*)(hdr->AS.Header + DataPos + k5 * 4));
+									fprintf(itx,"% e\n", (double)*(int32_t*)(hdr->AS.Header + DataPos + k5 * 4) * Cal + Off);
 								break;
 							case 16: 
 								for (k5 = 0; k5 < spr; ++k5)
-									fprintf(itx,"%e\n", *(int32_t*)(hdr->AS.Header + DataPos + k5 * 4));
+									fprintf(itx,"% e\n", (double)*(float*)(hdr->AS.Header + DataPos + k5 * 4) * Cal + Off);
 								break;
 							case 17: 
 								for (k5 = 0; k5 < spr; ++k5)
-									fprintf(itx,"%e\n", *(int32_t*)(hdr->AS.Header + DataPos + k5 * 8));
+									fprintf(itx,"% e\n", *(double*)(hdr->AS.Header + DataPos + k5 * 8) * Cal + Off);
 								break;
 							}
 							fprintf(itx, "END\r\nX SetScale/P x, %g, %g, \"s\", %s_%i_%i_%i_%i\r\n", Toffset, dT, WAVENAME, k1+1,k2+1,k3+1,k4+1);
