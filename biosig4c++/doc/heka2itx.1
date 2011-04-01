@@ -1,0 +1,38 @@
+.TH HEKA2ITX 1
+.SH NAME
+heka2itx - converts different biomedical signal file formats. 
+
+.SH SYNOPSIS	
+.R heka2itx\  [OPTIONS]\  SOURCE\  [DEST]
+
+
+.SH DESCRIPTION 
+ SOURCE is the source file 
+ DEST is the destination file 
+ Supported OPTIONS are:
+ -v, --version
+ 	prints version information
+ -h, --help   
+ 	prints this information
+ -SWEEP=ne,ng,ns [OPTIONAL]
+	select sweep ns from group ng from exeripment ne
+        0 indicates a wildcard. 
+ -VERBOSE=#, verbosity level #
+ 	0=silent, 9=debugging
+	
+.SH AUTHOR
+Alois Schloegl 
+	
+.SH REPORTING BUGS 
+Report bugs to <biosig-general@lists.sourceforge.net>
+	
+.SH COPYRIGHT
+Copyright (C) 2008,2011,2011 Alois Schloegl   
+License GPLv3+:  GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This  is  free  software:  you  are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+.SH RESOURCES
+http://biosig.sf.net	
+	
+	

@@ -80,8 +80,14 @@ ifneq ($(shell which matlab), )
   MEX         = $(MATLABDIR)mex
   MEX_EXT    := $(shell $(MATLABDIR)mexext)
 endif
-octVER        = # default
-OCT           = mkoctfile$(octVER)
+
+# Octave - global install  (e.g. from debian package)
+OCTAVE_VERSION = 
+INCOCTAVE = -I /usr/include/octave 
+# Octave - local install (e.g. compiled from sources) 
+OCTAVE_VERSION = -3.4.0
+INCOCTAVE = -I /usr/local/include/octave$(OCTAVE_VERSION)/octave 
+OCT           = mkoctfile$(OCTAVE_VERSION)
 ##########################################################
 
 ##########################################################
@@ -95,13 +101,19 @@ PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
 ##
 CROSS	     = i586-mingw32msvc-
 CROSS	     = $(PathToMinGW)/usr/bin/i686-pc-mingw32-
-CROSS64	     = $(PathToMinGW64)/usr/bin/x86_64-w64-mingw32-
 MinGWCC      = $(CROSS)gcc
 MinGWCXX     = $(CROSS)g++
 MinGWDEF     = -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_CHOLMOD -D=WITH_ZLIB #-D=WITH_FEF #-D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE
 MinGWCFLAGS  = -pipe -fPIC -O2 -D_REENTRANT -D=BUILD_DLL $(MinGWDEF) -I$(PathToMinGW)/usr/i686-pc-mingw32/include/
 MinGWLIBS    = win32/libbiosig.a -L$(PathToMinGW)/usr/i686-pc-mingw32/lib/ -lz -lws2_32 $(LDLIBS) # static
 MinGWLINK    = $(MinGWCXX)
+
+CROSS64	     = $(PathToMinGW64)/usr/bin/x86_64-w64-mingw32-
+MinGW64CC      = $(CROSS64)gcc
+MinGW64CXX     = $(CROSS64)g++
+MinGW64CFLAGS  = -pipe -fPIC -O2 -D_REENTRANT -D=BUILD_DLL $(MinGWDEF) -I$(PathToMinGW64)/usr/x86_64-w64-mingw32/include/
+MinGW64LIBS    = win64/libbiosig.a -L$(PathToMinGW64)/usr/x86_64-w64-mingw32/lib/ -lz -lws2_32 $(LDLIBS) # static
+MinGW64LINK    = $(MinGW64CXX)
 ##########################################################
 
 # Versioning
@@ -174,8 +186,9 @@ MinGWOBJECTS  = \
 		win32/biosig-network.obj \
 		win32/sandbox.obj \
 
+MinGW64OBJECTS  = $(patsubst win32/%.obj, win64/%.obj, $(MinGWOBJECTS))
 
-TARGET        = save2gdf save2aecg save2scp libbiosig.a mex4o 
+TARGET = save2gdf 
 
 first: $(TARGET)
 all:   $(TARGET) mex4o biosig4python win32 biosig_client biosig_server mma java tcl perl php ruby #sigviewer 
@@ -228,6 +241,21 @@ win32/%.obj: test0/%.c  biosig-dev.h biosig.h
 win32/%.obj: XMLParser/%.cpp 
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
 
+win64/%.obj: %.c  biosig-dev.h biosig.h 
+	$(MinGW64CC) -c $(MinGW64CFLAGS) $(INCPATH) -o "$@" "$<"
+win64/%.obj: t210/%.c  biosig-dev.h biosig.h 
+	$(MinGW64CC) -c $(MinGW64CFLAGS) $(INCPATH) -o "$@" "$<"
+win64/%.obj: t220/%.c  biosig-dev.h biosig.h 
+	$(MinGW64CC) -c $(MinGW64CFLAGS) $(INCPATH) -o "$@" "$<"
+win64/%.obj: t230/%.c  biosig-dev.h biosig.h 
+	$(MinGW64CC) -c $(MinGW64CFLAGS) $(INCPATH) -o "$@" "$<"
+win64/%.obj: t240/%.c  biosig-dev.h biosig.h 
+	$(MinGW64CC) -c $(MinGW64CFLAGS) -I t240 $(INCPATH) -o "$@" "$<"
+win64/%.obj: test0/%.c  biosig-dev.h biosig.h 
+	$(MinGW64CC) -c $(MinGW64CFLAGS) -I t240 $(INCPATH) -o "$@" "$<"
+win64/%.obj: XMLParser/%.cpp 
+	$(MinGW64CXX) -c $(MinGW64CFLAGS) $(INCPATH) -o "$@" "$<"
+
 
 #############################################################
 #	event table: conversion from ascii to C code
@@ -258,6 +286,14 @@ win32/libGDF.a: $(libGDFwin32obj)
 	$(CROSS)$(AR) "$@" $(libGDFwin32obj)
 	
 
+win64/%.obj : ../libgdf/libgdf/src/%.cpp
+	$(CROSS64)$(CXX) -I../libgdf/libgdf/include -c "$<" -o "$@"
+
+win64/libGDF.a: $(libGDFwin64obj)
+	-$(DELETE) "$@"
+	$(CROSS64)$(AR) "$@" $(libGDFwin64obj)
+	
+
 #############################################################
 #	Compilation: exceptions, explicit rules
 #############################################################
@@ -284,6 +320,8 @@ scp-decode.o: t210/scp-decode.cpp biosig-dev.h biosig.h t210/structures.h t210/c
 getlogin_r.o: win32/getlogin_r.c
 	$(CC) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
 
+########### WIN32 ##################
+
 win32/sopen_scp_read.obj: t210/sopen_scp_read.c biosig-dev.h biosig.h t210/structures.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
 
@@ -306,6 +344,31 @@ win32/sigviewer.exe: win32/libbiosig.a win32/libbiosig.dll win32/libGDF.a
 	sed -i 's;-lGDF[[:space:]]*$$;-lGDF -lcholmod -lz;' $(PathToSigViewerWIN32)/src/src.pro
 	-(cd $(PathToSigViewerWIN32)/src; $(CROSS)qmake; make)
 	-$(COPY) $(PathToSigViewerWIN32)/bin/release/sigviewer.exe win32/
+
+########### WIN64 ##################
+
+win64/sopen_scp_read.obj: t210/sopen_scp_read.c biosig-dev.h biosig.h t210/structures.h
+	$(MinGW64CXX) -c $(MinGW64CFLAGS) $(INCPATH) -o "$@" "$<"
+
+win64/scp-decode.obj: t210/scp-decode.cpp biosig-dev.h biosig.h t210/structures.h t210/codes.h
+	$(MinGW64CXX) -c $(MinGW64CFLAGS) $(INCPATH) -o "$@" "$<"
+
+win64/sopen_hl7aecg.obj: t230/sopen_hl7aecg.c biosig-dev.h biosig.h XMLParser/tinyxml.h XMLParser/tinystr.h
+	$(MinG64CXX) -c $(MinGW64CFLAGS) $(INCPATH) -o "$@" "$<"
+
+win64/getlogin_r.obj: win32/getlogin_r.c
+	$(MinGW64CC) -c $(MinGW64CFLAGS) $(INCPATH) -o "$@" "$<"
+
+win64/sigviewer.exe: win64/libbiosig.a win64/libbiosig.dll win64/libGDF.a
+	-$(DELETE) $(PathToSigViewerWIN64)/extern/include/*.h
+	-$(COPY) biosig.h $(PathToSigViewerWIN64)/extern/include
+	-$(COPY) -r ../libgdf/libgdf/include/GDF $(PathToSigViewerWIN64)/extern/include/
+	-$(DELETE) $(PathToSigViewerWIN64)/extern/lib/lib*
+	-$(COPY) win64/libbiosig.a $(PathToSigViewerWIN64)/extern/lib
+	-$(COPY) win64/libGDF.a $(PathToSigViewerWIN64)/extern/lib
+	sed -i 's;-lGDF[[:space:]]*$$;-lGDF -lcholmod -lz;' $(PathToSigViewerWIN64)/src/src.pro
+	-(cd $(PathToSigViewerWIN64)/src; $(CROSS64)qmake; make)
+	-$(COPY) $(PathToSigViewerWIN64)/bin/release/sigviewer.exe win32/
 
 
 #############################################################
@@ -364,6 +427,33 @@ win32 exe: win32/save2gdf.exe win32/libbiosig.dll win32/libbiosig.a #mexw32 win3
 
 
 #############################################################
+#	WIN64 - BUILD
+#############################################################
+
+win64/libbiosig.lib: win64/libbiosig.a 
+	$(COPY) "$<" "$@"
+
+win64/libbiosig.a: $(MinGW64OBJECTS) win64/libcnsfef.a biosig.h biosig-dev.h
+	-$(DELETE) "$@"
+	$(CROSS64)$(AR) "$@" $(MinGW64OBJECTS) t240/*.obj
+
+win64/libcnsfef.a:
+	make CROSS64=$(CROSS64) -C t240 ../win64/libcnsfef.a 
+
+win64/libbiosig.dll: $(MinGW64OBJECTS) biosig.h biosig-dev.h
+	$(MinGW64LINK) -shared -fPIC  $(MinGW64OBJECTS) $(MinGW64LIBS) -o "$@" -Wl,--output-def,win32/libbiosig.def,--out-implib,win32/libbiosig.dll.a
+	-$(COPY) "$@" $(PathToSigViewerWIN64)/extern/lib/
+
+win64/save2gdf.exe: save2gdf.c win64/libbiosig.a
+	$(MinGW64LINK) $(MinGW64CFLAGS) "$<" $(MinGW64LIBS) -o "$@"
+
+win64/pdp2gdf.exe: pdp2gdf.c win64/libbiosig.a
+	$(MinGW64LINK) $(MinGW64CFLAGS) "$<" $(MinGW64LIBS) -o "$@"
+
+win64: win64/save2gdf.exe win64/libbiosig.dll win64/libbiosig.a mexw64 win64mma 
+
+
+#############################################################
 #	GNU/Linux - BUILD
 #############################################################
 
@@ -407,6 +497,9 @@ mma: libbiosig.$(LIBEXT)
 win32mma: win32/libbiosig.a
 	make -C mma sload.exe
 
+win64mma: win64/libbiosig.a
+	make -C mma sload.w64.exe
+
 
 #############################################################
 #	MEX-files for Octave and Matlab
@@ -414,8 +507,9 @@ win32mma: win32/libbiosig.a
 mex: libbiosig.a
 	make -C mex mex -k
 
-mex mex4m mex4o mexw32 oct:
+mex4m mex4o mexw32 oct:
 	make -C mex $@
+	-cp mex/*.mex* ../biosig/t200_FileAccess/
 
 %.mex %.mex.$(MEX_EXT) %.mexw32: win32/libbiosig.a
 	make -C mex $@
@@ -521,6 +615,7 @@ install_octave: mexSLOAD.mex
 install: save2gdf libbiosig.a libbiosig.so doc/save2gdf.1
 	install -d 		$(BIN)
 	install save2gdf 	$(BIN)
+	install heka2itx 	$(BIN)
 	install save2aecg 	$(BIN)
 	install save2scp  	$(BIN)
 	#install rec2bin  	$(BIN)
@@ -539,6 +634,7 @@ install: save2gdf libbiosig.a libbiosig.so doc/save2gdf.1
 
 remove:
 	rm $(BIN)/save2gdf
+	rm $(BIN)/heka2itx
 	rm $(BIN)/save2scp
 	rm $(BIN)/save2aecg
 	#rm $(BIN)/rec2bin
