@@ -20,7 +20,7 @@ LIBEXT        = a
 # WIN32 settings: 
 # Mingw crosscompiler: available at http://www.nongnu.org/mingw-cross-env/
 # whether dynamic or static linking is used, can be controlled with 
-CROSS   = $(HOME)/R/src/mingw-cross-env/usr/bin/i686-pc-mingw32-
+CROSS   = $(HOME)/src/mingw-cross-env/usr/bin/i686-pc-mingw32-
 # include directory for Win32-Matlab include
 W32MAT_INC = $(HOME)/bin/Matlab/R2010/extern/include/
 # path to GNUMEX libraries, available from here http://sourceforge.net/projects/gnumex/
@@ -31,7 +31,8 @@ GNUMEX  = $(HOME)/bin/gnumex
 ### User-specified options: its likely you want to change this
 MEX_OPTION    = -largeArrayDims # turn on for 64 bit Matlab, otherwise empty
 LIBS          = -lbiosig -lz -lcholmod
-LFLAGS        = -L.. 
+LFLAGS        = -L..
+COPY          = cp
 
 mex: mex4m mex4o 
 win32 win mexw32: mexSLOAD.mexw32 mexSOPEN.mexw32 
@@ -49,8 +50,8 @@ endif
 OCTAVE_VERSION 	= -3.4.0
 INCOCTAVE 	= -I /usr/local/include/octave$(OCTAVE_VERSION)/octave 
 # Octave - global install  (e.g. from debian package)
-OCTAVE_VERSION 	= 
-INCOCTAVE 	= -I /usr/include/octave 
+#OCTAVE_VERSION 	= 
+#INCOCTAVE 	= -I /usr/include/octave 
 
 OCT           	= mkoctfile$(OCTAVE_VERSION)
 ##########################################################
