@@ -419,7 +419,7 @@ elseif any(HDR.FILE.PERMISSION=='w'),
 				ix = find(HDR.FLT.channels.Cal(k,:));
 				fprintf(fid,'%04i %04i %i %-17s %5.3f  %i  %-8s  %04i  %i\n',num(k,1:3),HDR.Label{k},num(k,4:5),HDR.FLT.channels.grd_mode_name{k},num(k,6),length(ix)); 
 				for k1 = 1:length(ix)
-					fprintf(fid,'\t%04i %9.6f * %s\n',ix(k1)-1,HDR.FLT.channels.Cal(k,ix(k1)),HDR.FLT.sensors.name{ix(k1)});
+					fprintf(fid,'\t%04i %9.6f * %s\n',ix(k1)-1,full(HDR.FLT.channels.Cal(k,ix(k1))),HDR.FLT.sensors.name{ix(k1)});
 				end; 
 			end; 	
 		else
