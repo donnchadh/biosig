@@ -243,6 +243,7 @@ int sopen_heka(HDRTYPE* hdr, FILE *itx) {
 /* TODO:
 	+ support for resampling (needed by mexSLOAD, SigViewer, save2gdf)
 	+ support for selection of experiment,series,sweep,trace (needed by MMA)
+	+ make event-table aware of Sweep Selection
 	- event-table -> MMA
 */
 
@@ -449,10 +450,12 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L2 @%i=%s %f\t%i/%i %i/%i \n",pos+Star
 					}
 				}
 
-				// marker for start of series
-				FreeTextEvent(hdr, hdr->EVENT.N, SeLabel);
-				hdr->EVENT.POS[hdr->EVENT.N] = hdr->SPR;	// within reading the structure, hdr->SPR is used as a intermediate variable counting the number of samples
-				hdr->EVENT.N++;
+				if (!hdr->AS.SegSel[0] && !hdr->AS.SegSel[1] && !hdr->AS.SegSel[2]) {
+					// in case of reading the whole file (no sweep selection), include marker for start of series
+					FreeTextEvent(hdr, hdr->EVENT.N, SeLabel);
+					hdr->EVENT.POS[hdr->EVENT.N] = hdr->SPR;	// within reading the structure, hdr->SPR is used as a intermediate variable counting the number of samples
+					hdr->EVENT.N++;
+				}
 
 				for (k3=0; k3<K3; k3++)	{
 					// read sweep
@@ -464,7 +467,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L2 @%i=%s %f\t%i/%i %i/%i \n",pos+Star
 						              && (hdr->AS.SegSel[1]==0 || k2+1==hdr->AS.SegSel[1])
 							      && (hdr->AS.SegSel[2]==0 || k3+1==hdr->AS.SegSel[2]);
 
-					if (hdr->SPR > 0) {
+					if (flagSweepSelected && hdr->SPR > 0) {
 						// marker for start of sweep
 						hdr->EVENT.POS[hdr->EVENT.N] = hdr->SPR;	// within reading the structure, hdr->SPR is used as a intermediate variable counting the number of samples
 						hdr->EVENT.TYP[hdr->EVENT.N] = 0x7ffe;
