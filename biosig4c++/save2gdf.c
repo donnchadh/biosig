@@ -49,7 +49,6 @@ int savelink(const char* filename);
 void sopen_pdp_read(HDRTYPE *hdr);
 #endif
 
-
 int main(int argc, char **argv){
     
     HDRTYPE 	*hdr; 
@@ -68,9 +67,6 @@ int main(int argc, char **argv){
     cholmod_sparse *rr  = NULL; 
     char        *rrFile = NULL;
     int refarg          = 0;
-#ifdef TEST_GLOBAL_CHOLMOD
-    cholmod_start (&CHOLMOD_COMMON_VAR) ; /* start CHOLMOD */
-#endif
 #endif 
 	
     for (k=1; k<argc; k++) {
@@ -187,7 +183,7 @@ int main(int argc, char **argv){
     	else if (argv[k][0]=='[' && argv[k][strlen(argv[k])-1]==']' && (tmpstr=strchr(argv[k],',')) )  	{
 		t1 = strtod(argv[k]+1,NULL);
 		t2 = strtod(tmpstr+1,NULL);
-		fprintf(stdout,"[%f,%f\n]",t1,t2);
+		if (VERBOSE_LEVEL>7) fprintf(stdout,"[%f,%f]\n",t1,t2);
 	}
 	
 	else {
@@ -263,7 +259,7 @@ int main(int argc, char **argv){
 	if (refarg > 0) {
     	        rrFile = strchr(argv[refarg], '=') + 1;
 	        if (RerefCHANNEL(hdr, rrFile, 1))
-	                fprintf(stdout,"error: option %s not supported\n",argv[refarg]);
+	                fprintf(stdout,"error: reading re-ref matrix %s \n",rrFile);
 	} 
 #endif
 
@@ -384,6 +380,10 @@ int main(int argc, char **argv){
     		for (k=0; k<hdr->NS; k++)
 		    	if (hdr->CHANNEL[k].OnOff && hdr->CHANNEL[k].SPR) 
 				asGCD = gcd(asGCD, hdr->CHANNEL[k].SPR);
+		if (TARGET_TYPE==EDF) {
+			double d = asGCD / hdr->SampleRate;
+			if (d==ceil(d)) asGCD = d; 	// make block duration 1 second	
+		}
     		hdr->SPR  /= asGCD;
 	    	hdr->NRec *= asGCD;
 	    	for (k=0; k<hdr->NS; k++)
@@ -412,8 +412,7 @@ int main(int argc, char **argv){
 
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"[200-]\n");
 
-	// TODO: deleting of (cholmod_sparse*) hdr->Calib can cause seg-fault - check why 
-        RerefCHANNEL(hdr,NULL,0);	// clear HDR.Calib und HDR.rerefCHANNEL
+        RerefCHANNEL(hdr, NULL, 0);	// clear HDR.Calib und HDR.rerefCHANNEL
 
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"[200+]\n");
                 hdr->Calib = NULL;
@@ -589,10 +588,6 @@ int main(int argc, char **argv){
 	sclose(hdr);
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"[241] SCLOSE finished\n");
 	destructHDR(hdr);
-
-#ifdef TEST_GLOBAL_CHOLMOD
-        cholmod_finish (&CHOLMOD_COMMON_VAR) ;
-#endif
 	exit(serror()); 
 }
 

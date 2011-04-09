@@ -77,9 +77,14 @@ const char *B4C_ERRMSG;
 
 #ifdef WITH_CHOLMOD
     #include <suitesparse/cholmod.h>
-#ifdef TEST_GLOBAL_CHOLMOD
     cholmod_common CHOLMOD_COMMON_VAR;
-#endif
+void CSstop() {
+	cholmod_finish(&CHOLMOD_COMMON_VAR);
+}
+void CSstart () {
+	cholmod_start (&CHOLMOD_COMMON_VAR) ; /* start CHOLMOD */
+	atexit (&CSstop) ;
+}
 #endif
 
 #ifndef VERBOSE_LEVEL
@@ -1991,16 +1996,10 @@ void destructHDR(HDRTYPE* hdr) {
 	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free HDR.rerefCHANNEL\n");
 
 #ifdef CHOLMOD_H
-#ifndef TEST_GLOBAL_CHOLMOD
-        cholmod_common CHOLMOD_COMMON_VAR ;
-        cholmod_start (&CHOLMOD_COMMON_VAR) ; /* start CHOLMOD */
-#endif
         //if (hdr->Calib) cholmod_print_sparse(hdr->Calib,"destructHDR hdr->Calib",&CHOLMOD_COMMON_VAR);
 	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free hdr->Calib\n");
 	if (hdr->Calib) cholmod_free_sparse(&hdr->Calib, &CHOLMOD_COMMON_VAR);
-#ifndef TEST_GLOBAL_CHOLMOD
-        cholmod_finish (& CHOLMOD_COMMON_VAR) ;
-#endif
+
 	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free hdr->rerefCHANNEL %p\n",hdr->rerefCHANNEL);
 	if (hdr->rerefCHANNEL) free(hdr->rerefCHANNEL);
 	hdr->rerefCHANNEL = NULL;
@@ -3431,10 +3430,6 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
                 size_t i,j,k;
                 long r;
 		char flagLabelIsSet = 0; 
-#ifndef TEST_GLOBAL_CHOLMOD
-                cholmod_common CHOLMOD_COMMON_VAR;
-                cholmod_start (&CHOLMOD_COMMON_VAR) ; /* start CHOLMOD */
-#endif
 
                 switch (Mode) {
                 case 1: {
@@ -3444,10 +3439,11 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
                                 flagLabelIsSet = 1; 
                         	if (hdr->rerefCHANNEL) free(hdr->rerefCHANNEL); 
                         	hdr->rerefCHANNEL = RR->rerefCHANNEL;
-                        	RR->rerefCHANNEL = NULL; 
+                        	RR->rerefCHANNEL  = NULL; 
                         }
                         RR->Calib   = NULL; // do not destroy ReRef
                         destructHDR(RR);
+                        RR = NULL;
                         break;
                         }
                 case 2: ReRef = (cholmod_sparse*) arg2;
@@ -3456,16 +3452,13 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
 
                 if ((ReRef==NULL) || !Mode) {
                         // reset rereferencing
-	// TODO: deleting of (cholmod_sparse*) hdr->Calib can cause seg-fault - check why 
+
         		if (hdr->Calib != NULL)
 				 cholmod_free_sparse(&hdr->Calib, &CHOLMOD_COMMON_VAR);
-
                         hdr->Calib = ReRef;
         		if (hdr->rerefCHANNEL) free(hdr->rerefCHANNEL);
         		hdr->rerefCHANNEL = NULL;
-#ifndef TEST_GLOBAL_CHOLMOD
-                        cholmod_finish (&CHOLMOD_COMMON_VAR) ;
-#endif
+
         	        return(0);
                 }
                 cholmod_sparse *A = ReRef;
@@ -3476,9 +3469,6 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
                 if (NS - A->nrow) {
                         B4C_ERRNUM = B4C_REREF_FAILED;
                         B4C_ERRMSG = "Error REREF_CHAN: size of data does not fit ReRef-matrix";
-#ifndef TEST_GLOBAL_CHOLMOD
-                        cholmod_finish (&CHOLMOD_COMMON_VAR) ;
-#endif
                         return(1);
                 }
 
@@ -3490,9 +3480,6 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
 			CHOLMOD_COMMON_VAR.print = 5;
 			cholmod_print_sparse(ReRef,"HDR.Calib", &CHOLMOD_COMMON_VAR);
 		}
-#ifndef TEST_GLOBAL_CHOLMOD
-                cholmod_finish (&CHOLMOD_COMMON_VAR) ;		// stop cholmod
-#endif
 
                 hdr->Calib = ReRef;
                 if (hdr->rerefCHANNEL==NULL)
@@ -8737,11 +8724,11 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 
 						while (ns < ch) {
 							hdr->rerefCHANNEL[ns].Label[0] = 0;
-							hdr->rerefCHANNEL[ns].OnOff = 1;
 							ns++;
 						}
 					}	 
 					strncpy(hdr->rerefCHANNEL[ch-1].Label, line, MAX_LENGTH_LABEL);
+					hdr->rerefCHANNEL[ch-1].OnOff = 1;
 					hdr->rerefCHANNEL[ch-1].Label[MAX_LENGTH_LABEL] = 0;
 		if (VERBOSE_LEVEL>7) fprintf(stdout,"[MM 027] %i <%s>\n",ch,line);
 				}
@@ -8752,18 +8739,13 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 		if (VERBOSE_LEVEL>7) fprintf(stdout,"[MM 033]\n");
 
 		ifseek(hdr,0,SEEK_SET);
-#ifndef TEST_GLOBAL_CHOLMOD
-                cholmod_common CHOLMOD_COMMON_VAR ;
-                cholmod_start (&CHOLMOD_COMMON_VAR) ; /* start CHOLMOD */
-#endif
+
+		CSstart();	// init cholmod library
                 CHOLMOD_COMMON_VAR.print = 5;
                 hdr->Calib = cholmod_read_sparse (hdr->FILE.FID, &CHOLMOD_COMMON_VAR); /* read in a matrix */
 
                 if (VERBOSE_LEVEL>7)
                         cholmod_print_sparse (hdr->Calib, "Calib", &CHOLMOD_COMMON_VAR); /* print the matrix */
-#ifndef TEST_GLOBAL_CHOLMOD
-                cholmod_finish (&CHOLMOD_COMMON_VAR) ; /* finish CHOLMOD */
-#endif
 
 		ifclose(hdr);
 		if (VERBOSE_LEVEL>7) fprintf(stdout,"[MM 999]\n");
@@ -11464,15 +11446,8 @@ int V = VERBOSE_LEVEL;
 
 			double alpha[]={1,0},beta[]={0,0};
 
-#ifndef TEST_GLOBAL_CHOLMOD
-                        cholmod_common CHOLMOD_COMMON_VAR ;
-                        cholmod_start (&CHOLMOD_COMMON_VAR) ; // start CHOLMOD
-#endif
-
 			cholmod_sdmult(hdr->Calib,1,alpha,beta,&X,&Y,&CHOLMOD_COMMON_VAR);
-#ifndef TEST_GLOBAL_CHOLMOD
-                        cholmod_finish (&CHOLMOD_COMMON_VAR) ; /* finish CHOLMOD */
-#endif
+
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"%f -> %f\n",*(double*)X.x,*(double*)Y.x);
 			free(X.x);
 			if (data==NULL)
@@ -12162,8 +12137,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 		fprintf(fid,               "\tVersion         : %s\n",hdr->ID.Manufacturer.Version);
 		fprintf(fid,               "\tSerialNumber    : %s\n",hdr->ID.Manufacturer.SerialNumber);
 		fprintf(fid,     "Patient:\n\tID              : %s\n",hdr->Patient.Id);
-		if (hdr->Patient.Name!=NULL)
-			fprintf(fid,       "\tName            : %s\n",hdr->Patient.Name);
+		fprintf(fid,               "\tName            : %s\n",hdr->Patient.Name);
 
 		if (hdr->Patient.Birthday>0)
 			age = (hdr->T0 - hdr->Patient.Birthday)/ldexp(365.25,32);
