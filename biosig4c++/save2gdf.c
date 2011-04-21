@@ -72,7 +72,7 @@ int main(int argc, char **argv){
     for (k=1; k<argc; k++) {
     	if (!strcmp(argv[k],"-v") || !strcmp(argv[k],"--version") ) {
 		fprintf(stdout,"save2gdf (BioSig4C++) v%04.2f\n", BIOSIG_VERSION);
-		fprintf(stdout,"Copyright (C) 2006,2007,2008,2009 by Alois Schloegl and others\n");
+		fprintf(stdout,"Copyright (C) 2006,2007,2008,2009,2010,2011 by Alois Schloegl and others\n");
 		fprintf(stdout,"This file is part of BioSig http://biosig.sf.net - the free and\n");
 		fprintf(stdout,"open source software library for biomedical signal processing.\n\n");
 		fprintf(stdout,"BioSig is free software; you can redistribute it and/or modify\n");

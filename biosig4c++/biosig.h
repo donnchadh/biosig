@@ -154,7 +154,8 @@ enum FileFormat {
 	SASXPT, SCP_ECG, SIGIF, Sigma, SMA, SND, SPSS, STATA, SVG, SXI,
 	TIFF, TMS32, TMSiLOG, TRC, UNIPRO, VRML, VTK,
 	WAV, WinEEG, WMF, XML, XPM,
-	Z, ZIP, ZIP2
+	Z, ZIP, ZIP2, 
+	SQLite
 };
 
 

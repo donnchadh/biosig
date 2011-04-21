@@ -2375,6 +2375,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 		hdr->TYPE = STATA;
 	else if (!memcmp(Header1,"IAvSFo",6))
 		hdr->TYPE = SIGIF;
+	else if (!memcmp(Header1,"SQLite format 3\000",16) && Header1[21]==64 && Header1[22]==32 && Header1[23]==32 )
+		hdr->TYPE = SQLite;
 	else if (!memcmp(Header1,"\"Snap-Master Data File\"",24))
 	    	hdr->TYPE = SMA;
 	else if (!memcmp(Header1,".snd",5))
@@ -2547,6 +2549,7 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case SMA: 	{ FileType = "SMA"; break; }
 	case SND: 	{ FileType = "SND"; break; }
 	case SPSS: 	{ FileType = "SPSS"; break; }
+	case SQLite: 	{ FileType = "SQLite"; break; }
 	case STATA: 	{ FileType = "STATA"; break; }
 	case SVG: 	{ FileType = "SVG"; break; }
 
@@ -3447,6 +3450,7 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
                         break;
                         }
                 case 2: ReRef = (cholmod_sparse*) arg2;
+                        CSstart();
                         break;
                 }
 
