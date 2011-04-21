@@ -407,6 +407,8 @@ else
                         if all(s(66:68)==0) 		HDR.Endianity = 'ieee-le';
                         elseif all(s(65:67)==0) 	HDR.Endianity = 'ieee-be';
 			end
+		elseif strcmp(ss(1:16),['SQLite format 3',char(0)]) && s(22)==64 && s(23)==32 && all(s(69:92)==0),
+			HDR.TYPE = 'SQLite';
 		elseif all(s(3:4)==[1,0]) && any(s(1)==[113,114]) && any(s(2)==[1:2]),
 			HDR.TYPE = 'STATA';
 			
