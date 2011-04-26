@@ -13,9 +13,15 @@ function HDR=bdf2biosig_events(EVENT)
 %  HDR.EVENT.Desc(HDR.EVENT.TYP==0) 
 % 
 % see also: doc/eventcodes.txt
+% 
+% 
+% Referenzes: 
+% [1] http://www.biosemi.com/faq/file_format.htm
+% [2] http://www.biosemi.com/faq/trigger_signals.htm
+
 
 %	$Id$
-%	Copyright (C) 2007,2008,2009 by Alois Schloegl <a.schloegl@ieee.org>	
+%	Copyright (C) 2007,2008,2009,2011 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
@@ -78,8 +84,7 @@ case 2,
 	TYP = [bitand(t(ix2>0),2^16-1)];
 	
 case 3,
-	% the status word is decoded only if bit17=0. 
-	% raising and falling edges are considered
+	% Trigger Input 1-15, raising and falling edges
 	t = bitand(HDR.BDF.ANNONS,2^16-1);
 	t(~~bitand(HDR.BDF.ANNONS,2^16)) = 0; 
 	ix2 = diff(double([0;bitand(t,2^16-1)]));	% labels 
@@ -87,8 +92,7 @@ case 3,
  	TYP = [t(ix2>0); t(find(ix2<0)-1)+hex2dec('8000')];
 		
 case 4,
-	% the status word is decoded only if bit17=0. 
-	% only raising edges are considered
+	% Trigger Input 1-15, raising edges
 	t = bitand(HDR.BDF.ANNONS,2^16-1);
 	t(~~bitand(HDR.BDF.ANNONS,2^16)) = 0; 
 	ix2 = diff(double([0;bitand(t,2^16-1)]));	% labels 
@@ -96,8 +100,7 @@ case 4,
 	TYP = [t(ix2>0)];
 		
 case 5,
-	% the status word is decoded only if bit17=0. 
-	% raising and falling edges are considered
+	% Trigger input 1-8, raising and falling edges are considered
 	t = bitand(HDR.BDF.ANNONS,255);			% only bit1-8 are considered, useful if bit9-16 are open/undefined
 	t(~~bitand(HDR.BDF.ANNONS,2^16)) = 0; 
 	ix2 = diff(double([0;bitand(t,2^16-1)]));	% labels 
@@ -105,8 +108,7 @@ case 5,
  	TYP = [t(ix2>0); t(find(ix2<0)-1)+hex2dec('8000')];
 		
 case 6,
-	% the status word is decoded only if bit17=0. 
-	% only raising edges are considered
+	% Trigger input 1-8, only raising edges are considered
 	t = bitand(HDR.BDF.ANNONS,255);			% only bit1-8 are considered, useful if bit9-16 are open/undefined
 	t(~~bitand(HDR.BDF.ANNONS,2^16)) = 0; 
 	ix2 = diff(double([0;bitand(t,2^16-1)]));	% labels 
