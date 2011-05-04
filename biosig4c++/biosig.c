@@ -9797,7 +9797,12 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 			}
 		}
 
-		if (hdr->CHANNEL[k].LeadIdCode)
+		// based on ISO/DIS 11073-91064, EN 1064:2005+A1:2007 (E)
+		if (200 <= hdr->CHANNEL[k].LeadIdCode)
+			strcpy(hdr->CHANNEL[k].Label,"(Manufacturere specific)");
+		else if (185 <= hdr->CHANNEL[k].LeadIdCode)
+			strcpy(hdr->CHANNEL[k].Label,"(reserved for future expansion)");
+		else if (hdr->CHANNEL[k].LeadIdCode)
 			strcpy(hdr->CHANNEL[k].Label,LEAD_ID_TABLE[hdr->CHANNEL[k].LeadIdCode]);
 
 	}

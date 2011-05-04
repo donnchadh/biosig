@@ -773,8 +773,11 @@ EXTERN_C int sopen_SCP_read(HDRTYPE* hdr) {
 			aECG->FLAG.REF_BEAT = (*(PtrCurSect+curSectPos+1) & 0x01);
 			en1064.FLAG.REF_BEAT = (*(PtrCurSect+curSectPos+1) & 0x01);
 			en1064.Section3.flags = *(PtrCurSect+curSectPos+1);
-			if (en1064.FLAG.REF_BEAT && !section[4].length)
+			if (en1064.FLAG.REF_BEAT && !section[4].length) {
 				fprintf(stderr,"Warning (SCP): Reference Beat but no Section 4\n");
+				aECG->FLAG.REF_BEAT  = 0;
+				en1064.FLAG.REF_BEAT = 0;
+			}
 			if (!(en1064.Section3.flags & 0x04) || ((en1064.Section3.flags>>3) != hdr->NS)) 
 				fprintf(stderr,"Warning (SCP): channels are not simultaneously recorded! %x %i\n",en1064.Section3.flags,hdr->NS);
 
@@ -1168,6 +1171,7 @@ EXTERN_C int sopen_SCP_read(HDRTYPE* hdr) {
 	/* free allocated memory */ 
 	deallocEN1064(en1064);	
 
+return(0);
 
 #ifndef WITHOUT_SCP_DECODE
    	if (AS_DECODE==0) return(0); 
