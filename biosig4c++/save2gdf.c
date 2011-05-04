@@ -388,9 +388,11 @@ int main(int argc, char **argv){
 	    	hdr->NRec *= asGCD;
 	    	for (k=0; k<hdr->NS; k++)
     			hdr->CHANNEL[k].SPR /= asGCD;
+#ifdef CHOLMOD_H
 		if (hdr->Calib) 
 		    	for (k=0; k<hdr->Calib->nrow; k++)
 	    			hdr->rerefCHANNEL[k].SPR /= asGCD;
+#endif
     	}
 
    /********************************* 
