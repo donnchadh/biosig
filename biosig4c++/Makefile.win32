@@ -65,8 +65,8 @@ else
   LFLAGS      = $(LFLAGS_static)
   LIBS        = $(LIBS_static)
 endif
-LDLIBS        = -static-libgcc -static-libstdc++ -lz -lcholmod #-lgdcmDSED 	# static
-#LIBS         += $(LDLIBS)
+LDLIBS        = -static-libgcc -static-libstdc++ -lws2_32 #-lgdcmDSED 	# static
+LIBS         += $(LDLIBS)
 DELETE        = rm
 COPY          = cp -f
 TEMP_DIR      = /tmp/
@@ -96,7 +96,7 @@ CROSS	     = $(PathToMinGW)/usr/bin/i686-pc-mingw32-
 CROSS64	     = $(PathToMinGW64)/usr/bin/x86_64-w64-mingw32-
 MinGWCC      = $(CROSS)gcc
 MinGWCXX     = $(CROSS)g++
-MinGWDEF     = -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_CHOLMOD #-D=WITH_ZLIB #-D=WITH_FEF #-D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE
+MinGWDEF     = -D=HARDCODED_EVENTTABLE -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_CHOLMOD #-D=WITH_ZLIB #-D=WITH_FEF #-D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE
 MinGWCFLAGS  = -pipe -fPIC -O2 -D_REENTRANT -D=BUILD_DLL $(MinGWDEF) -I$(PathToMinGW)/usr/i686-pc-mingw32/include/
 MinGWLIBS    = win32/libbiosig.a -L$(PathToMinGW)/usr/i686-pc-mingw32/lib/ -lz -lws2_32 $(LDLIBS) # static
 MinGWLINK    = $(MinGWCXX)
@@ -145,10 +145,7 @@ OBJECTS       = \
 		tinyxmlerror.o \
 		tinystr.o \
 		sopen_scp_read.o \
-		sopen_famos_read.o \
 		sopen_alpha_read.o \
-		sopen_fef_read.o \
-		scp-decode.o \
 		sopen_scp_write.o \
 		sopen_hl7aecg.o \
 		biosig-network.o \
@@ -164,15 +161,30 @@ MinGWOBJECTS  = \
 		win32/tinyxmlerror.obj \
 		win32/tinystr.obj \
 		win32/sopen_scp_read.obj \
-		win32/sopen_famos_read.obj \
 		win32/sopen_alpha_read.obj \
-		win32/scp-decode.obj \
 		win32/sopen_scp_write.obj \
-		win32/sopen_fef_read.obj \
 		win32/sopen_hl7aecg.obj \
 		win32/biosig-network.obj \
 		win32/sandbox.obj \
 
+ifneq (,$(findstring WITH_FAMOS, $(DEFINES)))
+  OBJECTS      += sopen_famos_read.o
+endif
+ifneq (,$(findstring WITH_FAMOS, $(MinGWDEF)))
+  MinGWOBJECTS += win32/sopen_famos_read.obj
+endif
+ifneq (,$(findstring WITH_FEF, $(DEFINES)))
+  OBJECTS      += sopen_fef_read.o
+endif
+ifneq (,$(findstring WITH_FEF, $(MinGWDEF)))
+  MinGWOBJECTS += win32/sopen_fef_read.obj
+endif
+ifeq (,$(findstring WITHOUT_SCP_DECODE, $(DEFINES)))
+  OBJECTS      += scp-decode.o
+endif
+ifeq (,$(findstring WITHOUT_SCP_DECODE, $(MinGWDEF)))
+  MinGWOBJECTS += win32/scp-decode.obj
+endif
 
 TARGET        = save2gdf save2aecg save2scp libbiosig.a mex4o libbiosig.so
 
@@ -256,10 +268,10 @@ sopen_fef_read.o: t240/sopen_fef_read.c biosig-dev.h biosig.h
 sopen_hl7aecg.o: t230/sopen_hl7aecg.c biosig-dev.h biosig.h XMLParser/tinyxml.h XMLParser/tinystr.h
 	$(CXX) -c $(CFLAGS) $(INCPATH) -o  "$@" "$<"
 
-sopen_scp_read.o: t210/sopen_scp_read.c biosig-dev.h biosig.h biosig.h t210/structures.h t210/types.h
+sopen_scp_read.o: t210/sopen_scp_read.c biosig-dev.h biosig.h biosig.h t210/structures.h
 	$(CXX) -c $(CFLAGS) $(INCPATH) -o  "$@" "$<"
 
-scp-decode.o: t210/scp-decode.cpp biosig-dev.h biosig.h t210/types.h t210/structures.h t210/codes.h
+scp-decode.o: t210/scp-decode.cpp biosig-dev.h biosig.h t210/structures.h t210/codes.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o  "$@" "$<"
 
 getlogin_r.o: win32/getlogin_r.c
@@ -271,13 +283,13 @@ getlogin_r.o: win32/getlogin_r.c
 win32/sandbox.obj: test0/sandbox.c biosig.h 
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o  "$@" "$<"
 
-win32/sopen_scp_read.obj: t210/sopen_scp_read.c biosig-dev.h biosig.h t210/structures.h t210/types.h
+win32/sopen_scp_read.obj: t210/sopen_scp_read.c biosig-dev.h biosig.h t210/structures.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o  "$@" "$<"
 
 win32/sopen_alpha_read.obj: t210/sopen_alpha_read.c biosig-dev.h
 	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o  "$@" "$<"
 
-win32/scp-decode.obj: t210/scp-decode.cpp biosig-dev.h biosig.h t210/types.h t210/structures.h t210/codes.h
+win32/scp-decode.obj: t210/scp-decode.cpp biosig-dev.h biosig.h t210/structures.h t210/codes.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o  "$@" "$<"
 
 #win32/sopen_fef_read.obj: t240/sopen_fef_read.c biosig-dev.h biosig.h

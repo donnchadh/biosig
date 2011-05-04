@@ -719,14 +719,14 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%
 		char *WAVENAME = NULL; 
 		if (itx) {
 			fprintf(itx, "IGOR\r\nX Silent 1\r\n");
-			char *fn = strrchr(hdr->FileName,'\\');
+			const char *fn = strrchr(hdr->FileName,'\\');
 			if (fn) fn++;
 			else fn = strrchr(hdr->FileName,'/');
 			if (fn) fn++;
 			else fn = hdr->FileName;
 
 			size_t len = strspn(fn,"."); 
-			WAVENAME = malloc(strlen(hdr->FileName)+7);
+			WAVENAME = (char*)malloc(strlen(hdr->FileName)+7);
 			if (len) 
 				strncpy(WAVENAME, fn, len); 
 			else 
