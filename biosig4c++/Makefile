@@ -20,10 +20,10 @@
 ## make biosig4ruby - makes ruby interface (experimental)
 ## make biosig4tcl - makes tcl/tk interface (experimental)
 ## make win32      - makes save2gdf.exe,libbiosig.lib,libbiosig.dll, for MSWindows, requires MinGW
-## make sigviewer  - makes sigviewer 
+## make sigviewer  - makes sigviewer
 
 ###############################
-# whether dynamic or static linking is used, can be controlled with 
+# whether dynamic or static linking is used, can be controlled with
 # LIBEXT. Setting it to 'a' links statically, 'so' links dynamically
 #
 LIBEXT        = a
@@ -37,7 +37,7 @@ PathToSigViewerWIN32 = ../sigviewer4win32
 PathToMinGW   = $(HOME)/src/mingw-cross-env
 PathToMinGW64 = $(HOME)/src/mce-w64
 
-## default options 
+## default options
 
 CC            = gcc
 CXX           = g++
@@ -53,10 +53,10 @@ INCPATH       = -I /usr/local/include/gdcm-2.0/
 #		../gdcm-2.0.10/Source/MediaStorageAndFileFormat 	\
 #		../gdcm-2.0.10/Source/DataDictionary 			\
 #		../gdcm-2.0.10/Source/Common
-LINK          = $(CXX) 
+LINK          = $(CXX)
 LFLAGS_dynamic = -L/usr/local/lib/ -L.
 LIBS_dynamic  = -lbiosig
-LFLAGS_static = -L/usr/local/lib/ 
+LFLAGS_static = -L/usr/local/lib/
 LIBS_static   = libbiosig.a
 ifeq ($(LIBEXT),so)
   LFLAGS      = $(LFLAGS_dynamic)
@@ -71,7 +71,7 @@ endif
 ifneq (,$(findstring WITH_CHOLMOD, $(DEFINES)))
   LDLIBS     += -lz
 endif
-LIBS          += $(LDLIBS) 
+LIBS          += $(LDLIBS)
 
 DELETE        = rm
 COPY          = cp -f
@@ -294,14 +294,14 @@ eventcodes.i : ../biosig/doc/eventcodes.txt
 libGDF.a: $(libGDFobj)
 	-$(DELETE) "$@"
 	$(AR) "$@" $(libGDFobj)
-	
+
 win32/%.obj : ../libgdf/libgdf/src/%.cpp
 	$(CROSS)$(CXX) -I../libgdf/libgdf/include -c "$<" -o "$@"
 
 win32/libGDF.a: $(libGDFwin32obj)
 	-$(DELETE) "$@"
 	$(CROSS)$(AR) "$@" $(libGDFwin32obj)
-	
+
 
 win64/%.obj : ../libgdf/libgdf/src/%.cpp
 	$(CROSS64)$(CXX) -I../libgdf/libgdf/include -c "$<" -o "$@"
@@ -309,7 +309,7 @@ win64/%.obj : ../libgdf/libgdf/src/%.cpp
 win64/libGDF.a: $(libGDFwin64obj)
 	-$(DELETE) "$@"
 	$(CROSS64)$(AR) "$@" $(libGDFwin64obj)
-	
+
 
 #############################################################
 #	Compilation: exceptions, explicit rules
@@ -506,9 +506,9 @@ biosig_server: biosig_server.c libbiosig.$(LIBEXT) biosig-network.o Makefile
 
 
 #############################################################
-#	MathLink interface to Mathematica 
+#	MathLink interface to Mathematica
 #############################################################
-mma: libbiosig.$(LIBEXT) 
+mma: libbiosig.$(LIBEXT)
 	make -C mma sload
 
 win32mma: win32/libbiosig.a
@@ -539,7 +539,7 @@ sigviewer: $(PathToSigViewer)/bin/sigviewer
 	$(COPY) $(PathToSigViewer)/bin/release/sigviewer ~/bin/sigviewer-$(TODAY)
 	mv $(PathToSigViewer)/bin/release/sigviewer ~/bin/sigviewer-$(TODAY)
 	ln -sf ~/bin/sigviewer-$(TODAY) ~/bin/sigviewer 
-	
+
 $(PathToSigViewer)/bin/sigviewer: libbiosig.$(LIBEXT) libGDF.a biosig.h
 	-$(DELETE) $(PathToSigViewer)/extern/include/*
 	-$(COPY) biosig.h $(PathToSigViewer)/extern/include
@@ -591,6 +591,7 @@ distclean:
 	-make -C perl clean
 	-make -C ruby clean
 	-make -C tcl clean
+	-make -C mex clean
 
 clean:
 	-$(DELETE) *~
@@ -620,6 +621,7 @@ clean:
 	-make -C perl clean
 	-make -C ruby clean
 	-make -C tcl clean
+	-make -C mex clean
 
 install_sigviewer: sigviewer
 	install $(PathToSigViewer)/bin/release/sigviewer $(BIN)
