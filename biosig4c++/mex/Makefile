@@ -8,6 +8,8 @@
 ##############################################################
 
 
+PathToMinGW   = $(HOME)/src/mingw-cross-env
+PathToMinGW64 = $(HOME)/src/mce-w64
 ### modify directories according to your needs 
 INCOCTAVE = -I /usr/include/octave 
 MATLABDIR = /usr/local/MATLAB/R2010b/
@@ -20,11 +22,14 @@ LIBEXT        = a
 # WIN32 settings: 
 # Mingw crosscompiler: available at http://www.nongnu.org/mingw-cross-env/
 # whether dynamic or static linking is used, can be controlled with 
-CROSS   = $(HOME)/src/mingw-cross-env/usr/bin/i686-pc-mingw32-
+CROSS   = $(PathToMinGW)/usr/bin/i686-pc-mingw32-
+CROSS64 = $(PathToMinGW64)/usr/bin/x86_64-w64-mingw32-
 # include directory for Win32-Matlab include
-W32MAT_INC = $(HOME)/bin/Matlab/R2010/extern/include/
+W32MAT_INC = $(HOME)/bin/win32/Matlab/R2010b/extern/include/
+W64MAT_INC = $(HOME)/bin/win64/Matlab/R2010b/extern/include/
 # path to GNUMEX libraries, available from here http://sourceforge.net/projects/gnumex/
-GNUMEX  = $(HOME)/bin/gnumex
+GNUMEX   = $(HOME)/bin/win32/gnumex
+GNUMEX64 = $(HOME)/bin/win64/gnumex
 ###############################
 
 
@@ -36,7 +41,11 @@ COPY          = cp
 
 mex: mex4m mex4o 
 win32 win mexw32: mexSLOAD.mexw32 mexSOPEN.mexw32 
-all: mex4m mex4o win32 
+win64 mexw64: mexSLOAD.mexw64 mexSOPEN.mexw64 
+all: mex4m mex4o win32 win64
+
+clean:
+	-$(RM) *.o *.obj *.o64 core octave-core *.oct *~ *.mex* 
 
 ##########################################################
 ## set Matlab and Octave variables
@@ -113,8 +122,17 @@ mexSOPEN.obj: mexSLOAD.cpp
 %.mexw32: %.obj ../win32/libbiosig.a
 	$(CROSS)$(CXX) -shared $(GNUMEX)/mex.def -o $@ -L$(GNUMEX) -s $< -llibmx -llibmex ../win32/libbiosig.a -lz -lcholmod -lws2_32
 
-clean:
-	-$(RM) *.o *.obj core octave-core *.oct *~ *.mex* 
 
+#########################################################
+#	MATLAB/WIN64
+#########################################################
+%.o64: %.cpp
+	$(CROSS64)$(CXX) -c -DMATLAB_MEX_FILE -x c++ -o $@ -I$(W64MAT_INC) -O3 -DMX_COMPAT_64 $< 
+%.o64: %.c
+	$(CROSS64)$(CXX) -c -DMATLAB_MEX_FILE -x c++ -o $@ -I$(W64MAT_INC) -O3 -DMX_COMPAT_64 $< 
 
+mexSOPEN.o64: mexSLOAD.cpp
+	$(CROSS64)$(CXX) -c -DMATLAB_MEX_FILE -D=mexSOPEN -x c++ -o $@ -I$(W64MAT_INC) -O3 -DMX_COMPAT_64 $< 
 
+%.mexw64: %.o64 ../win64/libbiosig.a
+	$(CROSS64)$(CXX) -shared $(GNUMEX64)/mex.def -o $@ -L$(GNUMEX64) -s $< -llibmx -llibmex ../win64/libbiosig.a -lz -lcholmod -lws2_32
