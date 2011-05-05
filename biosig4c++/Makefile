@@ -281,7 +281,7 @@ win64/%.obj: XMLParser/%.cpp
 biosig.c: eventcodes.i
 
 eventcodes.i : ../biosig/doc/eventcodes.txt
-	cat ../biosig/doc/eventcodes.txt | awk "-F\t" '/^[^#]/ {print "\t"$$1", \""$$2,"\","}' > eventcodes.i
+	cat "$<" | awk "-F\t" '/^[^#]/ {print "\t"$$1", \""$$2,"\","}' > eventcodes.i
 
 
 #############################################################
