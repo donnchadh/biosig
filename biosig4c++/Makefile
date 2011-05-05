@@ -35,7 +35,7 @@ MEX_OPTION    = -largeArrayDims # turn on for 64 bit Matlab, otherwise empty
 PathToSigViewer = ../sigviewer
 PathToSigViewerWIN32 = ../sigviewer4win32
 PathToMinGW   = $(HOME)/src/mingw-cross-env
-PathToMinGW64   = $(HOME)/src/mce-w64
+PathToMinGW64 = $(HOME)/src/mce-w64
 
 ## default options 
 
@@ -385,7 +385,7 @@ win64/sigviewer.exe: win64/libbiosig.a win64/libbiosig.dll win64/libGDF.a
 	-$(COPY) win64/libGDF.a $(PathToSigViewerWIN64)/extern/lib
 	sed -i 's;-lGDF[[:space:]]*$$;-lGDF -lcholmod -lz;' $(PathToSigViewerWIN64)/src/src.pro
 	-(cd $(PathToSigViewerWIN64)/src; $(CROSS64)qmake; make)
-	-$(COPY) $(PathToSigViewerWIN64)/bin/release/sigviewer.exe win32/
+	-$(COPY) $(PathToSigViewerWIN64)/bin/release/sigviewer.exe win64/
 
 
 #############################################################
@@ -423,7 +423,7 @@ tcl: libbiosig.$(LIBEXT) tcl/biosig.i
 win32/libbiosig.lib: win32/libbiosig.a 
 	$(COPY) "$<" "$@"
 
-win32/libbiosig.a: $(scp-decode.o) win32/libcnsfef.a biosig.h biosig-dev.h
+win32/libbiosig.a: $(MinGWOBJECTS) win32/libcnsfef.a biosig.h biosig-dev.h
 	-$(DELETE) "$@"
 	$(CROSS)$(AR) "$@" $(MinGWOBJECTS) t240/*.obj
 
