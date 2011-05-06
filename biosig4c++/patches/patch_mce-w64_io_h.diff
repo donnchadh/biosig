@@ -1,0 +1,19 @@
+*** io.h.orig	2011-02-09 22:58:42.000000000 +0100
+--- io.h	2011-05-07 00:01:11.979900542 +0200
+***************
+*** 340,346 ****
+    int __cdecl open(const char *_Filename,int _OpenFlag,...);
+    int __cdecl read(int _FileHandle,void *_DstBuf,unsigned int _MaxCharCount);
+    int __cdecl setmode(int _FileHandle,int _Mode);
+!   int __cdecl sopen(const char *_Filename,int _OpenFlag,int _ShareFlag,...);
+    long __cdecl tell(int _FileHandle);
+    int __cdecl umask(int _Mode);
+    int __cdecl write(int _Filehandle,const void *_Buf,unsigned int _MaxCharCount);
+--- 340,346 ----
+    int __cdecl open(const char *_Filename,int _OpenFlag,...);
+    int __cdecl read(int _FileHandle,void *_DstBuf,unsigned int _MaxCharCount);
+    int __cdecl setmode(int _FileHandle,int _Mode);
+! //  int __cdecl sopen(const char *_Filename,int _OpenFlag,int _ShareFlag,...);
+    long __cdecl tell(int _FileHandle);
+    int __cdecl umask(int _Mode);
+    int __cdecl write(int _Filehandle,const void *_Buf,unsigned int _MaxCharCount);
