@@ -22,8 +22,9 @@ LIBEXT        = a
 # WIN32 settings: 
 # Mingw crosscompiler: available at http://www.nongnu.org/mingw-cross-env/
 # whether dynamic or static linking is used, can be controlled with 
-CROSS   = $(PathToMinGW)/usr/bin/i686-pc-mingw32-
-CROSS64 = $(PathToMinGW64)/usr/bin/x86_64-w64-mingw32-
+# Mingw crosscompiler: available at http://www.nongnu.org/mingw-cross-env/
+CROSS   = $(HOME)/src/mingw-cross-env/usr/bin/i686-pc-mingw32-
+CROSS64 = $(HOME)/src/mce-w64/usr/bin/x86_64-w64-mingw32-
 # include directory for Win32-Matlab include
 W32MAT_INC = $(HOME)/bin/win32/Matlab/R2010b/extern/include/
 W64MAT_INC = $(HOME)/bin/win64/Matlab/R2010b/extern/include/
@@ -112,9 +113,9 @@ mexSLOAD.oct:  mexSLOAD.cpp ../libbiosig.$(LIBEXT) Makefile
 #	MATLAB/WIN32
 #########################################################
 %.obj: %.cpp
-	$(CROSS)$(CXX) -c -DMATLAB_MEX_FILE -x c++ -o $@ -I$(W32MAT_INC) -O3 -DMX_COMPAT_32 $< 
+	$(CROSS)$(CXX) -c -DMATLAB_MEX_FILE -x c++ -o $@ -I$(W32MAT_INC) -O2 -DMX_COMPAT_32 $< 
 %.obj: %.c
-	$(CROSS)$(CXX) -c -DMATLAB_MEX_FILE -x c++ -o $@ -I$(W32MAT_INC) -O3 -DMX_COMPAT_32 $< 
+	$(CROSS)$(CXX) -c -DMATLAB_MEX_FILE -x c++ -o $@ -I$(W32MAT_INC) -O2 -DMX_COMPAT_32 $< 
 
 mexSOPEN.obj: mexSLOAD.cpp
 	$(CROSS)$(CXX) -c -DMATLAB_MEX_FILE -D=mexSOPEN -x c++ -o $@ -I$(W32MAT_INC) -O3 -DMX_COMPAT_32 $< 
@@ -127,9 +128,9 @@ mexSOPEN.obj: mexSLOAD.cpp
 #	MATLAB/WIN64
 #########################################################
 %.o64: %.cpp
-	$(CROSS64)$(CXX) -c -DMATLAB_MEX_FILE -x c++ -o $@ -I$(W64MAT_INC) -O3 -DMX_COMPAT_64 $< 
+	$(CROSS64)$(CXX) -c -DMATLAB_MEX_FILE -x c++ -o $@ -I$(W64MAT_INC) -O2 $< 
 %.o64: %.c
-	$(CROSS64)$(CXX) -c -DMATLAB_MEX_FILE -x c++ -o $@ -I$(W64MAT_INC) -O3 -DMX_COMPAT_64 $< 
+	$(CROSS64)$(CXX) -c -DMATLAB_MEX_FILE -x c++ -o $@ -I$(W64MAT_INC) -O2 $< 
 
 mexSOPEN.o64: mexSLOAD.cpp
 	$(CROSS64)$(CXX) -c -DMATLAB_MEX_FILE -D=mexSOPEN -x c++ -o $@ -I$(W64MAT_INC) -O3 -DMX_COMPAT_64 $< 

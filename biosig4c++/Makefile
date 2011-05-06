@@ -34,6 +34,7 @@ LIBEXT        = a
 MEX_OPTION    = -largeArrayDims # turn on for 64 bit Matlab, otherwise empty
 PathToSigViewer = ../sigviewer
 PathToSigViewerWIN32 = ../sigviewer4win32
+PathToSigViewerWIN64 = ../sigviewer4win64
 PathToMinGW   = $(HOME)/src/mingw-cross-env
 PathToMinGW64 = $(HOME)/src/mce-w64
 
