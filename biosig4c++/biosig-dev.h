@@ -293,7 +293,7 @@ typedef struct {
 			uint16_t INST_NUMBER;		/* tag 14, byte 1-2  */
 			uint16_t DEPT_NUMBER;		/* tag 14, byte 3-4  */
 			uint16_t DEVICE_ID;		/* tag 14, byte 5-6  */
-			uint8_t  DEVICE_TYPE;		/* tag 14, byte 7: 0: Cart, 1: System (or Host)  */
+			uint8_t  DeviceType;		/* tag 14, byte 7: 0: Cart, 1: System (or Host)  */
 			uint8_t MANUF_CODE;		/* tag 14, byte 8 (MANUF_CODE has to be 255) */
 			char*   MOD_DESC;		/* tag 14, byte 9 (MOD_DESC has to be "Cart1") */
 			uint8_t VERSION;		/* tag 14, byte 15 (VERSION has to be 20) */
