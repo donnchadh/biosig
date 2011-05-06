@@ -73,7 +73,7 @@ EXTERN_C int sopen_SCP_write(HDRTYPE* hdr) {
 	aECG->Section1.Tag14.INST_NUMBER 	= 0;		// tag 14, byte 1-2 
 	aECG->Section1.Tag14.DEPT_NUMBER 	= 0;		// tag 14, byte 3-4 
 	aECG->Section1.Tag14.DEVICE_ID 	= 0;		// tag 14, byte 5-6 
-	aECG->Section1.Tag14.DEVICE_TYPE 	= 0;		// tag 14, byte 7: 0: Cart, 1: System (or Host) 
+	aECG->Section1.Tag14.DeviceType 	= 0;		// tag 14, byte 7: 0: Cart, 1: System (or Host) 
 	aECG->Section1.Tag14.MANUF_CODE 	= 255;		// tag 14, byte 8 (MANUF_CODE has to be 255)
 	aECG->Section1.Tag14.MOD_DESC  	= "Cart1";	// tag 14, byte 9 (MOD_DESC has to be "Cart1")
 	aECG->Section1.Tag14.VERSION	= VERSION;	// tag 14, byte 15 (VERSION * 10)
@@ -245,7 +245,7 @@ EXTERN_C int sopen_SCP_write(HDRTYPE* hdr) {
 			*(uint16_t*)(ptr+sectionStart+curSectLen)   = aECG->Section1.Tag14.INST_NUMBER;
 			*(uint16_t*)(ptr+sectionStart+curSectLen+2) = aECG->Section1.Tag14.DEPT_NUMBER;
 			*(uint16_t*)(ptr+sectionStart+curSectLen+4) = aECG->Section1.Tag14.DEVICE_ID;
-			*(ptr+sectionStart+curSectLen+ 6) = aECG->Section1.Tag14.DEVICE_TYPE;
+			*(ptr+sectionStart+curSectLen+ 6) = aECG->Section1.Tag14.DeviceType;
 			*(ptr+sectionStart+curSectLen+ 7) = aECG->Section1.Tag14.MANUF_CODE;	// tag 14, byte 7 (MANUF_CODE has to be 255)
 			strncpy((char*)(ptr+sectionStart+curSectLen+8), aECG->Section1.Tag14.MOD_DESC, 6);	// tag 14, byte 7 (MOD_DESC has to be "Cart1")
 			*(ptr+sectionStart+curSectLen+14) = VERSION;		// tag 14, byte 14 (VERSION has to be 20)

@@ -12261,7 +12261,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 			fprintf(stdout,"\nInstitution Number: %i\n",aECG->Section1.Tag14.INST_NUMBER);
 			fprintf(stdout,"DepartmentNumber : %i\n",aECG->Section1.Tag14.DEPT_NUMBER);
 			fprintf(stdout,"Device Id        : %i\n",aECG->Section1.Tag14.DEVICE_ID);
-//			fprintf(stdout,"Device Type      : %i\n",aECG->Section1.Tag14.DEVICE_TYPE);
+			fprintf(stdout,"Device Type      : %i\n",aECG->Section1.Tag14.DeviceType);
 			fprintf(stdout,"Manufacture code : %i\n",aECG->Section1.Tag14.MANUF_CODE);
 			fprintf(stdout,"MOD_DESC         : %s\n",aECG->Section1.Tag14.MOD_DESC);
 			fprintf(stdout,"Version          : %i\n",aECG->Section1.Tag14.VERSION);
