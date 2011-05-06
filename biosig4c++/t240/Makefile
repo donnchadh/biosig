@@ -334,7 +334,6 @@ W64OBJS=${ASN_MODULE_SOURCES:.c=.o64} ${ASN_CONVERTER_SOURCES:.c=.o64}
 CC        = gcc
 AR        = ar crs
 MinGWCC   = $(CROSS)gcc 
-AR64      = $(CROSS64)ar pe-x86-64 
 MinGW64CC = $(CROSS64)gcc 
 
 all: $(TARGET)
@@ -349,7 +348,7 @@ libcnsfef.a: $(OBJS)
 	$(CROSS)$(AR) ../win32/libcnsfef.a $(WINOBJS) 
 
 ../win64/libcnsfef.a: $(W64OBJS) 
-	$(AR64) ../win64/libcnsfef.a $(W64OBJS) 
+	$(CROSS64)$(AR) ../win64/libcnsfef.a $(W64OBJS) 
 
 ../win32/libcnsfef.dll: $(WINOBJS)
 	$(MinGWCC) -shared -fPIC  $(WINOBJS)  -Wl,--output-def,../win32/libcnsfef.def,--out-implib,../win32/libcnsfef.dll
@@ -375,6 +374,7 @@ clean:
 	rm -f $(TARGET)
 	rm -f $(OBJS)
 	rm -f $(WINOBJS)
+	rm -f $(W64OBJS)
 	rm -f Makefile.am.sample libfef.a 
 
 regen: regenerate-from-asn1-source 
