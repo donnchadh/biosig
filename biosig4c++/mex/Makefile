@@ -8,8 +8,6 @@
 ##############################################################
 
 
-PathToMinGW   = $(HOME)/src/mingw-cross-env
-PathToMinGW64 = $(HOME)/src/mce-w64
 ### modify directories according to your needs 
 INCOCTAVE = -I /usr/include/octave 
 MATLABDIR = /usr/local/MATLAB/R2010b/
@@ -19,12 +17,6 @@ MEX_OPTION += -largeArrayDims
 LIBEXT        = a
 #LIBEXT	      = so
 # 
-# WIN32 settings: 
-# Mingw crosscompiler: available at http://www.nongnu.org/mingw-cross-env/
-# whether dynamic or static linking is used, can be controlled with 
-# Mingw crosscompiler: available at http://www.nongnu.org/mingw-cross-env/
-CROSS   = $(HOME)/src/mingw-cross-env/usr/bin/i686-pc-mingw32-
-CROSS64 = $(HOME)/src/mce-w64/usr/bin/x86_64-w64-mingw32-
 # include directory for Win32-Matlab include
 W32MAT_INC = $(HOME)/bin/win32/Matlab/R2010b/extern/include/
 W64MAT_INC = $(HOME)/bin/win64/Matlab/R2010b/extern/include/

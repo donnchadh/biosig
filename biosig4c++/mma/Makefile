@@ -52,8 +52,7 @@ sload : sload.o sloadtm.o ../libbiosig.a
 #   Win32 - cross-compilation 
 ###########################################
 
-CCw32        = $(HOME)/src/mingw-cross-env/usr/bin/i686-pc-mingw32-gcc
-CCw64        = $(HOME)/src/mce_64/usr/bin/x86_64-w64-mingw32-gcc
+CCw32        = $(CROSS)gcc
 CADDSDIRwin  = ${MLINKDIR}/${SYSwin}/CompilerAdditions/mldev32
 INCDIRwin    = ${CADDSDIRwin}/include
 LIBDIRwin    = ${CADDSDIRwin}/lib
@@ -77,10 +76,10 @@ sload.exe : sload.obj sloadtm.obj ../win32/libbiosig.a
 #   Win64 - cross-compilation 
 ###########################################
 
-CCw64         = $(HOME)/src/mce_64/usr/bin/x86_64-w64-mingw32-gcc
+CCw64         = $(CROSS64)gcc
 CADDSDIRwin64 = ${MLINKDIR}/${SYSwin}/CompilerAdditions/mldev64
-INCDIRwin64   = ${CADDSDIRwin}/include
-LIBDIRwin64   = ${CADDSDIRwin}/lib
+INCDIRwin64   = ${CADDSDIRwin64}/include
+LIBDIRwin64   = ${CADDSDIRwin64}/lib
 
 EXTRALIBSwin64 =  ../win64/libbiosig.a -lgdi32 -lm -lpthread -lstdc++ -lws2_32 -lcholmod -lz  # Set these with appropriate libs for your system.
 

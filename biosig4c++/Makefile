@@ -106,8 +106,7 @@ PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
 ##########################################################
 ## set variables for MinGW Crosscompiler: compile on linux binaries for windows
 ##
-CROSS	     = i586-mingw32msvc-
-CROSS	     = $(PathToMinGW)/usr/bin/i686-pc-mingw32-
+export CROSS = $(PathToMinGW)/usr/bin/i686-pc-mingw32-
 MinGWCC      = $(CROSS)gcc
 MinGWCXX     = $(CROSS)g++
 MinGWDEF     = $(DEFINES)
@@ -115,7 +114,7 @@ MinGWCFLAGS  = -pipe -fPIC -O2 -D_REENTRANT -D=BUILD_DLL $(MinGWDEF) -I$(PathToM
 MinGWLIBS    = win32/libbiosig.a -L$(PathToMinGW)/usr/i686-pc-mingw32/lib/ -lws2_32 $(LDLIBS) # static
 MinGWLINK    = $(MinGWCXX)
 
-CROSS64	     = $(PathToMinGW64)/usr/bin/x86_64-w64-mingw32-
+export CROSS64 = $(PathToMinGW64)/usr/bin/x86_64-w64-mingw32-
 MinGW64CC      = $(CROSS64)gcc
 MinGW64CXX     = $(CROSS64)g++
 MinGW64CFLAGS  = -pipe -fPIC -O2 -D_REENTRANT -D=BUILD_DLL $(MinGWDEF) -I$(PathToMinGW64)/usr/x86_64-w64-mingw32/include/
@@ -510,27 +509,29 @@ biosig_server: biosig_server.c libbiosig.$(LIBEXT) biosig-network.o Makefile
 #	MathLink interface to Mathematica
 #############################################################
 mma: libbiosig.$(LIBEXT)
-	make -C mma sload
+	make -C mma CROSS=$(CROSS) CROSS64=$(CROSS64) sload
 
 win32mma: win32/libbiosig.a
-	make -C mma sload.exe
+	make -C mma CROSS=$(CROSS) CROSS64=$(CROSS64) sload.exe
 
-win64mma: win64/libbiosig.a
-	make -C mma sload.w64.exe
+win64mma: win64/libbiosig.a 
+	make -C mma CROSS=$(CROSS) CROSS64=$(CROSS64) sload.w64.exe
 
 
 #############################################################
 #	MEX-files for Octave and Matlab
 #############################################################
-mex: libbiosig.a
-	make -C mex mex -k
-
-mex4m mex4o mexw32 oct:
-	make -C mex $@
+mex mex4m mex4o oct %.mex %.$(MEX_EXT): libbiosig.a
+	make -C mex CROSS=$(CROSS) CROSS64=$(CROSS64) $@
 	-cp mex/*.mex* ../biosig/t200_FileAccess/
 
-%.mex %.mex.$(MEX_EXT) %.mexw32: win32/libbiosig.a
-	make -C mex $@
+mexw32 %.mexw32: win32/libbiosig.a
+	make -C mex CROSS=$(CROSS) CROSS64=$(CROSS64) $@
+	-cp mex/*.mexw32 ../biosig/t200_FileAccess/
+	
+mexw64 %.mexw64: win64/libbiosig.a
+	make -C mex CROSS=$(CROSS) CROSS64=$(CROSS64) $@
+	-cp mex/*.mexw64 ../biosig/t200_FileAccess/
 
 #############################################################
 #	SigViewer
