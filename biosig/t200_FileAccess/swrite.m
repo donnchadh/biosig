@@ -5,7 +5,7 @@ function [HDR]=swrite(HDR,data)
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
-% as published by the Free Software Foundation; either version 2
+% as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 % 
 % This program is distributed in the hope that it will be useful,
@@ -19,7 +19,7 @@ function [HDR]=swrite(HDR,data)
 
 
 %	$Id$
-%	Copyright (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%	Copyright (c) 1997-2005,2011 by Alois Schloegl <alois.schloegl@gmail.com>	
 %       This file is part of the biosig project http://biosig.sf.net/
 
 
@@ -78,26 +78,45 @@ if strcmp(HDR.TYPE,'EDF') || strcmp(HDR.TYPE,'GDF') || strcmp(HDR.TYPE,'BDF'),
 		if GDFTYP<256,
 	    		count = fwrite(HDR.FILE.FID,D,gdfdatatype(GDFTYP));
 		else
-		    [datatyp,limits,datatypes] = gdfdatatype(GDFTYP);
-		    [nr,nc] = size(D);
-		    if 1, %GDFTYP>511, % unsigned bitN
-			bits = GDFTYP - 511; 
+			[datatyp,limits,datatypes] = gdfdatatype(GDFTYP);
+			[nr,nc] = size(D);
+			bits = GDFTYP - 511;
 			
-			if 0, 
-			elseif bits==4,
+			if any(GDFTYP==([255,511]+4)),
+				if GDFTYP<512,
+					%% signed 4 bit
+					s = D<0;
+					D(s) = D(s) + (2^4);	
+				end, 
 				X(2:2:2*nr,:) = floor(D/16);
 				X(1:2:2*nr,:) = mod(D,16);
 		    		count = fwrite(HDR.FILE.FID,X,'uint8');
-			elseif bits==12,
+
+			elseif any(GDFTYP==([255,511]+12)),
+				if GDFTYP<512,
+					%% signed 12 bit
+					s = D<0;
+					D(s) = D(s) + (2^12);	
+				end, 
 				X(3:3:1.5*nr,:) = floor(D(2:2:nr,:)/16);
 				X(1:3:1.5*nr,:) = mod(D([1:2:nr],:),256);
 				X(2:3:1.5*nr,:) = mod(floor(D(1:2:nr,:)/256),16)+16*mod(D(2:2:nr,:),16);
 		    		count = fwrite(HDR.FILE.FID,X,'uint8');
-			elseif bits==24,
+
+			elseif any(GDFTYP==([255,511]+24)),
+				if GDFTYP<512,
+					%% BDF, signed 24 bit
+					s = D<0;
+					D(s) = D(s) + (2^24);	
+				end, 
 				X(3:3:3*nr,:) = mod(floor(D*2^-16),256);
 				X(1:3:3*nr,:) = mod(D,256); 
 				X(2:3:3*nr,:) = mod(floor(D/256),256);
 		    		count = fwrite(HDR.FILE.FID,X,'uint8');
+
+			elseif 1,	
+				error('SWRITE: writing of data type %s(%i) not supported.\n',datatypes,GDFTYP)
+
 			else
 				ix0 = ceil([1:nr*bits]'/8);
 				ix1 =  mod([1:nr*bits]',8);
@@ -107,11 +126,9 @@ if strcmp(HDR.TYPE,'EDF') || strcmp(HDR.TYPE,'GDF') || strcmp(HDR.TYPE,'BDF'),
 				
 				end;
 			end;	
-		    end;
 		end;
 	end;	
         HDR.FILE.POS  = HDR.FILE.POS  + count/HDR.AS.spb;
-        
         
 elseif strcmp(HDR.TYPE,'BKR'),
         count=0;
@@ -243,4 +260,5 @@ else
         fprintf(2,'Error SWRITE: file type %s not supported \n',HDR.TYPE);
         
 
-end;                        
+end;
+
