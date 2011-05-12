@@ -37,6 +37,8 @@ PathToSigViewerWIN32 = ../sigviewer4win32
 PathToSigViewerWIN64 = ../sigviewer4win64
 PathToMinGW   = $(HOME)/src/mingw-cross-env
 PathToMinGW64 = $(HOME)/src/mce-w64
+CROSS         = $(PathToMinGW)/usr/i686-pc-mingw32/bin/
+CROSS64       = $(PathToMinGW64)/usr/x86_64-w64-mingw32/bin/
 
 ## default options
 
@@ -106,7 +108,6 @@ PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
 ##########################################################
 ## set variables for MinGW Crosscompiler: compile on linux binaries for windows
 ##
-export CROSS = $(PathToMinGW)/usr/bin/i686-pc-mingw32-
 MinGWCC      = $(CROSS)gcc
 MinGWCXX     = $(CROSS)g++
 MinGWDEF     = $(DEFINES)
@@ -114,7 +115,6 @@ MinGWCFLAGS  = -pipe -fPIC -O2 -D_REENTRANT -D=BUILD_DLL $(MinGWDEF) -I$(PathToM
 MinGWLIBS    = win32/libbiosig.a -L$(PathToMinGW)/usr/i686-pc-mingw32/lib/ -lws2_32 $(LDLIBS) # static
 MinGWLINK    = $(MinGWCXX)
 
-export CROSS64 = $(PathToMinGW64)/usr/bin/x86_64-w64-mingw32-
 MinGW64CC      = $(CROSS64)gcc
 MinGW64CXX     = $(CROSS64)g++
 MinGW64CFLAGS  = -pipe -fPIC -O2 -D_REENTRANT -D=BUILD_DLL $(MinGWDEF) -I$(PathToMinGW64)/usr/x86_64-w64-mingw32/include/
@@ -351,14 +351,12 @@ win32/sopen_hl7aecg.obj: t230/sopen_hl7aecg.c biosig-dev.h biosig.h XMLParser/ti
 win32/getlogin_r.obj: win32/getlogin_r.c
 	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
 
-win32/sigviewer.exe: win32/libbiosig.a win32/libbiosig.dll win32/libGDF.a
+win32/sigviewer.exe: win32/libbiosig.a win32/libbiosig.dll 
 	-$(DELETE) $(PathToSigViewerWIN32)/extern/include/*.h
 	-$(COPY) biosig.h $(PathToSigViewerWIN32)/extern/include
-	-$(COPY) -r ../libgdf/libgdf/include/GDF $(PathToSigViewerWIN32)/extern/include/
 	-$(DELETE) $(PathToSigViewerWIN32)/extern/lib/lib*
 	-$(COPY) win32/libbiosig.a $(PathToSigViewerWIN32)/extern/lib
-	-$(COPY) win32/libGDF.a $(PathToSigViewerWIN32)/extern/lib
-	sed -i 's;-lGDF[[:space:]]*$$;-lGDF -lcholmod -lz;' $(PathToSigViewerWIN32)/src/src.pro
+	sed -i 's#-lbiosig\b#-lbiosig -lcholmod -lz #' $(PathToSigViewerWIN32)/src/src.pro
 	-(cd $(PathToSigViewerWIN32)/src; $(CROSS)qmake; make)
 	-$(COPY) $(PathToSigViewerWIN32)/bin/release/sigviewer.exe win32/
 
@@ -376,14 +374,11 @@ win64/sopen_hl7aecg.obj: t230/sopen_hl7aecg.c biosig-dev.h biosig.h XMLParser/ti
 win64/getlogin_r.obj: win32/getlogin_r.c
 	$(MinGW64CC) -c $(MinGW64CFLAGS) $(INCPATH) -o "$@" "$<"
 
-win64/sigviewer.exe: win64/libbiosig.a win64/libbiosig.dll win64/libGDF.a
+win64/sigviewer.exe: win64/libbiosig.a win64/libbiosig.dll 
 	-$(DELETE) $(PathToSigViewerWIN64)/extern/include/*.h
 	-$(COPY) biosig.h $(PathToSigViewerWIN64)/extern/include
-	-$(COPY) -r ../libgdf/libgdf/include/GDF $(PathToSigViewerWIN64)/extern/include/
-	-$(DELETE) $(PathToSigViewerWIN64)/extern/lib/lib*
 	-$(COPY) win64/libbiosig.a $(PathToSigViewerWIN64)/extern/lib
-	-$(COPY) win64/libGDF.a $(PathToSigViewerWIN64)/extern/lib
-	sed -i 's;-lGDF[[:space:]]*$$;-lGDF -lcholmod -lz;' $(PathToSigViewerWIN64)/src/src.pro
+	sed -i 's#-lbiosig\b#-lbiosig -lcholmod -lz #' $(PathToSigViewerWIN64)/src/src.pro
 	-(cd $(PathToSigViewerWIN64)/src; $(CROSS64)qmake; make)
 	-$(COPY) $(PathToSigViewerWIN64)/bin/release/sigviewer.exe win64/
 
@@ -542,14 +537,12 @@ sigviewer: $(PathToSigViewer)/bin/sigviewer
 	mv $(PathToSigViewer)/bin/release/sigviewer ~/bin/sigviewer-$(TODAY)
 	ln -sf ~/bin/sigviewer-$(TODAY) ~/bin/sigviewer 
 
-$(PathToSigViewer)/bin/sigviewer: libbiosig.$(LIBEXT) libGDF.a biosig.h
+$(PathToSigViewer)/bin/sigviewer: libbiosig.$(LIBEXT) biosig.h
 	-$(DELETE) $(PathToSigViewer)/extern/include/*
 	-$(COPY) biosig.h $(PathToSigViewer)/extern/include
-	-$(COPY) -r ../libgdf/libgdf/include/GDF $(PathToSigViewer)/extern/include/
 	-$(DELETE) $(PathToSigViewer)/extern/lib/lib*
 	-$(COPY) libbiosig.a $(PathToSigViewer)/extern/lib
-	-$(COPY) libGDF.a $(PathToSigViewer)/extern/lib
-	sed -i 's;-lGDF[[:space:]]*$$;-lGDF -lcholmod -lz;' $(PathToSigViewer)/src/src.pro
+	sed -i 's#-lbiosig\b#-lbiosig -lcholmod -lz #' $(PathToSigViewer)/src/src.pro
 	(cd $(PathToSigViewer)/src; qmake;make;)
 
 docs: 	docs/save2gdf.txt  docs/mexSLOAD.txt
