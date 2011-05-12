@@ -92,8 +92,10 @@ HDR.GDFTYP = 3*ones(1,HDR.NS);
 % define scaling factors 
 HDR.PhysMax = [100;100;100;100;100;100];
 HDR.PhysMin = [0;0;0;0;0;0];
-HDR.DigMax  = [100;100;100;100;100;1000];
-HDR.DigMin  = [0;0;0;0;0;0];
+HDR.DigMax  = repmat(2^15-1,size(HDR.PhysMax));
+HDR.DigMin  = repmat(-2^15,size(HDR.PhysMax));
+HDR.FLAG.UCAL = 1; 	% data x is already converted to internal (usually integer) values (no rescaling within swrite);
+HDR.FLAG.UCAL = 0; 	% data x will be converted from physical to digital values within swrite. 
 % define filter settings 
 HDR.Filter.Lowpass = [0,0,0,NaN,NaN,NaN];
 HDR.Filter.Highpass = [100,100,100,NaN,NaN,NaN];
