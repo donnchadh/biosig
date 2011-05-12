@@ -15,7 +15,7 @@ function Q=arspectrum(s,arg2,arg3,impedance)
 %  see also: SLOAD, PLOTA, TSA/LATTICE, TSA/DURLEV
 
 %	$Id$
-%	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>
+%	Copyright (C) 2005,2009,2011 by Alois Schloegl <alois.schloegl@gmail.com>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
@@ -59,19 +59,22 @@ elseif isnumeric(s)
 end;
 
 if isnumeric(s)
-        h = histo3(s);
-        %Q.HISTO = h;
-        %Q.stats = hist2res(h);
-        %Q = y2res(s);
-        q = hist2res(h);
-        Q.MEAN = q.MEAN;
-        Q.RMS = q.RMS;
-        Q.STD = q.STD;
-        if isempty(q.QUANT)
-                Q.QUANT = full(diag(H.Calib(H.InChanSelect+1,:)));
-        else
-                Q.QUANT = q.QUANT;
-        end;
+	try 
+	        h = histo3(s);
+        	q = hist2res(h);
+		Q.HISTO = h;
+        	Q.stats = hist2res(h);
+	        Q.MEAN = q.MEAN;
+	        Q.RMS = q.RMS;
+	        Q.STD = q.STD;
+	        if isempty(q.QUANT)
+	                Q.QUANT = full(diag(H.Calib(H.InChanSelect+1,:)));
+	        else
+	                Q.QUANT = q.QUANT;
+	        end;
+        catch
+		Q = y2res(s);
+	end
         Q.ENTROPY = q.ENTROPY;
 	[Q.AR,Q.RC,Q.PE]  = lattice(center(s)',50);
 	%[Q.AR,Q.RC,Q.PE] = lattice(center(s)',500);

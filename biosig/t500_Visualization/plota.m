@@ -116,7 +116,7 @@ elseif isfield(X,'TYPE');
                 end
                 
         elseif strcmp(X.TYPE,'ELPOS')
-                if isfield(X,'ELEC') & isfield(X,'Label');
+                if isfield(X,'ELEC') && isfield(X,'Label');
                         if isfield(X.ELEC,'XYZ');
                                 X.datatype = 'ELPOS'; 
                         end;
@@ -243,7 +243,7 @@ elseif strcmp(X.datatype,'MVAR'),
                 elseif strcmpi(Mode,'rSpectrum'),
                         R = real(S);
                         range = [min(R(:)),max(R(:))];
-                elseif strcmpi(Mode,'Phase') | strcmpi(Mode,'phaseS') ,
+                elseif strcmpi(Mode,'Phase') || strcmpi(Mode,'phaseS') ,
                         R = zeros(size(S));
                         for k1=1:K1;
                                 for k2=1:K2;
@@ -252,7 +252,7 @@ elseif strcmp(X.datatype,'MVAR'),
                         end;
                         range = [-180,180]*2;
                         range = [min(R(:)),max(R(:))];
-                elseif strcmpi(Mode,'Phase') | strcmpi(Mode,'phaseh') ,
+                elseif strcmpi(Mode,'Phase') || strcmpi(Mode,'phaseh') ,
                         R = zeros(size(h));
                         for k1=1:K1;
                                 for k2=1:K2;
@@ -270,11 +270,11 @@ elseif strcmp(X.datatype,'MVAR'),
                         R = GPDC;
                         YTICK = 0:.5:1;
                         YTICKLABEL = {'0','0.5',[]}
-                elseif strcmpi(Mode,'Coherence') | strcmpi(Mode,'COH'),
+                elseif strcmpi(Mode,'Coherence') || strcmpi(Mode,'COH'),
                         R = abs(COH);
                         YTICK = 0:.5:1;
                         YTICKLABEL = {'0','0.5',[]}
-                elseif strcmpi(Mode,'iCOH') | strcmpi(Mode,'imagCOH'),
+                elseif strcmpi(Mode,'iCOH') || strcmpi(Mode,'imagCOH'),
                         R = imag(COH);
                         range = [-1,1];
                         YTICK = -1:.5:1;
@@ -436,7 +436,7 @@ elseif strncmp(X.datatype,'TF-MVAR',7)    % logS2 and S1
         else
                 Y = arg4;
         end;
-        if isfield(X,'SampleRate') & (size(X.T,1)>1),
+        if isfield(X,'SampleRate') && (size(X.T,1)>1),
 		XT = (X.T(1,:)+X.T(2,:))/(2*X.SampleRate);
 	else
 		XT = X.T; 
@@ -463,8 +463,8 @@ elseif strncmp(X.datatype,'TF-MVAR',7)    % logS2 and S1
 	elseif ~isfield(X.M,GF)
                 warning('PLOTA TFMVAR_ALL: field %s is unknown\n',GF);
         end;
-        MONO = strcmp(GF,'logS1') | strcmp(GF,'S1');
-        if strcmp(GF,'AR1') | strcmp(GF,'C1');
+        MONO = strcmp(GF,'logS1') || strcmp(GF,'S1');
+        if strcmp(GF,'AR1') || strcmp(GF,'C1');
                 MONO=1;
                 f = 1:size(getfield(X.M,GF),2);
         else
@@ -503,7 +503,7 @@ elseif strncmp(X.datatype,'TF-MVAR',7)    % logS2 and S1
         if 0, nargin>2,
                 hf = arg3;
 
-        elseif AUTO | MONO,
+        elseif AUTO || MONO,
                 NR = ceil(sqrt(M));
                 NC = ceil(M/NR);
                 for k1 = 1:M,
@@ -627,7 +627,7 @@ elseif strncmp(X.datatype,'TF-MVAR',7)    % logS2 and S1
                 warning('time scale is not equidistant - xlabels are incorrect')
         end;
 
-        if (strcmp(gf,'DC') | strcmp(gf,'C'))
+        if (strcmp(gf,'DC') || strcmp(gf,'C'))
                 caxis(clim);
                 cm = colormap;
                 for k1 = 1:M,
@@ -1222,7 +1222,7 @@ elseif strcmp(X.datatype,'qc:histo')
                         plot(t,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h)*dT,'c',t,h2+.01,'r',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5],tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
                         hold off
                         v=axis; v=[xrange 1 max(X.HIS.H(:))]; axis(v);
-                elseif strcmp(yscale,'log ') | strcmp(yscale,'log'),
+                elseif strcmp(yscale,'log ') || strcmp(yscale,'log'),
                         subplot(Ny,N,k);
                         tmp = sqrt(sum(h)/sqrt(2*pi*sd2)*dT);
                         semilogy(t,[h+.01,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h)*dT,h2+.01]);
@@ -1391,7 +1391,7 @@ elseif strcmp(X.datatype,'HISTOGRAM') || strcmp(X.datatype,'qc:histo')
                         %plot(t,[h],'-',t,exp(-(t-mu).^2./sd2/2)./sqrt(2*pi*sd2).*sum(h),'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5],tmp*ones(7,1),'+-',MaxMin,tmp,'rx' );
                         plot(t,[h]+.01,'-',t,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h)*dQ,'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5],tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
                         v=axis; v=[MaxMin(2) MaxMin(1) 1 max(h)]; axis(v);
-                elseif strcmp(yscale,'log ') | strcmp(yscale,'log'),
+                elseif strcmp(yscale,'log ') || strcmp(yscale,'log'),
                         subplot(ceil(size(X.H,2)/N),N,K);
                         tmp = diff(t);
                         dQ  = min(tmp(tmp>0));
@@ -1756,7 +1756,7 @@ elseif strcmp(X.datatype,'MEAN+STD')
 
 
 elseif strcmp(X.datatype,'CORRELATION_WITH_REFERENCE')
-        if isfield(X,'ELEC') | isfield(X,'ELPOS')
+        if isfield(X,'ELEC') || isfield(X,'ELPOS')
                 fprintf(2,'PLOTA: X.ELPOS, X.ELEC not supported yet.\n');
         end;
         FLAG.TOPOMAP = 1;
@@ -1842,7 +1842,7 @@ elseif strcmp(X.datatype,'Classifier')
                         legend(LEG);
                 end
 
-        elseif strcmpi(arg2,'fixed') |  strcmpi(arg2,'fixed-MDA'),
+        elseif strcmpi(arg2,'fixed') ||  strcmpi(arg2,'fixed-MDA'),
                 if 0,isfield(X,'tsc'),
                         patch(X.T(X.tsc([1,1,2,2,1])),[0,1,1,0,0]*100,[1,1,1]*.8);
                 end;
@@ -2268,7 +2268,7 @@ elseif strcmp(X.datatype,'TSD_BCI8')    % obsolote
         xlabel('t [s]');
 
 elseif strcmp(X.datatype,'TSD_BCI7')    % obsolete
-        if (nargin>1) & strcmpi(arg2,'balken2');
+        if (nargin>1) && strcmpi(arg2,'balken2');
                 %elseif strcmpi(X.datatype,'Balken_Diagramm'),
 
                 dy = 0.3;
@@ -2277,7 +2277,7 @@ elseif strcmp(X.datatype,'TSD_BCI7')    % obsolete
                 pc = rs([X.BCG2(:),X.BCG1(:)],F,1)';
                 barh(rs(X.T,F,1),rs([1-2*X.BCG1,X.BCG2*2-1],F,1))
 
-        elseif (nargin>1) & strcmpi(arg2,'balken');
+        elseif (nargin>1) && strcmpi(arg2,'balken');
                 %elseif strcmpi(X.datatype,'Balken_Diagramm'),
 
                 dy = 0.3;
@@ -2475,10 +2475,10 @@ elseif strcmp(X.datatype,'QRS_events'),
         
 elseif strcmp(X.datatype,'AMARMA')
         if X.MOP(3)~=0, return; end;
-        if (X.MOP(1)==1) & (size(X.AAR,2)==X.MOP(2)+1),
+        if (X.MOP(1)==1) && (size(X.AAR,2)==X.MOP(2)+1),
                 m0 = X.AAR(:,1)./(1-sum(X.AAR(:,2:end),2));
                 ix_aar = 2:X.MOP(2)+1;
-        elseif (X.MOP(1)==0) & (size(X.AAR,2)==X.MOP(2)),
+        elseif (X.MOP(1)==0) && (size(X.AAR,2)==X.MOP(2)),
                 m0 = zeros(size(X.AAR,1),1);
                 ix_aar = 1:X.MOP(2);
         else
@@ -2565,7 +2565,7 @@ elseif strcmp(X.datatype,'AMARMA')
                 [w,A,B,R,P,F,ip] = ar_spa(X.AAR(:,ix_aar),f0,X.PE);
                 ix = (imag(F)==0);
 
-        elseif any(MODE==5) | any(MODE==6) | any(MODE==7) | any(MODE==8)
+        elseif any(MODE==5) || any(MODE==6) || any(MODE==7) || any(MODE==8)
                 [w,A,B,R,P,F,ip] = ar_spa(X.AAR(:,ix_aar),1,X.PE);
                 ix = (imag(F)==0);
 
