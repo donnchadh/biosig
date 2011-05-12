@@ -1,9 +1,6 @@
 INSTALLATION
 ============
 
-
-
-
 General remarks:
 ----------------
 Please check the Makefile and (un)define the corresponding defines: 
@@ -24,17 +21,16 @@ If some libraries are not available on your system, remove the corresponding DEF
 
 Prerequisites: 
 ----------------
-for building libbiosig, save2gdf, mma (mathematica) and mex (matlab)  
+P1) for building libbiosig, save2gdf, mma (mathematica) and mex (matlab)  
 	sudo apt-get install subversion libz-dev libsuitsparse-dev 
 	svn co https://biosig.svn.sourceforge.net/svnroot/biosig/trunk/biosig4c++ 
 	svn co https://biosig.svn.sourceforge.net/svnroot/biosig/trunk/biosig/
 
-for building SigViewer  
+P2) for building SigViewer  
 	sudo apt-get install qt4-dev-tools  libqt4-dev  libqt4-qt3support
-	svn co https://libgdf.svn.sourceforge.net/svnroot/libgdf/trunk libgdf 
 	svn co https://sigviewer.svn.sourceforge.net/svnroot/sigviewer/trunk sigviewer
 
-for cross-compilation with Win32 target platform:   
+P3) Cross-compilation on Linux for Win32-target:   
 	aptitude install -R autoconf automake bash bison bzip2 \
                     cmake flex g++ intltool make sed \
                     libtool openssl libssl-dev \
@@ -43,9 +39,17 @@ for cross-compilation with Win32 target platform:
                     xz-utils yasm mercurial 
 	hg clone http://hg.savannah.nongnu.org/hgweb/mingw-cross-env mingw-cross-env
 	cd mingw-cross-env
-	make gcc zlib suitesparse
+	make zlib suitesparse libgomp qt 
+	patch -p0 <biosig4c++/patches/patch_mingw_io_h.diff
 
-Host=Win32 platform: 
+P4) Cross-compilation on GNU/Linux for Win64-target:   
+	hg clone https://bitbucket.org/tonyt/mce-w64
+	cd mce-win64
+	make zlib suitesparse libgomp qt 
+	patch ../mce-w64/usr/x86_64-w64-mingw32/include/io.h biosig4c++/patches/patch_mce-w64_io_h.diff
+
+
+P5) Host=Win32 platform: 
 	MinGW32 (with g++)  
 	You need to use Makefile.win32 like this 
 	make -f Makefile.win32  	
@@ -61,29 +65,42 @@ Running make compiles the converter.
   make 		 	# makes the file format converter
   make save2gdf 	# makes the file format converter
   make win32		# makes the file format converter for Win32
+  make win64		# makes the file format converter for Win64
   make physicalunits 	# makes the en/decoder for physical units
   make libbiosig.a  	# makes a static library 
   make mex4o 		# makes mexSLOAD for Octave (requires Octave-headers2.9 or higher)
   make mex4m 		# makes mexSLOAD for Matlab (path_to_mex need to be defined in Makefile)
   make biosig4python 	# compiles the BioSig interface for Python (requires SWIG and Python)
   make all  		# all of the above
-  make sigviewer 	# recompiles SigViewer (requires qmake and Qt, the sources of sigviewer and libgdf, must be in ../sigviewer and ../libgdf resp.)
+  make sigviewer 	# recompiles SigViewer (requires qmake and Qt, the sources of sigviewer must be in ../sigviewer)
   make testscp 
   make testhl7	
   make test		# tests HL7<->SCP, SCP<->GDF, GDF<->HL7 converters
   make test6		# tests bidirectional conversion between 6 differerent data formats	
 
-# MinGW Crosscompiler on Linux for Windows  
-- install mingw32 mingw32-binutils mingw32-runtime
+
+
+# MinGW Crosscompiler on Debian/Ubuntu for Windows  
+- aptitude install mingw32 mingw32-binutils mingw32-runtime
+
+# mingw-cross-env/mce-w64 on GNU/Linux for Windows  
+Prerequisites P3) and/or P4) (see above)
+- modify Makefile and set variable CROSS for Win32 (and CROSS64 for Win64) to the proper value e.g.  
+   CROSS   = $(HOME)/src/mingw-cross-env/usr/bin/i686-pc-mingw32
+   CROSS64 = $(HOME)/src/mce-w64/usr/bin/x86_64-w64-mingw32
+
 - run the command  
-   make win32/save2gdf.exe      # converter between data format s
+   make win32/save2gdf.exe      # converter between data formats
    make win32/libbiosig.dll     # dynamic library 
-   make win32/libbiosig.lib     # static library    
-   make mexw32			# Win32/Matlab mex interface 
+   make win32/libbiosig.a       # static library    
    make win32mma		# Win32/Mathematica interface
+   make mexw32			# Win32/Matlab mex interface 
    make win32                   # all of the above
+   make win64/save2gdf.exe      # converter between data formats 64bit Windows
+   make mexw64			# Win64/Matlab mex interface 
 
 # Windows + MinGW
+Prerequisites P5) (see above)
 Support for FEF, ZLIB, CHOLMOD is turned off, because of lack of support in MinGW. 
 In general, Makefile.win32 should be used. 
 - Run the make command 
@@ -176,7 +193,6 @@ The Octave/Matlab script
 	test0/test01.m 
 tests whether the various data formats give the same results 
 or whether some conversion error has been included.  
-
 
 
     $Id: README,v 1.26 2009/02/27 09:18:33 schloegl Exp $

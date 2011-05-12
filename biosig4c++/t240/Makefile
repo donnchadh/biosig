@@ -333,8 +333,8 @@ W64OBJS=${ASN_MODULE_SOURCES:.c=.o64} ${ASN_CONVERTER_SOURCES:.c=.o64}
 
 CC        = gcc
 AR        = ar crs
-MinGWCC   = $(CROSS)gcc 
-MinGW64CC = $(CROSS64)gcc 
+MinGWCC   = $(CROSS)-gcc 
+MinGW64CC = $(CROSS64)-gcc 
 
 all: $(TARGET)
 
@@ -345,10 +345,10 @@ libcnsfef.a: $(OBJS)
 	$(AR) libcnsfef.a $(OBJS) 
 
 ../win32/libcnsfef.a: $(WINOBJS) 
-	$(CROSS)$(AR) ../win32/libcnsfef.a $(WINOBJS) 
+	$(CROSS)-$(AR) ../win32/libcnsfef.a $(WINOBJS) 
 
 ../win64/libcnsfef.a: $(W64OBJS) 
-	$(CROSS64)$(AR) ../win64/libcnsfef.a $(W64OBJS) 
+	$(CROSS64)-$(AR) ../win64/libcnsfef.a $(W64OBJS) 
 
 ../win32/libcnsfef.dll: $(WINOBJS)
 	$(MinGWCC) -shared -fPIC  $(WINOBJS)  -Wl,--output-def,../win32/libcnsfef.def,--out-implib,../win32/libcnsfef.dll
@@ -361,9 +361,9 @@ libcnsfef.a: $(OBJS)
 .SUFFIXES: .c .o
 
 %.obj: %.c
-	$(CROSS)$(CC) $(CFLAGS) -o $@ -c $<
+	$(CROSS)-$(CC) $(CFLAGS) -o $@ -c $<
 %.o64: %.c
-	$(CROSS64)$(CC) $(CFLAGS) -o $@ -c $<
+	$(CROSS64)-$(CC) $(CFLAGS) -o $@ -c $<
 
 .c.o:
 	$(CC) $(CFLAGS) -o $@ -c $<

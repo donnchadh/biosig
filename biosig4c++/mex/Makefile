@@ -105,27 +105,27 @@ mexSLOAD.oct:  mexSLOAD.cpp ../libbiosig.$(LIBEXT) Makefile
 #	MATLAB/WIN32
 #########################################################
 %.obj: %.cpp
-	$(CROSS)$(CXX) -c -DMATLAB_MEX_FILE -x c++ -o $@ -I$(W32MAT_INC) -O2 -DMX_COMPAT_32 $< 
+	$(CROSS)-$(CXX) -c -DMATLAB_MEX_FILE -x c++ -o $@ -I$(W32MAT_INC) -O2 -DMX_COMPAT_32 $< 
 %.obj: %.c
-	$(CROSS)$(CXX) -c -DMATLAB_MEX_FILE -x c++ -o $@ -I$(W32MAT_INC) -O2 -DMX_COMPAT_32 $< 
+	$(CROSS)-$(CXX) -c -DMATLAB_MEX_FILE -x c++ -o $@ -I$(W32MAT_INC) -O2 -DMX_COMPAT_32 $< 
 
 mexSOPEN.obj: mexSLOAD.cpp
-	$(CROSS)$(CXX) -c -DMATLAB_MEX_FILE -D=mexSOPEN -x c++ -o $@ -I$(W32MAT_INC) -O2 -DMX_COMPAT_32 $< 
+	$(CROSS)-$(CXX) -c -DMATLAB_MEX_FILE -D=mexSOPEN -x c++ -o $@ -I$(W32MAT_INC) -O2 -DMX_COMPAT_32 $< 
 
 %.mexw32: %.obj ../win32/libbiosig.a
-	$(CROSS)$(CXX) -shared $(GNUMEX)/mex.def -o $@ -L$(GNUMEX) -s $< -llibmx -llibmex ../win32/libbiosig.a -lz -lcholmod -lws2_32
+	$(CROSS)-$(CXX) -shared $(GNUMEX)/mex.def -o $@ -L$(GNUMEX) -s $< -llibmx -llibmex ../win32/libbiosig.a -lz -lcholmod -lws2_32
 
 
 #########################################################
 #	MATLAB/WIN64
 #########################################################
 %.o64: %.cpp
-	$(CROSS64)$(CXX) -c -DMATLAB_MEX_FILE -x c++ -o $@ -I$(W64MAT_INC) -O2 $< 
+	$(CROSS64)-$(CXX) -c -DMATLAB_MEX_FILE -x c++ -o $@ -I$(W64MAT_INC) -O2 $< 
 %.o64: %.c
-	$(CROSS64)$(CXX) -c -DMATLAB_MEX_FILE -x c++ -o $@ -I$(W64MAT_INC) -O2 $< 
+	$(CROSS64)-$(CXX) -c -DMATLAB_MEX_FILE -x c++ -o $@ -I$(W64MAT_INC) -O2 $< 
 
 mexSOPEN.o64: mexSLOAD.cpp
-	$(CROSS64)$(CXX) -c -DMATLAB_MEX_FILE -D=mexSOPEN -x c++ -o $@ -I$(W64MAT_INC) -O2 $< 
+	$(CROSS64)-$(CXX) -c -DMATLAB_MEX_FILE -D=mexSOPEN -x c++ -o $@ -I$(W64MAT_INC) -O2 $< 
 
 %.mexw64: %.o64 ../win64/libbiosig.a
-	$(CROSS64)$(CXX) -shared $(GNUMEX64)/mex.def -o $@ -L$(GNUMEX64) -s $< -llibmx -llibmex ../win64/libbiosig.a -lz -lcholmod -lws2_32
+	$(CROSS64)-$(CXX) -shared $(GNUMEX64)/mex.def -o $@ -L$(GNUMEX64) -s $< -llibmx -llibmex ../win64/libbiosig.a -lz -lcholmod -lws2_32
