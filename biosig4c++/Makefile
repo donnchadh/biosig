@@ -8,9 +8,12 @@
 ##############################################################
 
 ##### Target: GNU/Linux
+
 ## make save2gdf   - makes converter
 ## make mex4o      - makes mexSLOAD, mexSOPEN for Octave (requires Octave-headers)
 ## make mex4m      - makes mexSLOAD, mexSOPEN for Matlab (requires Matlab, mex -setup must be configured)
+## make mexw32     - makes mexSLOAD.mexw32, mexSOPEN.mexw32 (requires that mingw32, gnumex libraries from Matlab/Win32)
+## make mexw64     - makes mexSLOAD.mexw64, mexSOPEN.mexw64 (requires that mce-w32, gnumex libraries from Matlab/Win64)
 ## make mex        - mex4o and mex4m combined
 ## make libbiosig  - makes libbiosig
 ## make biosig4python - makes python interface (requires Python)
@@ -19,6 +22,8 @@
 ## make biosig4perl - makes perl interface (experimental)
 ## make biosig4ruby - makes ruby interface (experimental)
 ## make biosig4tcl - makes tcl/tk interface (experimental)
+## make win32      - makes save2gdf.exe, libbiosig.a, libbiosig.dll, for MSWindows, requires MinGW
+## make win64      - makes save2gdf.exe, libbiosig.a, libbiosig.dll for 64bit Windows, requires mce-w64 
 ## make sigviewer  - makes sigviewer
 
 ##### Target: Win32
@@ -215,11 +220,11 @@ endif
 
 MinGW64OBJECTS  = $(patsubst win32/%.obj, win64/%.obj, $(MinGWOBJECTS))
 
-TARGET = save2gdf 
+TARGET = save2gdf libbiosig.a
 
 first: $(TARGET)
-all:   $(TARGET) mex4o biosig4python win32 biosig_client biosig_server mma java tcl perl php ruby #sigviewer 
-lib:	libbiosig.a win32/libbiosig.dll win32/libbiosig.a
+all:   $(TARGET) mex4o biosig4python win32 win64 #biosig_client biosig_server mma java tcl perl php ruby #sigviewer 
+lib:	libbiosig.a win32/libbiosig.dll win32/libbiosig.a win64/libbiosig.a
 
 #############################################################
 #	Compilation: Implicit, default rules
@@ -446,7 +451,7 @@ win64/save2gdf.exe: save2gdf.c win64/libbiosig.a
 win64/pdp2gdf.exe: pdp2gdf.c win64/libbiosig.a
 	$(MinGW64LINK) $(MinGW64CFLAGS) "$<" $(MinGW64LIBS) -o "$@"
 
-win64: win64/save2gdf.exe win64/libbiosig.dll win64/libbiosig.a mexw64 win64mma 
+win64: win64/save2gdf.exe win64/libbiosig.dll win64/libbiosig.a #mexw64 win64mma 
 
 
 #############################################################
@@ -505,11 +510,11 @@ mex mex4m mex4o oct %.mex %.$(MEX_EXT): libbiosig.a
 	-cp mex/*.mex* ../biosig/t200_FileAccess/
 
 mexw32 %.mexw32: win32/libbiosig.a
-	make -C mex CROSS=$(CROSS) CROSS64=$(CROSS64) $@
+	make -C mex CROSS=$(CROSS) CROSS64=$(CROSS64) $(@F)
 	-cp mex/*.mexw32 ../biosig/t200_FileAccess/
 	
 mexw64 %.mexw64: win64/libbiosig.a
-	make -C mex CROSS=$(CROSS) CROSS64=$(CROSS64) $@
+	make -C mex CROSS=$(CROSS) CROSS64=$(CROSS64) $(@F)
 	-cp mex/*.mexw64 ../biosig/t200_FileAccess/
 
 #############################################################
@@ -557,11 +562,8 @@ distclean:
 	-$(DELETE) python/swig_wrap.* python/biosig.py* python/_biosig.so
 	-$(DELETE) QMakefile
 	-$(DELETE) igor/libIgor.a
-	-$(DELETE) win32/*.a
-	-$(DELETE) win32/*.lib
-	-$(DELETE) win32/libbiosig.*
-	-$(DELETE) win32/*.obj
-	-$(DELETE) win32/*.exe
+	-$(DELETE) win32/*.a win32/*.lib win32/libbiosig.* win32/*.obj win32/*.exe
+	-$(DELETE) win64/*.a win64/*.lib win64/libbiosig.* win64/*.obj win64/*.exe
 	-$(DELETE) -rf win32/zlib
 	-make -C java clean
 	-make -C matlab clean
@@ -583,11 +585,8 @@ clean:
 	-$(DELETE) *.oct
 	-$(DELETE) python/biosig.py* _biosig.so
 	-$(DELETE) python/swig_wrap.*
-	-$(DELETE) win32/*.a
-	-$(DELETE) win32/*.lib
-	-$(DELETE) win32/*.o
-	-$(DELETE) win32/*.obj
-	-$(DELETE) win32/*.exe
+	-$(DELETE) win32/*.exe  win32/*.o* win32/*.lib win32/*.a  
+	-$(DELETE) win64/*.exe  win64/*.o* win64/*.lib win64/*.a  
 	-$(DELETE) t240/*.o
 	-$(DELETE) t240/libcnsfef.a
 	-$(DELETE) t240/libbiosig.*
