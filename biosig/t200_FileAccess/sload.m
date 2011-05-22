@@ -333,7 +333,7 @@ if exist('mexSLOAD','file')==3,
 			HDR.InChanSelect = 1:HDR.NS;
 		else
 			InChanSelect = find(any(ReRefMx,2));
-			[signal,HDR] = mexSLOAD(FILENAME,InChanSelect,arg1,arg2{2});
+			[signal,HDR] = mexSLOAD(FILENAME,InChanSelect,arg1,arg2{:});
 			if isfield(HDR,'ErrNum') && HDR.ErrNum==3,
 				%% file not found - fopen failed
 				H = HDR;
@@ -356,7 +356,6 @@ if exist('mexSLOAD','file')==3,
 
 		H=HDR;
 		H.FLAG.EOG_CORRECTION = STATE.EOG_CORRECTION; 
-
 		if isfield(HDR,'Patient') && isfield(HDR.Patient,'Weight') && isfield(HDR.Patient,'Height')
 			%% Body Mass Index 
 			HDR.Patient.BMI = HDR.Patient.Weight * HDR.Patient.Height^-2 * 1e4;
