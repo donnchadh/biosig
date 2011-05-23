@@ -115,7 +115,7 @@ else
         end;
 
         if c,
-		ss = char(s);
+		ss = char(s(1:c));
                 HDR.keycode = s(1:34); 
 
                 %%%% file type check based on magic numbers %%%
