@@ -101,7 +101,7 @@
 
 #endif
 
-#ifndef bswap_32
+#ifndef bswap_64
 #define bswap_64(x) \
       	 ((((x) & 0xff00000000000000ull) >> 56)	\
       	| (((x) & 0x00ff000000000000ull) >> 40)	\
