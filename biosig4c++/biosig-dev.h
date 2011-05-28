@@ -1,7 +1,7 @@
 /*
 %
 % $Id: biosig-dev.h,v 1.17 2009/04/08 12:49:54 schloegl Exp $
-% Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
+% Copyright (C) 2005,2006,2007,2008,2009,2011 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
 
@@ -39,6 +39,7 @@
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <sys/param.h>
 #include <time.h>
 
 #if  	__APPLE__
@@ -49,6 +50,16 @@
 #else
 #define __BYTE_ORDER 	__BIG_ENDIAN
 #endif
+#endif
+
+#if (defined(BSD) && (BSD >= 199103))
+#include <machine/endian.h>
+#define __BIG_ENDIAN _BIG_ENDIAN
+#define __LITTLE_ENDIAN _LITTLE_ENDIAN
+#define __BYTE_ORDER _BYTE_ORDER
+#define bswap_16(x) __bswap16(x)
+#define bswap_32(x) __bswap32(x)
+#define bswap_64(x) __bswap64(x)
 #endif
 
 #if	__sparc__
@@ -75,17 +86,22 @@
 #endif
 
 
-#ifndef _BYTESWAP_H
-/* define our own version - needed for Max OS X*/
+/* linux, bsd and mingw have these already defined, others might need these definitions */
+#ifndef bswap_16
 #define bswap_16(x)   \
 	((((x) & 0xff00) >> 8) | (((x) & 0x00ff) << 8))
+#endif
 
+#ifndef bswap_32
 #define bswap_32(x)   \
 	 ((((x) & 0xff000000) >> 24) \
         | (((x) & 0x00ff0000) >> 8)  \
 	| (((x) & 0x0000ff00) << 8)  \
 	| (((x) & 0x000000ff) << 24))
 
+#endif
+
+#ifndef bswap_32
 #define bswap_64(x) \
       	 ((((x) & 0xff00000000000000ull) >> 56)	\
       	| (((x) & 0x00ff000000000000ull) >> 40)	\
@@ -95,7 +111,8 @@
       	| (((x) & 0x0000000000ff0000ull) << 24)	\
       	| (((x) & 0x000000000000ff00ull) << 40)	\
       	| (((x) & 0x00000000000000ffull) << 56))
-#endif  /* _BYTESWAP_H */
+#endif
+
 
 #ifdef __cplusplus
 EXTERN_C {
