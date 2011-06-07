@@ -76,7 +76,7 @@ HDR.FLAG.OVERFLOWDETECTION = 0; % OFF
 if CHAN<1, CHAN=1:HDR.NS; end;
 
 H.datatype='HISTOGRAM';
-if all(HDR.GDFTYP==3) % strcmp(HDR.TYPE,'BKR') | strcmp(HDR.TYPE,'CNT') | strcmp(HDR.TYPE,'EEG'),
+if all(HDR.GDFTYP==3)
         [s,HDR]=sread(HDR);
         
         H.H = zeros(2^16,HDR.NS);
@@ -122,7 +122,7 @@ elseif all(HDR.GDFTYP==(255+24)) %strcmp(HDR.TYPE,'BDF'),
         H.H = H.H(tmp,:);
         
         
-elseif (strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') |  strcmp(HDR.TYPE,'ACQ')) & all(HDR.GDFTYP(1)==HDR.GDFTYP) & (HDR.GDFTYP(1)<=3)
+elseif (strcmp(HDR.TYPE,'EDF') || strcmp(HDR.TYPE,'GDF') ||  strcmp(HDR.TYPE,'ACQ')) && all(HDR.GDFTYP(1)==HDR.GDFTYP) && (HDR.GDFTYP(1)<=3)
         NoBlks=ceil(60*HDR.SampleRate/HDR.SPR);
 
 	if isfield(HDR.AS,'SPR')
@@ -137,7 +137,7 @@ elseif (strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') |  strcmp(HDR.TYPE,'ACQ'
         H.H = zeros(2^16,ns);
         
         k=0;
-        while (k<HDR.NRec) & ~feof(HDR.FILE.FID)
+        while (k<HDR.NRec) && ~feof(HDR.FILE.FID)
                 % READ BLOCKS of DATA
                 [S, count] = fread(HDR.FILE.FID,[HDR.AS.spb,NoBlks],gdfdatatype(HDR.GDFTYP(1)));
                 if 0, count < HDR.AS.spb*NoBlks
@@ -181,7 +181,7 @@ HDR.HIS = H;
 H.N = sumskipnan(H.H);
 %H.X = [ones(size(H.X,1),1),repmat(H.X,1,length(CHAN))]*HDR.Calib; 	%int16
 
-if strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'alpha')
+if strcmp(HDR.TYPE,'GDF') || strcmp(HDR.TYPE,'alpha')
 	HDR.THRESHOLD = [HDR.DigMin(:),HDR.DigMax(:)];
 end; 
 
