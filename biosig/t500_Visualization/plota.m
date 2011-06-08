@@ -265,11 +265,11 @@ elseif strcmp(X.datatype,'MVAR'),
                 elseif strcmpi(Mode,'PDC'),
                         R = PDC;
                         YTICK = 0:.5:1;
-                        YTICKLABEL = {'0','0.5',[]}
+                        YTICKLABEL = {'0','0.5',[]};
                 elseif strcmpi(Mode,'GPDC'),
                         R = GPDC;
                         YTICK = 0:.5:1;
-                        YTICKLABEL = {'0','0.5',[]}
+                        YTICKLABEL = {'0','0.5',[]};
                 elseif strcmpi(Mode,'Coherence') || strcmpi(Mode,'COH'),
                         R = abs(COH);
                         YTICK = 0:.5:1;
@@ -278,24 +278,24 @@ elseif strcmp(X.datatype,'MVAR'),
                         R = imag(COH);
                         range = [-1,1];
                         YTICK = -1:.5:1;
-                        YTICKLABEL = {[],'-0.5','0','0.5',[]}
+                        YTICKLABEL = {[],'-0.5','0','0.5',[]};
                 elseif strcmpi(Mode,'pCOH'),
                         R = abs(pCOH);
                         YTICK = 0:.5:1;
-                        YTICKLABEL = {'0','0.5',[]}
+                        YTICKLABEL = {'0','0.5',[]};
                 elseif strcmpi(Mode,'pCOH2'),
                         R = abs(pCOH2);
                         YTICK = 0:.5:1;
-                        YTICKLABEL = {'0','0.5',[]}
+                        YTICKLABEL = {'0','0.5',[]};
                 elseif strcmpi(Mode,'coh'),
                         R = abs(coh);
                         YTICK = 0:.5:1;
-                        YTICKLABEL = {'0','0.5',[]}
+                        YTICKLABEL = {'0','0.5',[]};
                 elseif strcmpi(Mode,'icoh'),
                         R = imag(coh);
                         range = [-1,1];
                         YTICK = -1:.5:1;
-                        YTICKLABEL = {'0','0.5',[]}
+                        YTICKLABEL = {'0','0.5',[]};
                 elseif strcmpi(Mode,'GGC'),
                         R = log10(GGC);
                         range = [min(R(:)),max(R(:))];
@@ -320,19 +320,19 @@ elseif strcmp(X.datatype,'MVAR'),
                 elseif strcmpi(Mode,'PDCF'),
                         R = PDCF;
                         YTICK = 0:.5:1;
-                        YTICKLABEL = {'0','0.5',[]}
+                        YTICKLABEL = {'0','0.5',[]};
                 elseif strcmpi(Mode,'DTF'),
                         R = DTF;
                         YTICK = 0:.5:1;
-                        YTICKLABEL = {'0','0.5',[]}
+                        YTICKLABEL = {'0','0.5',[]};
                 elseif strcmpi(Mode,'dDTF'),
                         R = dDTF;
                         YTICK = 0:.5:1;
-                        YTICKLABEL = {'0','0.5',[]}
+                        YTICKLABEL = {'0','0.5',[]};
                 elseif strcmpi(Mode,'ffDTF'),
                         R = ffDTF;
                         YTICK = 0:.5:1;
-                        YTICKLABEL = {'0','0.5',[]}
+                        YTICKLABEL = {'0','0.5',[]};
                 elseif strcmpi(Mode,'dT'),
                         R = dT;
                         tmp = dT(isfinite(dT(:)));
