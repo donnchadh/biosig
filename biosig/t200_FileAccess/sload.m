@@ -352,7 +352,6 @@ if exist('mexSLOAD','file')==3,
 		[HDR.FILE.Path,HDR.FILE.Name,HDR.FILE.Ext] = fileparts(FILENAME);
 		HDR.FileName = FILENAME;
 		HDR = leadidcodexyz(HDR);
-		HDR.EVENT.POS = HDR.EVENT.POS+1; % convert from 0-based to 1-based index
 
 		H=HDR;
 		H.FLAG.EOG_CORRECTION = STATE.EOG_CORRECTION; 
