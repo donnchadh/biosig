@@ -4,14 +4,39 @@ function [R,CC]=xval(D,classlabel,MODE,arg4)
 %  [R,CC] = xval(D,classlabel)
 %  .. = xval(D,classlabel,CLASSIFIER)
 %  .. = xval(D,classlabel,CLASSIFIER,type)
-%  .. = xval(D,[classlabel,W],CLASSIFIER)
-%  .. = xval(D,[classlabel,W,NG],CLASSIFIER)
+%  .. = xval(D,{classlabel,W},CLASSIFIER)
+%  .. = xval(D,{classlabel,W,NG},CLASSIFIER)
+% 
+%  example: 
+%      load_fisheriris;    %builtin iris dataset      
+%      C = species;
+%      K = 5; NG = [1:length(C)]'*K/length(C);
+%      [R,CC] = xval(meas,{C,[],NG},'NBC');            
 %
 % Input:
 %    D:	data features (one feature per column, one sample per row)
-%    classlabel  classlabel (same number of rows)
+%    classlabel	labels of each sample, must have the same number of rows as D. 
+% 		Two different encodings are supported: 
+%		{-1,1}-encoding (multiple classes with separate columns for each class) or
+%		1..M encoding. 
+% 		So [1;2;3;1;4] is equivalent to 
+%			[+1,-1,-1,-1;
+%			[-1,+1,-1,-1;
+%			[-1,-1,+1,-1;
+%			[+1,-1,-1,-1]
+%			[-1,-1,-1,+1]
+%		Note, samples with classlabel=0 are ignored. 
+%
 %    CLASSIFIER can be any classifier supported by train_sc (default='LDA')
-%	{'MDA','MD2','LD2','LD3','LD4','LD5','LD6','NBC','aNBC','WienerHopf','REG','LDA/GSVD','MDA/GSVD', 'LDA/sparse','MDA/sparse','RDA','GDBC','SVM','RBF'}
+%       {'REG','MDA','MD2','QDA','QDA2','LD2','LD3','LD4','LD5','LD6','NBC','aNBC','WienerHopf', 'RDA','GDBC',
+%	 'SVM','RBF','PSVM','SVM11','SVM:LIN4','SVM:LIN0','SVM:LIN1','SVM:LIN2','SVM:LIN3','WINNOW'}
+%       these can be modified by ###/GSVD, ###/sparse and ###/DELETION. 
+%	   /DELETION removes in case of NaN's either the rows or the columns (which removes less data values) with any NaN
+%	   /sparse and /GSVD preprocess the data an reduce it to some lower-dimensional space. 
+%       Hyperparameters (like alpha for PLA, gamma/lambda for RDA, c_value for SVM, etc) can be defined as 
+% 	CLASSIFIER.hyperparameter.alpha, etc. and 
+% 	CLASSIFIER.TYPE = 'PLA' (as listed above). 
+%       See train_sc for details.
 %    W:	weights for each sample (row) in D. 
 %	default: [] (i.e. all weights are 1)
 %	number of elements in W must match the number of rows of D 
@@ -37,14 +62,15 @@ function [R,CC]=xval(D,classlabel,MODE,arg4)
 % References: 
 % [1] R. Duda, P. Hart, and D. Stork, Pattern Classification, second ed. 
 %       John Wiley & Sons, 2001. 
-% [2] A. Schlögl, J. Kronegg, J.E. Huggins, S. G. Mason;
+% [2] A. Schl�gl, J. Kronegg, J.E. Huggins, S. G. Mason;
 %       Evaluation criteria in BCI research.
 %       (Eds.) G. Dornhege, J.R. Millan, T. Hinterberger, D.J. McFarland, K.-R.Müller;
 %       Towards Brain-Computer Interfacing, MIT Press, 2007, p.327-342
 
 %	$Id$
-%	Copyright (C) 2008,2009 by Alois Schloegl <a.schloegl@ieee.org>	
-%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+%	Copyright (C) 2008,2009,2010 by Alois Schloegl <alois.schloegl@gmail.com>	
+%       This function is part of the NaN-toolbox
+%       http://pub.ist.ac.at/~schloegl/matlab/NaN/
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
@@ -60,54 +86,67 @@ function [R,CC]=xval(D,classlabel,MODE,arg4)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-if (nargin<3) || isempty(MODE), 
-	MODE = 'LDA'; 
+if (nargin<3) || isempty(MODE),
+	MODE = 'LDA';
 end;
-if ischar(MODE) 
-        tmp = MODE; 
-        clear MODE; 
+if ischar(MODE)
+        tmp = MODE;
+        clear MODE;
         MODE.TYPE = tmp;
 elseif ~isfield(MODE,'TYPE')
-        MODE.TYPE=''; 
-end;        
+        MODE.TYPE='';
+end;
 
 sz = size(D);
-if sz(1)~=size(classlabel,1),
+NG = [];
+W = [];
+
+if iscell(classlabel)
+        [b,i,C] = unique(classlabel{:,1});
+        if size(classlabel,2)>1,
+                W = [classlabel{:,2}]; 
+        end; 
+	if size(classlabel,2)>2,
+		[Label,tmp1,NG] = unique(classlabel{:,3});
+	end;
+elseif size(classlabel,2)>1,
+	%% group-wise classvalidation
+	C = classlabel(:,1);
+	W = classlabel(:,2);
+	if size(classlabel,2)==2,
+	        warning('This option defines W and NG in an ambigous way - use instead xval(D,{C,[],NG},...) or xval(D,{C,W},...)'); 
+	else
+		[Label,tmp1,NG] = unique(classlabel(:,3));
+	end;
+else
+	C = classlabel;	
+end; 
+if all(W==1), W = []; end;
+if sz(1)~=size(C,1),
         error('length of data and classlabel does not fit');
 end;
 
-NG = [];	
-W = [];
 % use only valid samples
-ix0 = find(~any(isnan(classlabel),2));
-
-if size(classlabel,2)>1,
-	%% group-wise classvalidation
-	W = classlabel(:,2);
-	if all(W==1) W = []; end; 
-	if size(classlabel,2)>2,
-		[Label,tmp1,NG] = unique(classlabel(:,3));
-	end;
-end; 
+ix0 = find(~any(isnan(C),2));
 
 if isempty(NG)
 if (nargin<4) || strcmpi(arg4,'LOOM')
 	%% LOOM 
-	NG = [1:sz(1)]';
+	NG = (1:sz(1))';
 
 elseif isnumeric(arg4)
 	if isscalar(arg4)  
 	% K-fold XV
-		NG = ceil([1:length(classlabel)]'*arg4/length(classlabel));
+		NG = ceil((1:length(C))'*arg4/length(C));
 	elseif length(arg4)==2,
-		NG = ceil([1:length(classlabel)]'*arg4(1)/length(classlabel));
-	end; 	
-	
-end; 
-end; 
+		NG = ceil((1:length(C))'*arg4(1)/length(C));
+	end;
+
+end;
+end;
 
 sz = size(D);
-if sz(1)~=length(classlabel),
+if sz(1)~=length(C),
         error('length of data and classlabel does not fit');
 end;
 if ~isfield(MODE,'hyperparameter')
@@ -117,34 +156,32 @@ end
 cl = repmat(NaN,size(classlabel,1),1);
 for k = 1:max(NG),
  	ix = ix0(NG(ix0)~=k);
-	if isempty(W)	
-		CC = train_sc(D(ix,:),classlabel(ix,1),MODE);
+	if isempty(W),	
+		CC = train_sc(D(ix,:), C(ix), MODE);
 	else
-		CC = train_sc(D(ix,:),classlabel(ix,1),MODE,W(ix));
-	end; 	
+		CC = train_sc(D(ix,:), C(ix), MODE, W(ix));
+	end;
  	ix = ix0(NG(ix0)==k);
-	r  = test_sc(CC,D(ix,:));
+	r  = test_sc(CC, D(ix,:));
 	cl(ix,1) = r.classlabel;
 end; 
 
-R = kappa(classlabel(:,1),cl,'notIgnoreNAN',W);
-%R1 = kappa(classlabel(:,1),cl,[],W)
-%R2 = kappa(R.H)
+%R = kappa(C,cl,'notIgnoreNAN',W);
+R = kappa(C,cl,[],W);
+%R2 = kappa(R.H);
 
 R.ERR = 1-R.ACC; 
 if isnumeric(R.Label)
 	R.Label = cellstr(int2str(R.Label)); 
-end; 		
-R.datatype='confusion';
-R.data = R.H; 
+end;
 
 if nargout>1,
 	% final classifier 
 	if isempty(W), 
-		CC = train_sc(D,classlabel(:,1),MODE);
+		CC = train_sc(D,C,MODE);
 	else	
-		CC = train_sc(D,classlabel(:,1),MODE,W);
+		CC = train_sc(D,C,MODE,W);
 	end; 	
-	CC.Labels = 1:max(classlabel);
-	%CC.Labels = unique(classlabel);
+	CC.Labels = 1:max(C);
+	%CC.Labels = unique(C);
 end; 

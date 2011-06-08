@@ -1,1821 +1,946 @@
-
-
-
-
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<!-- ViewVC :: http://www.viewvc.org/ -->
-<head>
-<title>SourceForge.net Repository - [octave] Log of /trunk/octave-forge/extra/NaN/inst/train_sc.m</title>
-<meta name="generator" content="ViewVC 1.1.6" />
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-<meta name="description" content="The world's largest development and download repository of Open Source code and applications" />
-<meta name="keywords" content="Open Source, Development, Developers, Projects, Downloads, OSTG, VA Software, SF.net, SourceForge" />
-<title>SourceForge.net Repository - octave Index of /</title>
-<link rel="shortcut icon" href="http://a.fsdn.com/con/img/favicon.ico" />
-<link rel="stylesheet" href="http://a.fsdn.com/con/css/sf.min.css?1256826599" type="text/css" />
-<link rel="stylesheet" href="/viewvc-static/styles.css" type="text/css" />
-<style type="text/css">
-#doc3 { max-width: 1000px; margin: 0 auto; }
-#hd .logo {
-background: url("http://a.fsdn.com/sf/images/phoneix/sf_phoneix.png") no-repeat;
-color: transparent;
-display: inline-block;
-height: 36px;
-}
-#hd .search { display: none; }
-#breadcrumbs { margin-bottom: 1em; }
-#fad83 { float: right; }
-#yui-main { min-height: 100px; }
-#ft .yui-u { display: inline-block; margin-right: 2em; }
-</style>
-
-<!-- BEGIN: AdSolution-Tag 4.2: Global-Code [PLACE IN HTML-HEAD-AREA!] -->
-<!-- DoubleClick Random Number -->
-<script language="JavaScript" type="text/javascript">
-dfp_ord=Math.random()*10000000000000000;
-dfp_tile = 1;
-</script>
-<!-- End DoubleClick Random Number -->
-<script type="text/javascript">
-var google_page_url = 'http://sourceforge.net/projects/octave/';
-var sourceforge_project_name = 'octave';
-var sourceforge_project_description = '';
-</script>
-<!-- END: AdSolution-Tag 4.2: Global-Code -->
-<!-- after META tags -->
-<script type="text/javascript">
-var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
-document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
-</script>
-</head>
-<body class="short-head">
-<!--[if IE 7]><div id="ie7only"><![endif]-->
-<!--[if IE 6]><div id="ie6only"><![endif]-->
-<!--[if IE]><div id="ieonly"><![endif]-->
-<div id="doc3">
-<div id="hd">
-<div class="yui-b">
-<div class="yui-gc">
-<div class="yui-u first">
-<a href="http://sourceforge.net/" class="logo">Find and develop open source software</a>
-</div>
-<div class="yui-u">
-<div class="search">
-<form action="http://sourceforge.net/search/" method="get" name="searchform" id="searchform">
-<input type="hidden" name="type_of_search" value="soft" />
-<input type="text" class="text clear hint" name="words" id="words" value="enter keyword" />
-<span class="yui-button yui-push-button default"><span class="first-child"><button type="submit" value="Search">Search</button></span></span>
-</form>
-</div>
-</div>
-</div>
-</div>
-</div>
-<div id="bd" class="inner-bd">
-<div id="doc4" class="yui-t6">
-<div id="breadcrumbs">
-
-<a href="http://sourceforge.net/">SourceForge.net</a>
-&gt; <a href="http://sourceforge.net/softwaremap/">Find Software</a>
-&gt; <a href="http://sourceforge.net/projects/octave/">octave</a>
-&gt; SCM Repositories
-
-
-<a href="/viewvc/octave/">
-
-
-&gt; octave
-
-
-</a>
-
-
-
-<a href="/viewvc/octave/trunk/">
-
-
-&gt; trunk
-
-
-</a>
-
-
-
-<a href="/viewvc/octave/trunk/octave-forge/">
-
-
-&gt; octave-forge
-
-
-</a>
-
-
-
-<a href="/viewvc/octave/trunk/octave-forge/extra/">
-
-
-&gt; extra
-
-
-</a>
-
-
-
-<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/">
-
-
-&gt; NaN
-
-
-</a>
-
-
-
-<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/">
-
-
-&gt; inst
-
-
-</a>
-
-
-
-
-&gt; train_sc.m
-
-
-
-
-</div>
-
-
-
-
-
-
-
-
-
-
-<div id="project_nav_container">
-<small><div>
-
-<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/"><img src="/viewvc-static/images/back_small.png" width="16" height="16" alt="Parent Directory" /> Parent Directory</a>
-
-| <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?view=log"><img src="/viewvc-static/images/log.png" width="16" height="16" alt="Revision Log" /> Revision Log</a>
-
-
-
-
-</div>
-</small>
-<h1>SCM Repositories - <a href="http://sourceforge.net/projects/octave">octave</a></h1>
-</div>
-<hr class="clear">
-<div class="yui-b">
-<div id="fad83">
-<!-- DoubleClick Ad Tag -->
-<script type="text/javascript">
-//<![CDATA[
-document.write('<script src="http://ad.doubleclick.net/adj/ostg.sourceforge/pg_viewvc_p88_shortrec;pg=viewvc;tile='+dfp_tile+';tpc=octave;ord='+dfp_ord+';sz=1x1?" type="text/javascript"><\/script>');
-dfp_tile++;
-//]]>
-</script>
-<!-- End DoubleClick Ad Tag -->
-</div>
-</div>
-<div id="yui-main">
-<div class="yui-b sfBox">
-<table class="auto">
-
-
-
-<tr>
-<td>Links to HEAD:</td>
-<td>
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=8314&amp;view=markup">view</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=8314">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=8314&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=8314">annotate</a>)
-mime-type: text/x-objective-c
-</td>
-</tr>
-
-
-
-<tr>
-<td>Sticky Revision:</td>
-<td><form method="get" action="/viewvc/octave" style="display: inline">
-<div style="display: inline">
-<input type="hidden" name="orig_pathtype" value="FILE"/><input type="hidden" name="orig_view" value="log"/><input type="hidden" name="orig_path" value="trunk/octave-forge/extra/NaN/inst/train_sc.m"/><input type="hidden" name="view" value="redirect_pathrev"/>
-
-<input type="text" name="pathrev" value="" size="6"/>
-
-<input type="submit" value="Set" />
-</div>
-</form>
-
-</td>
-</tr>
-</table>
+function [CC]=train_sc(D,classlabel,MODE,W)
+% Train a (statistical) classifier
+% 
+%  CC = train_sc(D,classlabel)
+%  CC = train_sc(D,classlabel,MODE)
+%  CC = train_sc(D,classlabel,MODE, W)
+%	weighting D(k,:) with weight W(k) (not all classifiers supported weighting)
+%
+% CC contains the model parameters of a classifier which can be applied 
+%   to test data using test_sc. 
+%   R = test_sc(CC,D,...) 
+%
+%   D		training samples (each row is a sample, each column is a feature)	
+%   classlabel	labels of each sample, must have the same number of rows as D. 
+% 		Two different encodings are supported: 
+%		{-1,1}-encoding (multiple classes with separate columns for each class) or
+%		1..M encoding. 
+% 		So [1;2;3;1;4] is equivalent to 
+%			[+1,-1,-1,-1;
+%			[-1,+1,-1,-1;
+%			[-1,-1,+1,-1;
+%			[+1,-1,-1,-1]
+%			[-1,-1,-1,+1]
+%		Note, samples with classlabel=0 are ignored. 
+%
+%  The following classifier types are supported MODE.TYPE
+%    'MDA'      mahalanobis distance based classifier [1]
+%    'MD2'      mahalanobis distance based classifier [1]
+%    'MD3'      mahalanobis distance based classifier [1]
+%    'GRB'      Gaussian radial basis function     [1]
+%    'QDA'      quadratic discriminant analysis    [1]
+%    'LD2'      linear discriminant analysis (see LDBC2) [1]
+%		MODE.hyperparameter.gamma: regularization parameter [default 0] 
+%    'LD3', 'FDA', 'LDA', 'FLDA'
+%               linear discriminant analysis (see LDBC3) [1]
+%		MODE.hyperparameter.gamma: regularization parameter [default 0] 
+%    'LD4'      linear discriminant analysis (see LDBC4) [1]
+%		MODE.hyperparameter.gamma: regularization parameter [default 0] 
+%    'LD5'      another LDA (motivated by CSP)
+%		MODE.hyperparameter.gamma: regularization parameter [default 0] 
+%    'RDA'      regularized discriminant analysis [7]
+%		MODE.hyperparameter.gamma: regularization parameter 
+%		MODE.hyperparameter.lambda =
+%		gamma = 0, lambda = 0 : MDA
+%		gamma = 0, lambda = 1 : LDA [default]
+%		Hint: hyperparameter are used only in test_sc.m, testing different 
+%		the hyperparameters do not need repetitive calls to train_sc, 
+%		it is sufficient to modify CC.hyperparameter before calling test_sc. 	
+%    'GDBC'     general distance based classifier  [1]
+%    ''         statistical classifier, requires Mode argument in TEST_SC	
+%    '###/DELETION'  if the data contains missing values (encoded as NaNs), 
+%		a row-wise or column-wise deletion (depending on which method 
+%		removes less data values) is applied;  
+%    '###/GSVD'	GSVD and statistical classifier [2,3], 
+%    '###/sparse'  sparse  [5] 
+%		'###' must be 'LDA' or any other classifier 
+%    'PLS'	(linear) partial least squares regression 
+%    'REG'      regression analysis;
+%    'WienerHopf'	Wiener-Hopf equation  
+%    'NBC'	Naive Bayesian Classifier [6]     
+%    'aNBC'	Augmented Naive Bayesian Classifier [6]
+%    'NBPW'	Naive Bayesian Parzen Window [9]     
+%
+%    'PLA'	Perceptron Learning Algorithm [11]
+%		MODE.hyperparameter.alpha = alpha [default: 1]
+%		 w = w + alpha * e'*x
+%    'LMS', 'AdaLine'  Least mean squares, adaptive line element, Widrow-Hoff, delta rule 
+%		MODE.hyperparameter.alpha = alpha [default: 1]
+%    'Winnow2'  Winnow2 algorithm [12]
+%
+%    'PSVM'	Proximal SVM [8] 
+%		MODE.hyperparameter.nu  (default: 1.0)
+%    'LPM'      Linear Programming Machine
+%                 uses and requires train_LPM of the iLog CPLEX optimizer 
+%		MODE.hyperparameter.c_value = 
+%    'CSP'	CommonSpatialPattern is very experimental and just a hack
+%		uses a smoothing window of 50 samples.
+%    'SVM','SVM1r'  support vector machines, one-vs-rest
+%		MODE.hyperparameter.c_value = 
+%    'SVM11'    support vector machines, one-vs-one + voting
+%		MODE.hyperparameter.c_value = 
+%    'RBF'      Support Vector Machines with RBF Kernel
+%		MODE.hyperparameter.c_value = 
+%		MODE.hyperparameter.gamma = 
+%    'SVM:LIB'    libSVM [default SVM algorithm)
+%    'SVM:bioinfo' uses and requires svmtrain from the bioinfo toolbox        
+%    'SVM:OSU'   uses and requires mexSVMTrain from the OSU-SVM toolbox 
+%    'SVM:LOO'   uses and requires svcm_train from the LOO-SVM toolbox 
+%    'SVM:Gunn'  uses and requires svc-functios from the Gunn-SVM toolbox 
+%    'SVM:KM'    uses and requires svmclass-function from the KM-SVM toolbox 
+%    'SVM:LINz'  LibLinear [10] (requires train.mex from LibLinear somewhere in the path)
+%            z=0 (default) LibLinear with -- L2-regularized logistic regression
+%            z=1 LibLinear with -- L2-loss support vector machines (dual)
+%            z=2 LibLinear with -- L2-loss support vector machines (primal)
+%            z=3 LibLinear with -- L1-loss support vector machines (dual)
+%    'SVM:LIN4'  LibLinear with -- multi-class support vector machines by Crammer and Singer
+%
+% {'REG','MDA','MD2','QDA','QDA2','LD2','LD3','LD4','LD5','LD6','NBC','aNBC','WienerHopf','LDA/GSVD','MDA/GSVD', 'LDA/sparse','MDA/sparse', 'PLA', 'LMS','LDA/DELETION','MDA/DELETION','NBC/DELETION','RDA/DELETION','REG/DELETION','RDA','GDBC','SVM','RBF','PSVM','SVM11','SVM:LIN4','SVM:LIN0','SVM:LIN1','SVM:LIN2','SVM:LIN3','WINNOW'};
+%
+% CC contains the model parameters of a classifier. Some time ago,     
+% CC was a statistical classifier containing the mean 
+% and the covariance of the data of each class (encoded in the 
+%  so-called "extended covariance matrices". Nowadays, also other 
+% classifiers are supported. 
+%
+% see also: TEST_SC, COVM, ROW_COL_DELETION
+%
+% References: 
+% [1] R. Duda, P. Hart, and D. Stork, Pattern Classification, second ed. 
+%       John Wiley & Sons, 2001. 
+% [2] Peg Howland and Haesun Park,
+%       Generalizing Discriminant Analysis Using the Generalized Singular Value Decomposition
+%       IEEE Transactions on Pattern Analysis and Machine Intelligence, 26(8), 2004.
+%       dx.doi.org/10.1109/TPAMI.2004.46
+% [3] http://www-static.cc.gatech.edu/~kihwan23/face_recog_gsvd.htm
+% [4] Jieping Ye, Ravi Janardan, Cheong Hee Park, Haesun Park
+%       A new optimization criterion for generalized discriminant analysis on undersampled problems.
+%       The Third IEEE International Conference on Data Mining, Melbourne, Florida, USA
+%       November 19 - 22, 2003
+% [5] J.D. Tebbens and P. Schlesinger (2006), 
+%       Improving Implementation of Linear Discriminant Analysis for the Small Sample Size Problem
+%	Computational Statistics & Data Analysis, vol 52(1): 423-437, 2007
+%       http://www.cs.cas.cz/mweb/download/publi/JdtSchl2006.pdf
+% [6] H. Zhang, The optimality of Naive Bayes, 
+%	 http://www.cs.unb.ca/profs/hzhang/publications/FLAIRS04ZhangH.pdf
+% [7] J.H. Friedman. Regularized discriminant analysis. 
+%	Journal of the American Statistical Association, 84:165–175, 1989.
+% [8] G. Fung and O.L. Mangasarian, Proximal Support Vector Machine Classifiers, KDD 2001.
+%        Eds. F. Provost and R. Srikant, Proc. KDD-2001: Knowledge Discovery and Data Mining, August 26-29, 2001, San Francisco, CA.
+% 	p. 77-86.
+% [9] Kai Keng Ang, Zhang Yang Chin, Haihong Zhang, Cuntai Guan.
+%	Filter Bank Common Spatial Pattern (FBCSP) in Brain-Computer Interface.
+%	IEEE International Joint Conference on Neural Networks, 2008. IJCNN 2008. (IEEE World Congress on Computational Intelligence). 
+%	1-8 June 2008 Page(s):2390 - 2397
+% [10] R.-E. Fan, K.-W. Chang, C.-J. Hsieh, X.-R. Wang, and C.-J. Lin. 
+%       LIBLINEAR: A Library for Large Linear Classification, Journal of Machine Learning Research 9(2008), 1871-1874. 
+%       Software available at http://www.csie.ntu.edu.tw/~cjlin/liblinear 
+% [11] http://en.wikipedia.org/wiki/Perceptron#Learning_algorithm
+% [12] Littlestone, N. (1988) 
+%       "Learning Quickly When Irrelevant Attributes Abound: A New Linear-threshold Algorithm" 
+%       Machine Learning 285-318(2)
+% 	http://en.wikipedia.org/wiki/Winnow_(algorithm)
  
-
-
-</div>
-</div>
-<hr class="clear">
-<div>
-
-
-
-
-
-
-<div>
-<hr />
-
-<a name="rev8314"></a>
-
-
-Revision <a href="/viewvc/octave?view=revision&amp;revision=8314"><strong>8314</strong></a> -
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=8314&amp;view=markup">view</a>)
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=8314">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=8314&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=8314">annotate</a>)
-
-
-
-- <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=8314&amp;view=log">[select for diffs]</a>
-
-
-
-
-<br />
-
-Modified
-
-<em>Mon Jun  6 14:20:21 2011 UTC</em>
-(73 minutes, 45 seconds ago)
-by <em>schloegl</em>
-
-
-
-
-
-
-
-
-
-<br />File length: 38367 byte(s)
-
-
-
-
-
-
-
-<br />Diff to <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=8223&amp;r2=8314">previous 8223</a>
-
-
-
-
-
-
-
-<pre class="vc_log">change default settings for usage of bioinfo-tb based on user feedback</pre>
-</div>
-
-
-
-<div>
-<hr />
-
-<a name="rev8223"></a>
-
-
-Revision <a href="/viewvc/octave?view=revision&amp;revision=8223"><strong>8223</strong></a> -
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=8223&amp;view=markup">view</a>)
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=8223">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=8223&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=8223">annotate</a>)
-
-
-
-- <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=8223&amp;view=log">[select for diffs]</a>
-
-
-
-
-<br />
-
-Modified
-
-<em>Wed Apr 20 09:16:06 2011 UTC</em>
-(6 weeks, 5 days ago)
-by <em>schloegl</em>
-
-
-
-
-
-
-
-
-
-<br />File length: 38060 byte(s)
-
-
-
-
-
-
-
-<br />Diff to <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=8075&amp;r2=8223">previous 8075</a>
-
-
-
-
-
-
-
-<pre class="vc_log">update contact e-mail and www address</pre>
-</div>
-
-
-
-<div>
-<hr />
-
-<a name="rev8075"></a>
-
-
-Revision <a href="/viewvc/octave?view=revision&amp;revision=8075"><strong>8075</strong></a> -
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=8075&amp;view=markup">view</a>)
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=8075">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=8075&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=8075">annotate</a>)
-
-
-
-- <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=8075&amp;view=log">[select for diffs]</a>
-
-
-
-
-<br />
-
-Modified
-
-<em>Thu Jan 27 17:10:36 2011 UTC</em>
-(4 months, 1 week ago)
-by <em>schloegl</em>
-
-
-
-
-
-
-
-
-
-<br />File length: 38055 byte(s)
-
-
-
-
-
-
-
-<br />Diff to <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=7776&amp;r2=8075">previous 7776</a>
-
-
-
-
-
-
-
-<pre class="vc_log">fix web address</pre>
-</div>
-
-
-
-<div>
-<hr />
-
-<a name="rev7776"></a>
-
-
-Revision <a href="/viewvc/octave?view=revision&amp;revision=7776"><strong>7776</strong></a> -
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=7776&amp;view=markup">view</a>)
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=7776">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=7776&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=7776">annotate</a>)
-
-
-
-- <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=7776&amp;view=log">[select for diffs]</a>
-
-
-
-
-<br />
-
-Modified
-
-<em>Mon Sep 27 07:55:11 2010 UTC</em>
-(8 months, 1 week ago)
-by <em>schloegl</em>
-
-
-
-
-
-
-
-
-
-<br />File length: 38053 byte(s)
-
-
-
-
-
-
-
-<br />Diff to <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=7756&amp;r2=7776">previous 7756</a>
-
-
-
-
-
-
-
-<pre class="vc_log">fix SVM for data with missing values (deletion mode)</pre>
-</div>
-
-
-
-<div>
-<hr />
-
-<a name="rev7756"></a>
-
-
-Revision <a href="/viewvc/octave?view=revision&amp;revision=7756"><strong>7756</strong></a> -
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=7756&amp;view=markup">view</a>)
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=7756">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=7756&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=7756">annotate</a>)
-
-
-
-- <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=7756&amp;view=log">[select for diffs]</a>
-
-
-
-
-<br />
-
-Modified
-
-<em>Sun Sep 19 21:33:31 2010 UTC</em>
-(8 months, 2 weeks ago)
-by <em>schloegl</em>
-
-
-
-
-
-
-
-
-
-<br />File length: 38051 byte(s)
-
-
-
-
-
-
-
-<br />Diff to <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=7518&amp;r2=7756">previous 7518</a>
-
-
-
-
-
-
-
-<pre class="vc_log">remove obsolete test for weight vector in LibLinear</pre>
-</div>
-
-
-
-<div>
-<hr />
-
-<a name="rev7518"></a>
-
-
-Revision <a href="/viewvc/octave?view=revision&amp;revision=7518"><strong>7518</strong></a> -
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=7518&amp;view=markup">view</a>)
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=7518">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=7518&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=7518">annotate</a>)
-
-
-
-- <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=7518&amp;view=log">[select for diffs]</a>
-
-
-
-
-<br />
-
-Modified
-
-<em>Thu Aug 12 21:02:22 2010 UTC</em>
-(9 months, 3 weeks ago)
-by <em>schloegl</em>
-
-
-
-
-
-
-
-
-
-<br />File length: 38302 byte(s)
-
-
-
-
-
-
-
-<br />Diff to <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=7378&amp;r2=7518">previous 7378</a>
-
-
-
-
-
-
-
-<pre class="vc_log">fix for single column classlabel with elements {-1,1}</pre>
-</div>
-
-
-
-<div>
-<hr />
-
-<a name="rev7378"></a>
-
-
-Revision <a href="/viewvc/octave?view=revision&amp;revision=7378"><strong>7378</strong></a> -
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=7378&amp;view=markup">view</a>)
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=7378">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=7378&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=7378">annotate</a>)
-
-
-
-- <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=7378&amp;view=log">[select for diffs]</a>
-
-
-
-
-<br />
-
-Modified
-
-<em>Tue Jun  1 19:00:29 2010 UTC</em>
-(12 months ago)
-by <em>schloegl</em>
-
-
-
-
-
-
-
-
-
-<br />File length: 38290 byte(s)
-
-
-
-
-
-
-
-<br />Diff to <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6973&amp;r2=7378">previous 6973</a>
-
-
-
-
-
-
-
-<pre class="vc_log">row_column_deletion algorithm to exclude missing values is now more flexible</pre>
-</div>
-
-
-
-<div>
-<hr />
-
-<a name="rev6973"></a>
-
-
-Revision <a href="/viewvc/octave?view=revision&amp;revision=6973"><strong>6973</strong></a> -
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6973&amp;view=markup">view</a>)
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6973">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6973&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=6973">annotate</a>)
-
-
-
-- <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6973&amp;view=log">[select for diffs]</a>
-
-
-
-
-<br />
-
-Modified
-
-<em>Sun Feb 28 20:19:12 2010 UTC</em>
-(15 months ago)
-by <em>schloegl</em>
-
-
-
-
-
-
-
-
-
-<br />File length: 39527 byte(s)
-
-
-
-
-
-
-
-<br />Diff to <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6803&amp;r2=6973">previous 6803</a>
-
-
-
-
-
-
-
-<pre class="vc_log">update website, svn keywords, prepare for next release</pre>
-</div>
-
-
-
-<div>
-<hr />
-
-<a name="rev6803"></a>
-
-
-Revision <a href="/viewvc/octave?view=revision&amp;revision=6803"><strong>6803</strong></a> -
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6803&amp;view=markup">view</a>)
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6803">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6803&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=6803">annotate</a>)
-
-
-
-- <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6803&amp;view=log">[select for diffs]</a>
-
-
-
-
-<br />
-
-Modified
-
-<em>Wed Jan 27 19:26:32 2010 UTC</em>
-(16 months, 1 week ago)
-by <em>schloegl</em>
-
-
-
-
-
-
-
-
-
-<br />File length: 39413 byte(s)
-
-
-
-
-
-
-
-<br />Diff to <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6748&amp;r2=6803">previous 6748</a>
-
-
-
-
-
-
-
-<pre class="vc_log">several LDA improvements: ill-defined covariances better supported, a litte speed-up</pre>
-</div>
-
-
-
-<div>
-<hr />
-
-<a name="rev6748"></a>
-
-
-Revision <a href="/viewvc/octave?view=revision&amp;revision=6748"><strong>6748</strong></a> -
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6748&amp;view=markup">view</a>)
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6748">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6748&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=6748">annotate</a>)
-
-
-
-- <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6748&amp;view=log">[select for diffs]</a>
-
-
-
-
-<br />
-
-Modified
-
-<em>Mon Jan 11 20:47:51 2010 UTC</em>
-(16 months, 3 weeks ago)
-by <em>schloegl</em>
-
-
-
-
-
-
-
-
-
-<br />File length: 39461 byte(s)
-
-
-
-
-
-
-
-<br />Diff to <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6742&amp;r2=6748">previous 6742</a>
-
-
-
-
-
-
-
-<pre class="vc_log">weighted libLinear supported</pre>
-</div>
-
-
-
-<div>
-<hr />
-
-<a name="rev6742"></a>
-
-
-Revision <a href="/viewvc/octave?view=revision&amp;revision=6742"><strong>6742</strong></a> -
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6742&amp;view=markup">view</a>)
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6742">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6742&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=6742">annotate</a>)
-
-
-
-- <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6742&amp;view=log">[select for diffs]</a>
-
-
-
-
-<br />
-
-Modified
-
-<em>Mon Jan 11 10:17:20 2010 UTC</em>
-(16 months, 3 weeks ago)
-by <em>schloegl</em>
-
-
-
-
-
-
-
-
-
-<br />File length: 39419 byte(s)
-
-
-
-
-
-
-
-<br />Diff to <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6739&amp;r2=6742">previous 6739</a>
-
-
-
-
-
-
-
-<pre class="vc_log">PSVM improved/fixed; compilation of libsvm for matlab improved; silence libsvm </pre>
-</div>
-
-
-
-<div>
-<hr />
-
-<a name="rev6739"></a>
-
-
-Revision <a href="/viewvc/octave?view=revision&amp;revision=6739"><strong>6739</strong></a> -
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6739&amp;view=markup">view</a>)
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6739">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6739&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=6739">annotate</a>)
-
-
-
-- <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6739&amp;view=log">[select for diffs]</a>
-
-
-
-
-<br />
-
-Modified
-
-<em>Sun Jan 10 23:25:59 2010 UTC</em>
-(16 months, 3 weeks ago)
-by <em>schloegl</em>
-
-
-
-
-
-
-
-
-
-<br />File length: 39419 byte(s)
-
-
-
-
-
-
-
-<br />Diff to <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6734&amp;r2=6739">previous 6734</a>
-
-
-
-
-
-
-
-<pre class="vc_log">add support for non-linear SVM and 1-1 scheme</pre>
-</div>
-
-
-
-<div>
-<hr />
-
-<a name="rev6734"></a>
-
-
-Revision <a href="/viewvc/octave?view=revision&amp;revision=6734"><strong>6734</strong></a> -
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6734&amp;view=markup">view</a>)
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6734">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6734&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=6734">annotate</a>)
-
-
-
-- <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6734&amp;view=log">[select for diffs]</a>
-
-
-
-
-<br />
-
-Modified
-
-<em>Sun Jan 10 21:39:00 2010 UTC</em>
-(16 months, 3 weeks ago)
-by <em>schloegl</em>
-
-
-
-
-
-
-
-
-
-<br />File length: 39415 byte(s)
-
-
-
-
-
-
-
-<br />Diff to <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6727&amp;r2=6734">previous 6727</a>
-
-
-
-
-
-
-
-<pre class="vc_log">Support Vector Machine (SVM) added </pre>
-</div>
-
-
-
-<div>
-<hr />
-
-<a name="rev6727"></a>
-
-
-Revision <a href="/viewvc/octave?view=revision&amp;revision=6727"><strong>6727</strong></a> -
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6727&amp;view=markup">view</a>)
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6727">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6727&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=6727">annotate</a>)
-
-
-
-- <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6727&amp;view=log">[select for diffs]</a>
-
-
-
-
-<br />
-
-Modified
-
-<em>Sun Jan 10 00:13:09 2010 UTC</em>
-(16 months, 3 weeks ago)
-by <em>schloegl</em>
-
-
-
-
-
-
-
-
-
-<br />File length: 39238 byte(s)
-
-
-
-
-
-
-
-<br />Diff to <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6722&amp;r2=6727">previous 6722</a>
-
-
-
-
-
-
-
-<pre class="vc_log">{-1,+1} encoding of classlabel supported; test of liblinear and libSVM with Octave3.2</pre>
-</div>
-
-
-
-<div>
-<hr />
-
-<a name="rev6722"></a>
-
-
-Revision <a href="/viewvc/octave?view=revision&amp;revision=6722"><strong>6722</strong></a> -
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6722&amp;view=markup">view</a>)
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6722">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6722&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=6722">annotate</a>)
-
-
-
-- <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6722&amp;view=log">[select for diffs]</a>
-
-
-
-
-<br />
-
-Modified
-
-<em>Fri Jan  8 22:12:45 2010 UTC</em>
-(16 months, 3 weeks ago)
-by <em>schloegl</em>
-
-
-
-
-
-
-
-
-
-<br />File length: 35758 byte(s)
-
-
-
-
-
-
-
-<br />Diff to <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6720&amp;r2=6722">previous 6720</a>
-
-
-
-
-
-
-
-<pre class="vc_log">more clean-up: replace error(sprintf(.)) with error(.); determining DIM </pre>
-</div>
-
-
-
-<div>
-<hr />
-
-<a name="rev6720"></a>
-
-
-Revision <a href="/viewvc/octave?view=revision&amp;revision=6720"><strong>6720</strong></a> -
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6720&amp;view=markup">view</a>)
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6720">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6720&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=6720">annotate</a>)
-
-
-
-- <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6720&amp;view=log">[select for diffs]</a>
-
-
-
-
-<br />
-
-Modified
-
-<em>Fri Jan  8 12:49:59 2010 UTC</em>
-(16 months, 3 weeks ago)
-by <em>schloegl</em>
-
-
-
-
-
-
-
-
-
-<br />File length: 35991 byte(s)
-
-
-
-
-
-
-
-<br />Diff to <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6719&amp;r2=6720">previous 6719</a>
-
-
-
-
-
-
-
-<pre class="vc_log">major cleanup</pre>
-</div>
-
-
-
-<div>
-<hr />
-
-<a name="rev6719"></a>
-
-
-Revision <a href="/viewvc/octave?view=revision&amp;revision=6719"><strong>6719</strong></a> -
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6719&amp;view=markup">view</a>)
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6719">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6719&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=6719">annotate</a>)
-
-
-
-- <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6719&amp;view=log">[select for diffs]</a>
-
-
-
-
-<br />
-
-Modified
-
-<em>Fri Jan  8 11:04:43 2010 UTC</em>
-(16 months, 3 weeks ago)
-by <em>schloegl</em>
-
-
-
-
-
-
-
-
-
-<br />File length: 35911 byte(s)
-
-
-
-
-
-
-
-<br />Diff to <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6715&amp;r2=6719">previous 6715</a>
-
-
-
-
-
-
-
-<pre class="vc_log">train_sc: fix nested function for matlab; test_fss: improve report</pre>
-</div>
-
-
-
-<div>
-<hr />
-
-<a name="rev6715"></a>
-
-
-Revision <a href="/viewvc/octave?view=revision&amp;revision=6715"><strong>6715</strong></a> -
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6715&amp;view=markup">view</a>)
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6715">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6715&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=6715">annotate</a>)
-
-
-
-- <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6715&amp;view=log">[select for diffs]</a>
-
-
-
-
-<br />
-
-Modified
-
-<em>Thu Jan  7 20:52:33 2010 UTC</em>
-(16 months, 4 weeks ago)
-by <em>schloegl</em>
-
-
-
-
-
-
-
-
-
-<br />File length: 35909 byte(s)
-
-
-
-
-
-
-
-<br />Diff to <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6710&amp;r2=6715">previous 6710</a>
-
-
-
-
-
-
-
-<pre class="vc_log">add Adaline/LMS; add ###/DELETION modes - this supports missing values also in otherwise unsupported classifiers like PLA, SVM, LMS, sparse, GSVD</pre>
-</div>
-
-
-
-<div>
-<hr />
-
-<a name="rev6710"></a>
-
-
-Revision <a href="/viewvc/octave?view=revision&amp;revision=6710"><strong>6710</strong></a> -
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6710&amp;view=markup">view</a>)
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6710">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6710&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=6710">annotate</a>)
-
-
-
-- <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6710&amp;view=log">[select for diffs]</a>
-
-
-
-
-<br />
-
-Modified
-
-<em>Thu Jan  7 13:12:09 2010 UTC</em>
-(16 months, 4 weeks ago)
-by <em>schloegl</em>
-
-
-
-
-
-
-
-
-
-<br />File length: 32340 byte(s)
-
-
-
-
-
-
-
-<br />Diff to <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6705&amp;r2=6710">previous 6705</a>
-
-
-
-
-
-
-
-<pre class="vc_log">a fix for PLA; hyperparameters/hyperparameter all changed to hyperparameter </pre>
-</div>
-
-
-
-<div>
-<hr />
-
-<a name="rev6705"></a>
-
-
-Revision <a href="/viewvc/octave?view=revision&amp;revision=6705"><strong>6705</strong></a> -
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6705&amp;view=markup">view</a>)
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6705">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6705&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=6705">annotate</a>)
-
-
-
-- <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6705&amp;view=log">[select for diffs]</a>
-
-
-
-
-<br />
-
-Modified
-
-<em>Wed Jan  6 02:09:20 2010 UTC</em>
-(16 months, 4 weeks ago)
-by <em>schloegl</em>
-
-
-
-
-
-
-
-
-
-<br />File length: 32107 byte(s)
-
-
-
-
-
-
-
-<br />Diff to <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6172&amp;r2=6705">previous 6172</a>
-
-
-
-
-
-
-
-<pre class="vc_log">fix several minor issues</pre>
-</div>
-
-
-
-<div>
-<hr />
-
-<a name="rev6172"></a>
-
-
-Revision <a href="/viewvc/octave?view=revision&amp;revision=6172"><strong>6172</strong></a> -
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6172&amp;view=markup">view</a>)
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6172">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6172&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=6172">annotate</a>)
-
-
-
-- <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6172&amp;view=log">[select for diffs]</a>
-
-
-
-
-<br />
-
-Modified
-
-<em>Sat Aug 29 23:17:25 2009 UTC</em>
-(21 months ago)
-by <em>schloegl</em>
-
-
-
-
-
-
-
-
-
-<br />File length: 31946 byte(s)
-
-
-
-
-
-
-
-<br />Diff to <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6078&amp;r2=6172">previous 6078</a>
-
-
-
-
-
-
-
-<pre class="vc_log">PSVM: support weighting samples</pre>
-</div>
-
-
-
-<div>
-<hr />
-
-<a name="rev6078"></a>
-
-
-Revision <a href="/viewvc/octave?view=revision&amp;revision=6078"><strong>6078</strong></a> -
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6078&amp;view=markup">view</a>)
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6078">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6078&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=6078">annotate</a>)
-
-
-
-- <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6078&amp;view=log">[select for diffs]</a>
-
-
-
-
-<br />
-
-Modified
-
-<em>Wed Aug  5 19:47:24 2009 UTC</em>
-(22 months ago)
-by <em>schloegl</em>
-
-
-
-
-
-
-
-
-
-<br />File length: 31587 byte(s)
-
-
-
-
-
-
-
-<br />Diff to <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6074&amp;r2=6078">previous 6074</a>
-
-
-
-
-
-
-
-<pre class="vc_log">add PLA and Winnow algorithm</pre>
-</div>
-
-
-
-<div>
-<hr />
-
-<a name="rev6074"></a>
-
-
-Revision <a href="/viewvc/octave?view=revision&amp;revision=6074"><strong>6074</strong></a> -
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6074&amp;view=markup">view</a>)
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6074">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6074&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=6074">annotate</a>)
-
-
-
-- <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6074&amp;view=log">[select for diffs]</a>
-
-
-
-
-<br />
-
-Modified
-
-<em>Tue Aug  4 09:44:49 2009 UTC</em>
-(22 months ago)
-by <em>schloegl</em>
-
-
-
-
-
-
-
-
-
-<br />File length: 29759 byte(s)
-
-
-
-
-
-
-
-<br />Diff to <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6067&amp;r2=6074">previous 6067</a>
-
-
-
-
-
-
-
-<pre class="vc_log">bug fix</pre>
-</div>
-
-
-
-<div>
-<hr />
-
-<a name="rev6067"></a>
-
-
-Revision <a href="/viewvc/octave?view=revision&amp;revision=6067"><strong>6067</strong></a> -
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6067&amp;view=markup">view</a>)
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6067">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=6067&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=6067">annotate</a>)
-
-
-
-- <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=6067&amp;view=log">[select for diffs]</a>
-
-
-
-
-<br />
-
-Modified
-
-<em>Thu Jul 30 18:12:57 2009 UTC</em>
-(22 months ago)
-by <em>schloegl</em>
-
-
-
-
-
-
-
-
-
-<br />File length: 29759 byte(s)
-
-
-
-
-
-
-
-<br />Diff to <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=5985&amp;r2=6067">previous 5985</a>
-
-
-
-
-
-
-
-<pre class="vc_log">add liblinear classifier</pre>
-</div>
-
-
-
-<div>
-<hr />
-
-<a name="rev5985"></a>
-
-
-Revision <a href="/viewvc/octave?view=revision&amp;revision=5985"><strong>5985</strong></a> -
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=5985&amp;view=markup">view</a>)
-
-
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=5985">download</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?revision=5985&amp;content-type=text%2Fplain">as text</a>)
-(<a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?annotate=5985">annotate</a>)
-
-
-
-- <a href="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m?r1=5985&amp;view=log">[select for diffs]</a>
-
-
-
-
-<br />
-
-Added
-
-<em>Thu Jul  2 12:27:35 2009 UTC</em>
-(23 months ago)
-by <em>schloegl</em>
-
-
-
-
-
-
-
-<br />File length: 27249 byte(s)
-
-
-
-
-
-
-
-
-
-
-
-<pre class="vc_log">add classification methods, change license to GPL v3 or later, ver2.0</pre>
-</div>
-
- 
-
-
-
- <div class="sfBox">
-<hr class="clear"/>
-<a name="diff"></a>
-This form allows you to request diffs between any two revisions of this file.
-For each of the two "sides" of the diff,
-
-enter a numeric revision.
-
-<form method="get" action="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m" id="diff_select">
-<table cellpadding="2" cellspacing="0" class="auto">
-<tr>
-<td>&nbsp;</td>
-<td>
-
-<input type="hidden" name="view" value="diff"/>
-
-Diffs between
-
-<input type="text" size="12" name="r1"
-value="8314" />
-
-and
-
-<input type="text" size="12" name="r2" value="5985" />
-
-</td>
-</tr>
-<tr>
-<td>&nbsp;</td>
-<td>
-Type of Diff should be a
-<select name="diff_format" onchange="submit()">
-<option value="h" selected="selected">Colored Diff</option>
-<option value="l" >Long Colored Diff</option>
-<option value="f" >Full Colored Diff</option>
-<option value="u" >Unidiff</option>
-<option value="c" >Context Diff</option>
-<option value="s" >Side by Side</option>
-</select>
-<input type="submit" value=" Get Diffs " />
-</td>
-</tr>
-</table>
-</form>
-</div>
-
-
-<form method="get" action="/viewvc/octave/trunk/octave-forge/extra/NaN/inst/train_sc.m">
-<div>
-<hr />
-<a name="logsort"></a>
-<input type="hidden" name="view" value="log"/>
-Sort log by:
-<select name="logsort" onchange="submit()">
-<option value="cvs" >Not sorted</option>
-<option value="date" >Commit date</option>
-<option value="rev" >Revision</option>
-</select>
-<input type="submit" value=" Sort " />
-</div>
-</form>
-
-
-<br />
-</div>
-</div>
-</div>
-<div id="ft">
-<div class="yui-b">
-<div class="yui-gb">
-<div class="yui-u first" style="text-align: center;"> <a href="http://p.sf.net/sourceforge/support">SourceForge Help<a/> </div>
-<div class="yui-u" style="text-align: center;"> <strong><a href="/viewvc-static/help_log.html">ViewVC Help</a></strong> </div>
-<div class="yui-u" style="text-align: center;"> <a href="http://viewvc.tigris.org/">Powered by ViewVC 1.1.6</a> </div>
-</div>
-<p class="copyright">Copyright &copy; 2010 <a title="Network which provides and promotes Open Source software downloads, development, discussion and news." href="http://geek.net">Geeknet, Inc.</a> All rights reserved. <a href="http://p.sf.net/sourceforge/terms">Terms of Use</a></p>
-</div>
-</div>
-</div>
-<!--[if IE]></div><![endif]-->
-<!--[if IE 6]></div><![endif]-->
-<!--[if IE 7]></div><![endif]-->
-<script type="text/javascript">
-var pageTracker = _gat._getTracker("UA-32013-37");
-pageTracker._setDomainName(".sourceforge.net");
-pageTracker._trackPageview();
-</script>
-</body>
-</html>
-
-
+%	$Id$
+%	Copyright (C) 2005,2006,2007,2008,2009,2010 by Alois Schloegl <alois.schloegl@gmail.com>
+%       This function is part of the NaN-toolbox
+%       http://pub.ist.ac.at/~schloegl/matlab/NaN/
+
+% This program is free software; you can redistribute it and/or
+% modify it under the terms of the GNU General Public License
+% as published by the Free Software Foundation; either version 3
+% of the  License, or (at your option) any later version.
+% 
+% This program is distributed in the hope that it will be useful,
+% but WITHOUT ANY WARRANTY; without even the implied warranty of
+% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+% GNU General Public License for more details.
+% 
+% You should have received a copy of the GNU General Public License
+% along with this program; if not, write to the Free Software
+% Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+if nargin<2,
+	error('insufficient input arguments\n\tusage: train_sc(D,C,...)\n'); 
+end; 
+if nargin<3, MODE = 'LDA'; end;
+if nargin<4, W = []; end;
+if ischar(MODE) 
+        tmp = MODE; 
+        clear MODE; 
+        MODE.TYPE = tmp;
+elseif ~isfield(MODE,'TYPE')
+        MODE.TYPE=''; 
+end;
+
+if isfield(MODE,'hyperparameters') && ~isfield(MODE,'hyperparameter'), 
+	%% for backwards compatibility, this might become obsolete
+	warning('MODE.hyperparameters are used, You should use MODE.hyperparameter instead!!!');
+	MODE.hyperparameter = MODE.hyperparameters; 
+end; 	
+
+sz = size(D);
+if sz(1)~=size(classlabel,1),
+        error('length of data and classlabel does not fit');
+end;
+
+% remove all NaN's
+if 1,
+	% several classifier can deal with NaN's, there is no need to remove them.
+elseif isempty(W)
+	%% TODO: some classifiers can deal with NaN's in D. Test whether this can be relaxed.
+	%ix = any(isnan([classlabel]),2);
+	ix = any(isnan([D,classlabel]),2);
+	D(ix,:) = [];
+	classlabel(ix,:)=[];
+	W = []; 
+else
+	%ix = any(isnan([classlabel]),2);
+	ix = any(isnan([D,classlabel]),2);
+	D(ix,:)=[];
+	classlabel(ix,:)=[];
+	W(ix,:)=[];
+	warning('support for weighting of samples is still experimental');
+end; 
+
+sz = size(D);
+if sz(1)~=length(classlabel),
+        error('length of data and classlabel does not fit');
+end;
+if ~isfield(MODE,'hyperparameter')
+        MODE.hyperparameter = [];
+end
+
+if 0,
+	;
+elseif ~isempty(strfind(lower(MODE.TYPE),'/delet'))
+        POS1 = find(MODE.TYPE=='/');
+	[rix,cix] = row_col_deletion(D);	
+	if ~isempty(W), W=W(rix); end;
+        CC   = train_sc(D(rix,cix),classlabel(rix,:),MODE.TYPE(1:POS1(1)-1),W);
+        CC.G = sparse(cix, 1:length(cix), 1, size(D,2), length(cix)); 
+        if isfield(CC,'weights')
+                W = [CC.weights(1,:); CC.weights(2:end,:)];
+                CC.weights = sparse(size(D,2)+1, size(W,2));
+                CC.weights([1,cix+1],:) = W;
+                CC.datatype = ['classifier:statistical:',lower(MODE.TYPE)];
+        else
+                CC.datatype = [CC.datatype,'/delet'];
+        end;
+        
+elseif ~isempty(strfind(lower(MODE.TYPE),'nbpw'))
+	error('NBPW not implemented yet')
+	%%%% Naive Bayesian Parzen Window Classifier. 
+	[classlabel,CC.Labels] = CL1M(classlabel); 
+        for k = 1:length(CC.Labels),
+                [d,CC.MEAN(k,:)] = center(D(classlabel==CC.Labels(k),:),1);
+                [CC.VAR(k,:),CC.N(k,:)] = sumskipnan(d.^2,1);  
+                h2_opt = (4./(3*CC.N(k,:))).^(2/5).*CC.VAR(k,:);
+                %%% TODO 
+        end;
+
+
+elseif ~isempty(strfind(lower(MODE.TYPE),'nbc'))
+	%%%% Naive Bayesian Classifier. 
+	if ~isempty(strfind(lower(MODE.TYPE),'anbc'))
+		%%%% Augmented Naive Bayesian classifier. 
+		[CC.V,L] = eig(covm(D,'M',W)); 
+		D = D*CC.V;
+	else 
+		CC.V = eye(size(D,2));
+	end; 
+	[classlabel,CC.Labels] = CL1M(classlabel); 
+        for k = 1:length(CC.Labels),
+        	ix = classlabel==CC.Labels(k); 
+                %% [d,CC.MEAN(k,:)] = center(D(ix,:),1);
+		if ~isempty(W)
+			[s,n] = sumskipnan(D(ix,:),1,W(ix));  
+			CC.MEAN(k,:) = s./n; 
+			d = D(ix,:) - CC.MEAN(repmat(k,sum(ix),1),:);
+			[CC.VAR(k,:),CC.N(k,:)] = sumskipnan(d.^2,1,W(ix));  
+		else
+			[s,n] = sumskipnan(D(ix,:),1);
+			CC.MEAN(k,:) = s./n; 
+			d = D(ix,:) - CC.MEAN(repmat(k,sum(ix),1),:);
+			[CC.VAR(k,:),CC.N(k,:)] = sumskipnan(d.^2,1);
+		end
+        end;
+        CC.VAR = CC.VAR./max(CC.N-1,0); 
+        CC.datatype = ['classifier:',lower(MODE.TYPE)];
+
+
+elseif ~isempty(strfind(lower(MODE.TYPE),'lpm'))
+	if ~isempty(W) 
+		error('Error TRAIN_SC: Classifier (%s) does not support weighted samples.',MODE.TYPE);
+	end; 	
+        % linear programming machine 
+        % CPLEX optimizer: ILOG solver, ilog cplex 6.5 reference manual http://www.ilog.com
+        MODE.TYPE = 'LPM';
+        if ~isfield(MODE.hyperparameter,'c_value')
+                MODE.hyperparameter.c_value = 1; 
+        end
+	[classlabel,CC.Labels] = CL1M(classlabel); 
+
+        M = length(CC.Labels);
+        if M==2, M=1; end;   % For a 2-class problem, only 1 Discriminant is needed 
+        for k = 1:M,
+                %LPM = train_LPM(D,(classlabel==CC.Labels(k)),'C',MODE.hyperparameter.c_value);
+                LPM = train_LPM(D',(classlabel'==CC.Labels(k)));
+                CC.weights(:,k) = [-LPM.b; LPM.w(:)];
+        end;
+        CC.hyperparameter.c_value = MODE.hyperparameter.c_value; 
+        CC.datatype = ['classifier:',lower(MODE.TYPE)];
+
+
+elseif ~isempty(strfind(lower(MODE.TYPE),'pla')),
+	% Perceptron Learning Algorithm 	
+
+	[rix,cix] = row_col_deletion(D);
+	[CL101,CC.Labels] = cl101(classlabel); 
+	M = size(CL101,2);
+        weights   = sparse(length(cix)+1,M);
+
+	%ix = randperm(size(D,1)); 	%% randomize samples ??? 
+        if ~isfield(MODE.hyperparameter,'alpha')
+                if isfield(MODE.hyperparameter,'alpha')
+	        	alpha = MODE.hyperparameter.alpha;
+	        else 	
+	        	alpha = 1; 
+                end; 	
+                for k = rix(:)',
+		        %e = ((classlabel(k)==(1:M))-.5) - sign([1, D(k,cix)] * weights)/2;
+		        e = CL101(k,:) - sign([1, D(k,cix)] * weights);
+			weights = weights + alpha * [1,D(k,cix)]' * e ;
+                end;
+		
+        else %if ~isempty(W)
+        	if isfield(MODE.hyperparameter,'alpha')
+			W = W*MODE.hyperparameter.alpha;
+		end;	
+		for k = rix(:)',
+		        %e = ((classlabel(k)==(1:M))-.5) - sign([1, D(k,cix)] * weights)/2;
+		        e = CL101(k,:) - sign([1, D(k,cix)] * weights);
+			weights = weights + W(k) * [1,D(k,cix)]' * e ;
+		end;
+        end
+        CC.weights  = sparse(size(D,2)+1,M);
+        CC.weights([1,cix+1],:) = weights;
+        CC.datatype = ['classifier:',lower(MODE.TYPE)];
+
+
+elseif  ~isempty(strfind(lower(MODE.TYPE),'adaline')) || ~isempty(strfind(lower(MODE.TYPE),'lms')),
+	% adaptive linear elemente, least mean squares, delta rule, Widrow-Hoff,  	
+
+	[rix,cix] = row_col_deletion(D);
+	[CL101,CC.Labels] = cl101(classlabel); 
+	M = size(CL101,2);
+        weights  = sparse(length(cix)+1,M);
+
+	%ix = randperm(size(D,1)); 	%% randomize samples ??? 
+        if isempty(W)
+	        if isfield(MODE.hyperparameter,'alpha')
+	        	alpha = MODE.hyperparameter.alpha;
+	        else 	
+	        	alpha = 1; 
+		end; 	
+		for k = rix(:)',
+		        %e = (classlabel(k)==(1:M)) - [1, D(k,cix)] * weights;
+		        e = CL101(k,:) - sign([1, D(k,cix)] * weights);
+		        weights = weights + alpha * [1,D(k,cix)]' * e ;
+		end;
+
+        else %if ~isempty(W)
+        	if isfield(MODE.hyperparameter,'alpha')
+			W = W*MODE.hyperparameter.alpha;
+		end;
+		for k = rix(:)',
+		        %e = (classlabel(k)==(1:M)) - [1, D(k,cix)] * weights;
+		        e = CL101(k,:) - sign([1, D(k,cix)] * weights);
+		        weights = weights + W(k) * [1,D(k,cix)]' * e ;
+		end;
+        end
+        CC.weights  = sparse(size(D,2)+1,M);
+        CC.weights([1,cix+1],:) = weights;
+        CC.datatype = ['classifier:',lower(MODE.TYPE)];
+
+
+elseif ~isempty(strfind(lower(MODE.TYPE),'winnow'))
+	% winnow algorithm 	
+	if ~isempty(W) 
+		error('Classifier (%s) does not support weighted samples.',MODE.TYPE);
+	end; 	
+
+	[rix,cix] = row_col_deletion(D);
+	[CL101,CC.Labels] = cl101(classlabel); 
+	M = size(CL101,2);
+        weights  = ones(length(cix),M);
+        theta = size(D,2)/2;
+
+	for k = rix(:)',
+		e = CL101(k,:) - sign(D(k,cix) * weights - theta);
+	        weights = weights.* 2.^(D(k,cix)' * e);
+	end;
+	
+	CC.weights = sparse(size(D,2)+1,M); 
+        CC.weights(cix+1,:) = weights;
+        CC.datatype = ['classifier:',lower(MODE.TYPE)];
+        
+
+elseif ~isempty(strfind(lower(MODE.TYPE),'pls')) || ~isempty(strfind(lower(MODE.TYPE),'reg'))
+	% 4th version: support for weighted samples - work well with unequally distributed data: 
+        % regression analysis, can handle sparse data, too. 
+
+	if nargin<4,
+		W = [];
+	end;
+	[rix, cix] = row_col_deletion(D);
+	wD = [ones(length(rix),1),D(rix,cix)]; 
+
+	if ~isempty(W)
+		%% wD = diag(W)*wD
+		W = W(:);
+		for k=1:size(wD,2)
+			wD(:,k) = W(rix).*wD(:,k);
+		end; 
+	end;
+	[CL101, CC.Labels] = cl101(classlabel(rix,:)); 
+	M = size(CL101,2);
+	CC.weights = sparse(sz(2)+1,M);
+
+	%[rix, cix] = row_col_deletion(wD);
+	[q,r] = qr(wD,0);
+
+	if isempty(W)
+		CC.weights([1,cix+1],:) = r\(q'*CL101);
+	else
+		CC.weights([1,cix+1],:) = r\(q'*(W(rix,ones(1,M)).*CL101));
+	end; 	
+	%for k = 1:M,
+	%	CC.weights(cix,k) = r\(q'*(W.*CL101(rix,k)));
+	%end;
+        CC.datatype = ['classifier:statistical:',lower(MODE.TYPE)];
+
+
+elseif ~isempty(strfind(MODE.TYPE,'WienerHopf'))
+        % Q: equivalent to LDA
+        % equivalent to Regression, except regression can not deal with NaN's  
+	[CL101,CC.Labels] = cl101(classlabel); 
+	M = size(CL101,2);
+        CC.weights = sparse(size(D,2)+1,M);
+        cc = covm(D,'E',W);
+        %c1 = classlabel(~isnan(classlabel));
+        %c2 = ones(sum(~isnan(classlabel)),M);
+        %for k = 1:M,
+	%	c2(:,k) = c1==CC.Labels(k);
+        %end; 
+        %CC.weights  = cc\covm([ones(size(c2,1),1),D(~isnan(classlabel),:)],2*real(c2)-1,'M',W);
+        CC.weights  = cc\covm([ones(size(D,1),1),D],CL101,'M',W);
+        CC.datatype = ['classifier:statistical:',lower(MODE.TYPE)];
+
+
+elseif ~isempty(strfind(lower(MODE.TYPE),'/gsvd'))
+	if ~isempty(W) 
+		error('Classifier (%s) does not support weighted samples.',MODE.TYPE);
+	end; 	
+	% [2] Peg Howland and Haesun Park, 2004. 
+        %       Generalizing Discriminant Analysis Using the Generalized Singular Value Decomposition
+        %       IEEE Transactions on Pattern Analysis and Machine Intelligence, 26(8), 2004.
+        %       dx.doi.org/10.1109/TPAMI.2004.46
+        % [3] http://www-static.cc.gatech.edu/~kihwan23/face_recog_gsvd.htm
+
+	[classlabel,CC.Labels] = CL1M(classlabel); 
+	[rix,cix] = row_col_deletion(D);
+
+        Hw = zeros(length(rix)+length(CC.Labels), length(cix)); 
+        Hb = [];
+	m0 = mean(D(rix,cix)); 
+        K = length(CC.Labels); 
+        N = zeros(1,K);
+	for k = 1:K,
+		ix   = find(classlabel(rix)==CC.Labels(k));
+		N(k) = length(ix);
+		[Hw(ix,:), mu] = center(D(rix(ix),cix));
+		%Hb(k,:) = sqrt(N(k))*(mu(k,:)-m0);
+		Hw(length(rix)+k,:) = sqrt(N(k))*(mu-m0);  % Hb(k,:)
+	end;
+        try
+                [P,R,Q] = svd(Hw,'econ');
+        catch   % needed because SVD(..,'econ') not supported in Matlab 6.x
+                [P,R,Q] = svd(Hw,0);
+        end;
+        t = rank(R);
+
+        clear Hw Hb mu; 
+        %[size(D);size(P);size(Q);size(R)]
+        R = R(1:t,1:t);
+        %P = P(1:size(D,1),1:t); 
+        %Q = Q(1:t,:);
+        [U,E,W] = svd(P(1:length(rix),1:t),0);
+        %[size(U);size(E);size(W)]
+        clear U E P;  
+        %[size(Q);size(R);size(W)]
+
+        %G = Q(1:t,:)'*[R\W'];
+        G = Q(:,1:t)*(R\W');   % this works as well and needs only 'econ'-SVD
+        %G = G(:,1:t);  % not needed 
+        
+        % do not use this, gives very bad results for Medline database
+        %G = G(:,1:K); this seems to be a typo in [2] and [3].
+        CC = train_sc(D(:,cix)*G,classlabel,MODE.TYPE(1:find(MODE.TYPE=='/')-1));
+        CC.G = sparse(size(D,2),size(G,2));
+        CC.G(cix,:) = G;
+        if isfield(CC,'weights')
+                CC.weights  = sparse([CC.weights(1,:); CC.G*CC.weights(2:end,:)]); 
+                CC.datatype = ['classifier:statistical:', lower(MODE.TYPE)];
+        else
+                CC.datatype = [CC.datatype,'/gsvd'];
+        end;
+
+
+elseif ~isempty(strfind(lower(MODE.TYPE),'sparse'))
+	if ~isempty(W) 
+		error('Classifier (%s) does not support weighted samples.',MODE.TYPE);
+	end; 	
+        % [5] J.D. Tebbens and P.Schlesinger (2006), 
+        %       Improving Implementation of Linear Discriminant Analysis for the Small Sample Size Problem
+        %       http://www.cs.cas.cz/mweb/download/publi/JdtSchl2006.pdf
+
+	[classlabel,CC.Labels] = CL1M(classlabel); 
+	[rix,cix] = row_col_deletion(D);	
+
+        warning('sparse LDA is sensitive to linear transformations')
+        M = length(CC.Labels); 
+        G  = sparse([],[],[],length(rix),M,length(rix));
+        for k = 1:M,
+                G(classlabel(rix)==CC.Labels(k),k) = 1; 
+        end;
+        tol  = 1e-10;
+
+        G    = train_lda_sparse(D(rix,cix),G,1,tol);
+        CC.datatype = 'classifier:slda';
+        POS1 = find(MODE.TYPE=='/'); 
+        %G = v(:,1:size(G.trafo,2)).*G.trafo; 
+        %CC.weights = s * CC.weights(2:end,:) + sparse(1,1:M,CC.weights(1,:),sz(2)+1,M); 
+
+        CC = train_sc(D(rix,cix)*G.trafo,classlabel(rix),MODE.TYPE(1:POS1(1)-1));
+        CC.G = sparse(size(D,2),size(G.trafo,2));
+        CC.G(cix,:) = G.trafo;
+        if isfield(CC,'weights')
+                CC.weights = sparse([CC.weights(1,:); CC.G*CC.weights(2:end,:)]);
+                CC.datatype = ['classifier:statistical:',lower(MODE.TYPE)];
+        else
+                CC.datatype = [CC.datatype,'/sparse'];
+        end;
+
+elseif ~isempty(strfind(lower(MODE.TYPE),'rbf'))
+	if ~isempty(W) 
+		error('Classifier (%s) does not support weighted samples.',MODE.TYPE);
+	end;
+
+        % Martin Hieden's RBF-SVM        
+        if exist('svmpredict_mex','file')==3,
+                MODE.TYPE = 'SVM:LIB:RBF';
+        else
+                error('No SVM training algorithm available. Install LibSVM for Matlab.\n');
+        end;
+        CC.options = '-t 2 -q';   %use RBF kernel, set C, set gamma
+        if isfield(MODE.hyperparameter,'gamma')
+	        CC.options = sprintf('%s -c %g', CC.options, MODE.hyperparameter.c_value);  % set C
+        end
+        if isfield(MODE.hyperparameter,'c_value')
+	        CC.options = sprintf('%s -g %g', CC.options, MODE.hyperparameter.gamma);  % set C
+        end
+
+        % pre-whitening
+        [D,r,m]=zscore(D,1); 
+        CC.prewhite = sparse(2:sz(2)+1,1:sz(2),r,sz(2)+1,sz(2),2*sz(2)); 
+        CC.prewhite(1,:) = -m.*r; 
+
+	[classlabel,CC.Labels] = CL1M(classlabel); 
+        CC.model = svmtrain_mex(classlabel, D, CC.options);    % Call the training mex File     
+        CC.datatype = ['classifier:',lower(MODE.TYPE)];
+
+
+elseif ~isempty(strfind(lower(MODE.TYPE),'svm11'))
+	if ~isempty(W) 
+		error('Classifier (%s) does not support weighted samples.',MODE.TYPE);
+	end; 	
+        % 1-versus-1 scheme 
+        if ~isfield(MODE.hyperparameter,'c_value')
+                MODE.hyperparameter.c_value = .1; 
+        end
+
+        CC.options=sprintf('-c %g -t 0 -q',MODE.hyperparameter.c_value);  %use linear kernel, set C
+        CC.hyperparameter.c_value = MODE.hyperparameter.c_value; 
+
+        % pre-whitening
+        [D,r,m]=zscore(D,1); 
+        CC.prewhite = sparse(2:sz(2)+1,1:sz(2),r,sz(2)+1,sz(2),2*sz(2)); 
+        CC.prewhite(1,:) = -m.*r; 
+
+	[classlabel,CC.Labels] = CL1M(classlabel); 
+        CC.model = svmtrain_mex(classlabel, D, CC.options);    % Call the training mex File
+        
+        FUN = 'SVM:LIB:1vs1';
+        CC.datatype = ['classifier:',lower(FUN)];
+
+
+elseif ~isempty(strfind(lower(MODE.TYPE),'psvm'))
+	if ~isempty(W) 
+		%%% error('Classifier (%s) does not support weighted samples.',MODE.TYPE);
+		warning('Classifier (%s) in combination with weighted samples is not tested.',MODE.TYPE);
+	end; 	
+        if ~isfield(MODE,'hyperparameter')
+        	nu = 1;
+        elseif isfield(MODE.hyperparameter,'nu')
+	        nu = MODE.hyperparameter.nu;
+	else 
+		nu = 1;          
+        end;
+        [m,n] = size(D); 
+	[CL101,CC.Labels] = cl101(classlabel); 
+        CC.weights = sparse(n+1,size(CL101,2));
+	M = size(CL101,2);
+        for k = 1:M,
+		d = sparse(1:m,1:m,CL101(:,k));
+		H = d * [ones(m,1),D];
+		%%% r = sum(H,1)';
+		r = sumskipnan(H,1,W)';
+		%%% r = (speye(n+1)/nu + H' * H)\r; %solve (I/nu+H’*H)r=H’*e
+		[HTH, nn] = covm(H,H,'M',W);
+		r = (speye(n+1)/nu + HTH)\r; %solve (I/nu+H’*H)r=H’*e
+		u = nu*(1-(H*r)); 
+		%%% CC.weights(:,k) = u'*H;
+		[c,nn] = covm(u,H,'M',W);
+		CC.weights(:,k) = c';
+        end;
+        CC.hyperparameter.nu = nu; 
+        CC.datatype = ['classifier:',lower(MODE.TYPE)];
+        
+
+elseif ~isempty(strfind(lower(MODE.TYPE),'svm:lin4'))
+        if ~isfield(MODE.hyperparameter,'c_value')
+                MODE.hyperparameter.c_value = 1; 
+        end
+
+	[classlabel,CC.Labels] = CL1M(classlabel); 
+	M = length(CC.Labels);
+	CC.weights = sparse(size(D,2)+1,M); 
+
+	[rix,cix] = row_col_deletion(D);	
+
+        % pre-whitening
+        [D,r,m]=zscore(D(rix,cix),1); 
+        sz2 = length(cix);
+        s = sparse(2:sz2+1,1:sz2,r,sz2+1,sz2,2*sz2); 
+        s(1,:) = -m.*r; 
+
+        CC.options = sprintf('-s 4 -B 1 -c %f -q', MODE.hyperparameter.c_value);      % C-SVC, C=1, linear kernel, degree = 1,
+        model = train(W, classlabel, sparse(D), CC.options);    % C-SVC, C=1, linear kernel, degree = 1,
+        weights = model.w([end,1:end-1],:)';
+
+        CC.weights([1,cix+1],:) = s * weights(2:end,:) + sparse(1,1:M,weights(1,:),sz2+1,M); % include pre-whitening transformation
+        CC.weights([1,cix+1],:) = s * CC.weights(cix+1,:) + sparse(1,1:M,CC.weights(1,:),sz2+1,M); % include pre-whitening transformation
+        CC.hyperparameter.c_value = MODE.hyperparameter.c_value; 
+        CC.datatype = ['classifier:',lower(MODE.TYPE)];
+
+
+elseif ~isempty(strfind(lower(MODE.TYPE),'svm'))
+
+        if ~isfield(MODE.hyperparameter,'c_value')
+                MODE.hyperparameter.c_value = 1; 
+        end
+        if any(MODE.TYPE==':'),
+                % nothing to be done
+        elseif exist('train','file')==3,
+                MODE.TYPE = 'SVM:LIN';        %% liblinear 
+        elseif exist('svmtrain_mex','file')==3,
+                MODE.TYPE = 'SVM:LIB';
+        elseif (exist('svmtrain','file')==3),
+                MODE.TYPE = 'SVM:LIB';
+                fprintf(1,'You need to rename %s to svmtrain_mex.mex !! \n Press any key to continue !!!\n',which('svmtrain.mex'));
+        elseif exist('svmtrain','file')==2,
+                MODE.TYPE = 'SVM:bioinfo';
+        elseif exist('mexSVMTrain','file')==3,
+                MODE.TYPE = 'SVM:OSU';
+        elseif exist('svcm_train','file')==2,
+                MODE.TYPE = 'SVM:LOO';
+        elseif exist('svmclass','file')==2,
+                MODE.TYPE = 'SVM:KM';
+        elseif exist('svc','file')==2,
+                MODE.TYPE = 'SVM:Gunn';
+        else
+                error('No SVM training algorithm available. Install OSV-SVM, or LOO-SVM, or libSVM for Matlab.\n');
+        end;
+
+        %%CC = train_svm(D,classlabel,MODE);
+	[CL101,CC.Labels] = cl101(classlabel); 
+	M = size(CL101,2);
+	[rix,cix] = row_col_deletion(D);	
+        CC.weights = sparse(sz(2)+1, M);
+
+        % pre-whitening
+        [D,r,m]=zscore(D(rix,cix),1); 
+        sz2 = length(cix);
+        s = sparse(2:sz2+1,1:sz2,r,sz2+1,sz2,2*sz2); 
+        s(1,:) = -m.*r; 
+
+        for k = 1:M,
+                cl = CL101(rix,k);
+                if strncmp(MODE.TYPE, 'SVM:LIN',7);
+                        if isfield(MODE,'options')
+                                CC.options = MODE.options;
+                        else
+                                t = 0; 
+                                if length(MODE.TYPE)>7, t=MODE.TYPE(8)-'0'; end; 
+                                if (t<0 || t>6) t=0; end; 
+                                CC.options = sprintf('-s %i -B 1 -c %f -q',t, MODE.hyperparameter.c_value);      % C-SVC, C=1, linear kernel, degree = 1,
+                        end;
+                        model = train(W, cl, sparse(D), CC.options);    % C-SVC, C=1, linear kernel, degree = 1,
+                        w = -model.w';
+                        Bias = -model.bias;
+                        w = -model.w(:,1:end-1)';
+                        Bias = -model.w(:,end)';
+
+                elseif strcmp(MODE.TYPE, 'SVM:LIB');	%% tested with libsvm-mat-2.9-1 
+                        if isfield(MODE,'options')
+                                CC.options = MODE.options;
+                        else
+                                CC.options = sprintf('-s 0 -c %f -t 0 -d 1 -q', MODE.hyperparameter.c_value);      % C-SVC, C=1, linear kernel, degree = 1,
+                        end;
+                        model = svmtrain_mex(cl, D, CC.options);    % C-SVC, C=1, linear kernel, degree = 1,
+                        w = cl(1) * model.SVs' * model.sv_coef;  %Calculate decision hyperplane weight vector
+                        % ensure correct sign of weight vector and Bias according to class label
+                        Bias = model.rho * cl(1);
+
+                elseif strcmp(MODE.TYPE, 'SVM:bioinfo');
+                        % SVM classifier from bioinformatics toolbox.
+                        % Settings suggested by Ian Daly, 2011-06-06
+                        options = optimset('Display','iter','maxiter',20000, 'largescale','off');
+                        CC.SVMstruct = svmtrain(D, cl, 'AUTOSCALE', 0, 'quadprog_opts', options, 'Method', 'LS', 'kernel_function', 'polynomial');
+                        Bias = -CC.SVMstruct.Bias;
+                        w = -CC.SVMstruct.Alpha'*CC.SVMstruct.SupportVectors;
+
+                elseif strcmp(MODE.TYPE, 'SVM:OSU');
+                        [AlphaY, SVs, Bias] = mexSVMTrain(D', cl', [0 1 1 1 MODE.hyperparameter.c_value]);    % Linear Kernel, C=1; degree=1, c-SVM
+                        w = -SVs * AlphaY'*cl(1);  %Calculate decision hyperplane weight vector
+                        % ensure correct sign of weight vector and Bias according to class label
+                        Bias = -Bias * cl(1);
+
+                elseif strcmp(MODE.TYPE, 'SVM:LOO');
+                        [a, Bias, g, inds]  = svcm_train(D, cl, MODE.hyperparameter.c_value); % C = 1;
+                        w = D(inds,:)' * (a(inds).*cl(inds)) ;
+
+                elseif strcmp(MODE.TYPE, 'SVM:Gunn');
+                        [nsv, alpha, Bias,svi]  = svc(D, cl, 1, MODE.hyperparameter.c_value); % linear kernel, C = 1;
+                        w = D(svi,:)' * alpha(svi) * cl(1);
+                        Bias = mean(D*w);
+
+                elseif strcmp(MODE.TYPE, 'SVM:KM');
+                        [xsup,w1,Bias,inds] = svmclass(D, cl, MODE.hyperparameter.c_value, 1, 'poly', 1); % C = 1;
+                        w = -D(inds,:)' * w1;
+
+                else
+                        fprintf(2,'Error TRAIN_SVM: no SVM training algorithm available\n');
+                        return;
+                end
+
+                CC.weights(1,k) = -Bias;
+                CC.weights(cix+1,k) = w;
+        end;
+        CC.weights([1,cix+1],:) = s * CC.weights(cix+1,:) + sparse(1,1:M,CC.weights(1,:),sz2+1,M); % include pre-whitening transformation
+        CC.hyperparameter.c_value = MODE.hyperparameter.c_value; 
+        CC.datatype = ['classifier:',lower(MODE.TYPE)];
+
+
+elseif ~isempty(strfind(lower(MODE.TYPE),'csp'))
+        CC.datatype = ['classifier:',lower(MODE.TYPE)];
+	[classlabel,CC.Labels] = CL1M(classlabel); 
+        CC.MD = repmat(NaN,[sz(2)+[1,1],length(CC.Labels)]);
+        CC.NN = CC.MD;
+        for k = 1:length(CC.Labels),
+                %% [CC.MD(k,:,:),CC.NN(k,:,:)] = covm(D(classlabel==CC.Labels(k),:),'E');
+        	ix = classlabel==CC.Labels(k);
+                if isempty(W)
+	                [CC.MD(:,:,k),CC.NN(:,:,k)] = covm(D(ix,:), 'E');
+	        else        
+                        [CC.MD(:,:,k),CC.NN(:,:,k)] = covm(D(ix,:), 'E', W(ix));
+                end;         
+        end;
+        ECM = CC.MD./CC.NN;
+	W   = csp(ECM,'CSP3');
+	%%% ### This is a hack ###
+	CC.FiltA = 50; 
+	CC.FiltB = ones(CC.FiltA,1); 
+	d   = filtfilt(CC.FiltB,CC.FiltA,(D*W).^2);
+	CC.csp_w = W; 
+	CC.CSP = train_sc(log(d),classlabel);	
+
+
+else          % Linear and Quadratic statistical classifiers 
+        CC.datatype = ['classifier:statistical:',lower(MODE.TYPE)];
+	[classlabel,CC.Labels] = CL1M(classlabel);
+        CC.MD = repmat(NaN,[sz(2)+[1,1],length(CC.Labels)]);
+        CC.NN = CC.MD;
+	for k = 1:length(CC.Labels),
+		ix = classlabel==CC.Labels(k);
+		if isempty(W)
+			[CC.MD(:,:,k),CC.NN(:,:,k)] = covm(D(ix,:), 'E');
+		else
+			[CC.MD(:,:,k),CC.NN(:,:,k)] = covm(D(ix,:), 'E', W(ix));
+		end;
+	end;
+
+        ECM = CC.MD./CC.NN;
+        NC  = size(CC.MD);
+        if strncmpi(MODE.TYPE,'LD',2) || strncmpi(MODE.TYPE,'FDA',3) || strncmpi(MODE.TYPE,'FLDA',3),
+
+                %if NC(1)==2, NC(1)=1; end;                % linear two class problem needs only one discriminant
+                CC.weights = repmat(NaN,NC(2),NC(3));     % memory allocation
+                type = MODE.TYPE(3)-'0';
+
+                ECM0 = squeeze(sum(ECM,3));  %decompose ECM
+                for k = 1:NC(3);
+                        ix = [1:k-1,k+1:NC(3)]; 
+                        dM = CC.MD(:,1,k)./CC.NN(:,1,k) - sum(CC.MD(:,1,ix),3)./sum(CC.NN(:,1,ix),3);
+                        switch (type)
+                                case 2          % LD2
+                                        ecm0 = (sum(ECM(:,:,ix),3)/(NC(3)-1) + ECM(:,:,k));
+                                case 4          % LD4
+                                        ecm0 = 2*(sum(ECM(:,:,ix),3) + ECM(:,:,k))/NC(3);
+                                        % ecm0 = sum(CC.MD,3)./sum(CC.NN,3);
+                                case 5          % LD5
+                                        ecm0 = ECM(:,:,k);
+                                case 6          % LD6
+                                        ecm0 = sum(CC.MD(:,:,ix),3)./sum(CC.NN(:,:,ix),3);
+                                otherwise       % LD3, LDA, FDA
+                                        ecm0 = ECM0;
+                        end
+	        	if isfield(MODE.hyperparameter,'gamma')
+	        		ecm0 = ecm0 + mean(diag(ecm0))*eye(size(ecm0))*MODE.hyperparameter.gamma;
+        		end
+
+                        CC.weights(:,k) = ecm0\dM;
+
+                end;
+		%CC.weights = sparse(CC.weights);
+		
+                
+        elseif strcmpi(MODE.TYPE,'RDA');
+		if isfield(MODE,'hyperparameter')
+		        CC.hyperparameter = MODE.hyperparameter;
+		end;         
+		% default values
+		if ~isfield(CC.hyperparameter,'gamma')
+			CC.hyperparameter.gamma = 0;
+		end;	
+		if ~isfield(CC.hyperparameter,'lambda')
+			CC.hyperparameter.lambda = 1; 
+		end; 	         
+        else
+                ECM0 = sum(ECM,3);
+                nn = ECM0(1,1,1);	% number of samples in training set for class k
+                XC = squeeze(ECM0(:,:,1))/nn;		% normalize correlation matrix
+                M  = XC(1,2:NC(2));		% mean
+                S  = XC(2:NC(2),2:NC(2)) - M'*M;% covariance matrix
+
+		try
+			[v,d]=eig(S);
+			U0 = v(diag(d)==0,:);
+			CC.iS2 = U0*U0';  
+		end;
+
+                %M  = M/nn; S=S/(nn-1);
+                ICOV0 = inv(S);
+                CC.iS0 = ICOV0; 
+                % ICOV1 = zeros(size(S));
+                for k = 1:NC(3),
+                        %[M,sd,S,xc,N] = decovm(ECM{k});  %decompose ECM
+                        %c  = size(ECM,2);
+                        nn = ECM(1,1,k);% number of samples in training set for class k
+                        XC = squeeze(ECM(:,:,k))/nn;% normalize correlation matrix
+                        M  = XC(1,2:NC(2));% mean
+                        S  = XC(2:NC(2),2:NC(2)) - M'*M;% covariance matrix
+                        %M  = M/nn; S=S/(nn-1);
+
+                        %ICOV(1) = ICOV(1) + (XC(2:NC(2),2:NC(2)) - )/nn
+
+                        CC.M{k}   = M;
+                        CC.IR{k}  = [-M;eye(NC(2)-1)]*inv(S)*[-M',eye(NC(2)-1)];  % inverse correlation matrix extended by mean
+                        CC.IR0{k} = [-M;eye(NC(2)-1)]*ICOV0*[-M',eye(NC(2)-1)];  % inverse correlation matrix extended by mean
+                        d = NC(2)-1;
+                        if exist('OCTAVE_VERSION','builtin')
+	                        S = full(S);
+	                end;         
+                        CC.logSF(k)  = log(nn) - d/2*log(2*pi) - det(S)/2;
+                        CC.logSF2(k) = -2*log(nn/sum(ECM(:,1,1)));
+                        CC.logSF3(k) = d*log(2*pi) + log(det(S));
+                        CC.logSF4(k) = log(det(S)) + 2*log(nn);
+                        CC.logSF5(k) = log(det(S));
+                        CC.logSF6(k) = log(det(S)) - 2*log(nn/sum(ECM(:,1,1)));
+                        CC.logSF7(k) = log(det(S)) + d*log(2*pi) - 2*log(nn/sum(ECM(:,1,1)));
+                        CC.logSF8(k) = sum(log(svd(S))) + log(nn) - log(sum(ECM(:,1,1)));
+                        CC.SF(k) = nn/sqrt((2*pi)^d * det(S));
+                        %CC.datatype='LLBC';
+                end;
+        end;
+end
+
+
+function [CL101,Labels] = cl101(classlabel)
+	%% convert classlabels to {-1,1} encoding 
+
+	if (all(classlabel>=0) && all(classlabel==fix(classlabel)) && (size(classlabel,2)==1))
+		M = max(classlabel);
+		if M==2, 
+			CL101 = (classlabel==2)-(classlabel==1); 
+		else	
+			CL101 = zeros(size(classlabel,1),M);
+			for k=1:M, 
+				%% One-versus-Rest scheme 
+				CL101(:,k) = 2*real(classlabel==k) - 1; 
+			end; 
+		end; 	
+		CL101(isnan(classlabel),:) = NaN; %% or zero ??? 
+	
+	elseif all((classlabel==1) | (classlabel==-1)  | (classlabel==0) )
+		CL101 = classlabel; 
+		M = size(CL101,2); 
+	else 
+		classlabel,
+		error('format of classlabel unsupported');
+	end; 
+	Labels = 1:M;
+	return; 
+end; 
+
+
+function [cl1m, Labels] = CL1M(classlabel)
+	%% convert classlabels to 1..M encoding 
+	if (all(classlabel>=0) && all(classlabel==fix(classlabel)) && (size(classlabel,2)==1))
+		cl1m = classlabel; 
+
+	elseif all((classlabel==1) | (classlabel==-1) | (classlabel==0) )
+		CL101 = classlabel; 
+		M = size(classlabel,2); 
+		if any(sum(classlabel==1,2)>1)
+			warning('invalid format of classlabel - at most one category may have +1');
+		end; 
+		if (M==1), 
+			cl1m = (classlabel==-1) + 2*(classlabel==+1);
+		else 	
+			[tmp, cl1m] = max(classlabel,[],2);
+			if any(tmp ~= 1) 
+				warning('some class might not be properly represented - you might what to add another column to classlabel = [max(classlabel,[],2)<1,classlabel]'); 
+			end; 	
+			cl1m(tmp<1)= 0;	%% or NaN ???
+		end;
+	else 
+		classlabel
+		error('format of classlabel unsupported');
+	end; 
+	Labels = 1:max(cl1m);
+	return; 	
+end; 
+
+end

@@ -23,8 +23,9 @@ function [CLASS,ERR,POSTERIOR,LOGP,COEF]=classify(sample,training,classlabel,TYP
 %       John Wiley & Sons, 2001. 
 
 %	$Id$
-%	Copyright (C) 2008,2009 by Alois Schloegl <a.schloegl@ieee.org>	
-%	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+%	Copyright (C) 2008,2009 by Alois Schloegl <alois.schloegl@gmail.com>	
+%       This function is part of the NaN-toolbox
+%       http://pub.ist.ac.at/~schloegl/matlab/NaN/
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
@@ -51,7 +52,7 @@ elseif strcmp(TYPE,'quadratic')
 elseif strcmp(TYPE,'diagLinear')
 	TYPE = 'NBC';
 elseif strcmp(TYPE,'diagQuadratic')
-	TYPE = 'aNBC';
+	TYPE = 'NBC';
 elseif strcmp(TYPE,'mahalanobis')
 	TYPE = 'MDA';
 end; 	

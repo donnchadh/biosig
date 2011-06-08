@@ -12,7 +12,8 @@ function [mu,sd,COV,xc,M,R2]=decovm(XCN,NN)
 
 %	$Id$
 %	Copyright (c) 1999-2002,2009 by  Alois Schloegl
-%	a.schloegl@ieee.org
+%       This function is part of the NaN-toolbox
+%       http://pub.ist.ac.at/~schloegl/matlab/NaN/
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
@@ -32,21 +33,21 @@ function [mu,sd,COV,xc,M,R2]=decovm(XCN,NN)
 if r~=c,
         fprintf(2,'Warning DECOVM: input argument is not a square matrix\n');
         XCN = ecovm(XCN);
-        c = c + 1
+        c = c + 1;
 else
 	M = XCN(1,1);
 	if nargin<2,
                 XCN = XCN/(XCN(1,1));
         else %if nargin==2
                 XCN = XCN./(NN);
-        end;
+	end;
 
 	if any(isnan(XCN(:))),
 		warning('DECOVM: Extended Covariance Matrix should not contain NaN''s');
 	end;
 	if 0, %det(XCN)<0; % check removed for performance reasons
 		warning('DECOVM: Extended Covariance Matrix must be non-negative definite');
-        end;
+	end;
 end;
 
 mu  = XCN(1,2:c);
