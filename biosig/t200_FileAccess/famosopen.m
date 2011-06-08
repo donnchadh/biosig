@@ -149,7 +149,7 @@ if any(HDR.FILE.PERMISSION=='r'),
 			        ch = n1(3); 
 				sz = n1(2); % bytes per sample
 				HDR.AS.start(ch) = n1(5);
-				HDR.AS.bytes(ch) = n1(5);
+				HDR.AS.bytes(ch) = n1(6);
 		        	
 		        elseif 0, strcmp(s{1},'CG') & (n(2)==1)
 			        [n1,v1,s1] = str2double(param,',');
