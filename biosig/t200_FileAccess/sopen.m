@@ -1471,6 +1471,7 @@ end;
 			if flag,
 				flag = isfield(HDR.ELEC,'XYZ');
 			end;		
+
 			if ~flag,				
 				HDR.ELEC.XYZ = repmat(NaN,HDR.NS,3); 
 				HDR.ELEC.REF = repmat(NaN,1,3); 
@@ -1491,7 +1492,7 @@ end;
 				tmp = [HDR.ELEC.XYZ,repmat(NaN,size(HDR.ELEC.XYZ,1),3)];
 				tmp = [tmp;repmat(NaN,HDR.NS+2,size(tmp,2))];
 				HDR.ELEC.XYZ = tmp(1:HDR.NS,1:3);
-                                HDR.ELEC.REF = HDR.ELEC.XYZ(HDR.NS+1,:); 
+                                HDR.ELEC.REF = HDR.ELEC.XYZ(HDR.NS+1,:);
                                 HDR.ELEC.GND = HDR.ELEC.XYZ(HDR.NS+2,:); 
     		        end;
 	                if ~isfield(HDR,'Impedance')
@@ -1655,7 +1656,13 @@ end;
                                         c = fwrite(HDR.FILE.FID,abs(H1(1:156)),'uint8');
                                         c = fwrite(HDR.FILE.FID,HDR.REC.LOC.RFC1876(2:4),'uint32');
                                 end;
-				tmp = [datenum(HDR.T0), datenum(HDR.Patient.Birthday)];
+				if length(HDR.T0) > 2, 
+					HDR.T0 = datenum(HDR.T0); 
+				end; 
+				if length(HDR.Patient.Birthday) > 2, 
+					HDR.Patient.Birthday = datenum(HDR.Patient.Birthday); 
+				end; 
+				tmp = [HDR.T0, HDR.Patient.Birthday];
 				tmp = floor([rem(tmp,1)*2^32;tmp]);
                                 c   = fwrite(HDR.FILE.FID,tmp,'uint32');
                                 c   = fwrite(HDR.FILE.FID,[HDR.HeadLen/256,0,0,0],'uint16');
@@ -1666,9 +1673,14 @@ end;
 	                                tmp = zeros(1,6);
 				end;
 			        c=fwrite(HDR.FILE.FID,tmp(6:-1:1),'uint8'); % IP address, v2.1+: reserved
-			        c=fwrite(HDR.FILE.FID,HDR.Patient.Headsize(1:3),'uint16'); % circumference, nasion-inion, left-right mastoid in [mm]
-			        c=fwrite(HDR.FILE.FID,HDR.ELEC.REF(1:3),'float32'); % [X,Y,Z] position of reference electrode
-			        c=fwrite(HDR.FILE.FID,HDR.ELEC.GND(1:3),'float32'); % [X,Y,Z] position of ground electrode
+				if HDR.NS>0, 
+				        c=fwrite(HDR.FILE.FID,HDR.Patient.Headsize(1:3),'uint16'); % circumference, nasion-inion, left-right mastoid in [mm]
+				        c=fwrite(HDR.FILE.FID,HDR.ELEC.REF(1:3),'float32'); % [X,Y,Z] position of reference electrode
+				        c=fwrite(HDR.FILE.FID,HDR.ELEC.GND(1:3),'float32'); % [X,Y,Z] position of ground electrode
+				else	
+					fwrite(HDR.FILE.FID,zeros(3,1),'uint16');
+					fwrite(HDR.FILE.FID,zeros(6,1),'float32');
+				end;
                         else
 				Equipment  = [HDR.REC.Equipment, '        '];
 				Hospital   = [HDR.REC.Hospital,  '        '];

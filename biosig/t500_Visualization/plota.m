@@ -23,7 +23,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 %   'MVAR'      'SPECTRUM','logS'
 %   'MVAR'      'logH'
 %   'MVAR'      'Phase'
-%   'MVAR',	'COHERENCE'
+%   'MVAR'	'COHERENCE'
 %   'MVAR'      'iCOH'	imaginary coherence
 %   'MVAR'      'iSpectrum'	imaginary part of spectrum
 %   'MVAR'      'DTF'
@@ -273,7 +273,7 @@ elseif strcmp(X.datatype,'MVAR'),
                 elseif strcmpi(Mode,'Coherence') || strcmpi(Mode,'COH'),
                         R = abs(COH);
                         YTICK = 0:.5:1;
-                        YTICKLABEL = {'0','0.5',[]}
+                        YTICKLABEL = {'0','0.5',[]};
                 elseif strcmpi(Mode,'iCOH') || strcmpi(Mode,'imagCOH'),
                         R = imag(COH);
                         range = [-1,1];
@@ -302,23 +302,23 @@ elseif strcmp(X.datatype,'MVAR'),
                         range = [.1,max(R(:))];
                 elseif strcmpi(Mode,'GGC2'),
                         R = (GGC2);
-                        range = [min(R(:)),max(R(:))]
+                        range = [min(R(:)),max(R(:))];
                         %range = [.1,max(R(:))];
                 elseif strcmpi(Mode,'Af'),
                         R = abs(Af);
                         for k=1:size(R,1),
 %                        	R(k,k,:)=NaN;
                         end; 	
-                        range = [min(R(:)),max(R(:))].*[.9,2]
+                        range = [min(R(:)),max(R(:))].*[.9,2];
                         %range = [[.001,1]*max(R(:))]
                         range = [0,max(R(:))];
                         R = abs(Af);
                 elseif strcmpi(Mode,'Af1'),
                         R = log10(abs(Af))+3;
-                        range = [min(R(:)),max(R(:))]
+                        range = [min(R(:)),max(R(:))];
                         %range = [[.001,1]*max(R(:))]
                 elseif strcmpi(Mode,'PDCF'),
-                        R = PDCF;
+                        R = real(PDCF);
                         YTICK = 0:.5:1;
                         YTICKLABEL = {'0','0.5',[]};
                 elseif strcmpi(Mode,'DTF'),
@@ -326,7 +326,7 @@ elseif strcmp(X.datatype,'MVAR'),
                         YTICK = 0:.5:1;
                         YTICKLABEL = {'0','0.5',[]};
                 elseif strcmpi(Mode,'dDTF'),
-                        R = dDTF;
+                        R = real(dDTF);
                         YTICK = 0:.5:1;
                         YTICKLABEL = {'0','0.5',[]};
                 elseif strcmpi(Mode,'ffDTF'),
@@ -336,7 +336,7 @@ elseif strcmp(X.datatype,'MVAR'),
                 elseif strcmpi(Mode,'dT'),
                         R = dT;
                         tmp = dT(isfinite(dT(:)));
-                        range = [min(tmp(:)),max(tmp(:))]
+                        range = [min(tmp(:)),max(tmp(:))];
                 elseif strcmpi(Mode,'DCF1'),
                         R = S;
                         for k1=1:K1,
