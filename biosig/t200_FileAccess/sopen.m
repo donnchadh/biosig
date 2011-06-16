@@ -1425,14 +1425,17 @@ end;
                                 fprintf(HDR.FILE.stderr,'%i ',find(~HDR.PhysDimCode));  
                                 fprintf(HDR.FILE.stderr,'\n');
 			end; 	                        	
-			                        
+
                         if ~isfield(HDR,'PhysMin')
                                 if HDR.NS>0,
                                         fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF/EDF/BDF)-W: HDR.PhysMin not defined\n');
                                 end
-                                HDR.PhysMin=repmat(nan,HDR.NS,1);
+                                HDR.PhysMin = repmat(nan,HDR.NS,1);
+                        elseif HDR.NS > length(HDR.PhysMin)
+                                fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF/EDF/BDF)-W: HDR.PhysMin not fully defined\n');
+                                HDR.PhysMin = [HDR.PhysMin(:);repmat(nan,HDR.NS-length(HDR.PhysMin),1)];
                         else
-                                HDR.PhysMin=HDR.PhysMin(1:HDR.NS);
+                                HDR.PhysMin = HDR.PhysMin(1:HDR.NS);
                         end;
                         if ~isfield(HDR,'TOffset')
                                 HDR.TOffset=repmat(nan,HDR.NS,1);
