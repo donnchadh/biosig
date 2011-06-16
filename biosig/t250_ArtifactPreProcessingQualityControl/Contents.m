@@ -6,20 +6,20 @@
 % 	GETTRIGGER	gets trigger points
 % 	TRIGG		extract fixed-length trials around trigger points	
 %	DETECT_MUSCLE	detection of muscle artefacts using an inverse filter
+%	DETECT_SPIKES_BURSTS detect spikes and bursts in neural recordings
 %       REGRESS_EOG     reduce EOG artifacts with regression analysis 
 %       REMOVE5060HZ    methods for removing line interference
 % 
 
 % 
-% Copyright (C) 2003,2004,2005,2006 by Alois Schloegl <a.schloegl@ieee.org>
-% WWW: http://biosig.sf.net/
+% Copyright (C) 2003,2004,2005,2006,2011 by Alois Schloegl <alois.schloegl@gmail.com>
 % $Id$
 % This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 % LICENSE:
 %     This program is free software; you can redistribute it and/or modify
 %     it under the terms of the GNU General Public License as published by
-%     the Free Software Foundation; either version 2 of the License, or
+%     the Free Software Foundation; either version 3 of the License, or
 %     (at your option) any later version.
 % 
 %     This program is distributed in the hope that it will be useful,

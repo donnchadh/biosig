@@ -94,16 +94,17 @@ end;
 				DUR(m) = length(tmp)*d; 
 				ix = sum(t0 < OnsetBurst(m));
 				T0 = t0(ix);
-				BurstTable(m2,:) = [ch, ix, (OnsetBurst(m) - T0)/HDR.SampleRate, length(tmp), 1000*d/HDR.SampleRate];
+				BurstTable(m,:) = [ch, ix, (OnsetBurst(m) - T0)/HDR.SampleRate, length(tmp), 1000*d/HDR.SampleRate];
 			% else 
 			% 	single spikes are not counted as bursts, DUR(m)==NaN marks them as invalid 
 			end; 
 		end; 
 
 		% remove single spike bursts 
-		HDR.BurstTable = [HDR.BurstTable; BurstTable(~isnan(DUR),:)];
-		OnsetBurst     = OnsetBurst(~isnan(DUR));
-		DUR            = DUR(~isnan(DUR));
+		ix = find(~isnan(DUR));
+		HDR.BurstTable = [HDR.BurstTable; BurstTable(ix,:)];
+		OnsetBurst     = OnsetBurst(ix);
+		DUR            = DUR(ix);
 		
 		EVENT.TYP = [EVENT.TYP; repmat(hex2dec('0201'), size(OnsetSpike)); repmat(hex2dec('0202'), size(OnsetBurst))]; 
 		EVENT.POS = [EVENT.POS; OnsetSpike; OnsetBurst];
@@ -115,6 +116,5 @@ end;
 %	Output 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	HDR.EVENT = EVENT; 
-	HDR.BurstTable = BurstTable; 
 
 
