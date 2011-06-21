@@ -60,6 +60,9 @@
 ### 0x014_	Response
 0x0144	Go
 0x0145	NoGo
+### 0x02__	Neural spikes, and spike trains
+0x0201	Spike onset, action potential 
+0x0202	Burst 
 ### 0x03__	BCI: Trigger, cues, classlabels, 
 0x0300	Start of Trial, Trigger at t=0s
 0x0301	class1, Left hand	- cue onset (BCI experiment)

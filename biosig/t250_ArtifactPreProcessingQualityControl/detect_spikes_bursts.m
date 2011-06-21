@@ -1,4 +1,4 @@
-function [HDR, s] = detect_spikes_bursts(fn, chan)
+function [HDR, s] = detect_spikes_bursts(fn, chan, slopeThreshold, dT, dT_Burst)
 % DETECT_SPIKES_BURSTS detects spikes and bursts of spikes in 
 % neural recordings. 
 % Spikes are detected when voltages increase is larger than 20 V/s
@@ -19,6 +19,7 @@ function [HDR, s] = detect_spikes_bursts(fn, chan)
 %	channel number, sweep number, OnsetTime within sweep [s], 
 %	number of spikes within burst, and average inter-spike interval (ISI) [ms]
 %     data	signal data, one channel per column
+%		between segments, NaN values for 0.1s are introduced
 %	
 % References: 
 %
@@ -48,11 +49,37 @@ if nargin < 2,
 	chan = 0; 
 end;
 
+if nargin < 3, 
+	slopeThreshold = 20; %% [V/s]
+end;
+
+if nargin < 4 
+	dT = .2e-3;	%%% smoothing window length [s]	
+end;
+
+if nargin < 5, 
+	dT_Burst = 75e-3;	%%% smaller ISI is a burst [s]
+end;
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 %	load data 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	[s, HDR] = sload(fn);
 	if chan==0, chan = 1:HDR.NS; end; 
+
+	winlen = HDR.SampleRate*.1;
+
+	%%%%% introduce NaNs between segments %%%%%%%
+	ix = [1; HDR.EVENT.POS(HDR.EVENT.TYP==hex2dec('7ffe')); size(s,1)+1];
+	n  = length(ix) - 1;
+	s  = [s; repmat(NaN, (n-1)*winlen, size(s,2))];	
+	for k = n:-1:1,
+		HDR.EVENT.POS(HDR.EVENT.POS >= ix(k+1)) = HDR.EVENT.POS(HDR.EVENT.POS >= ix(k+1) ) + winlen;
+		s([ix(k) : ix(k+1) - 1] + (k-1) * winlen, :) = s(ix(k) : ix(k+1) - 1,:);
+		if k>1,
+			s(ix(k) + (k-1) * winlen + [-winlen:-1], :) = NaN;
+		end; 
+	end;
 
 	EVENT = HDR.EVENT; 
 	if ~isfield(EVENT,'DUR');
@@ -65,9 +92,6 @@ end;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 %	Set Parameters for Spike and Burst Detection 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-	TH = 20;	%%% steepness	[V/s]
-	dT = .2e-3;	%%% smoothing window length [s]	
-	dT_Burst = 75e-3;	%%% smaller ISI is a burst [s]
 	B  = [.5; zeros(HDR.SampleRate*dT - 1, 1); -.5];
 	HDR.BurstTable = [];
 
@@ -75,26 +99,26 @@ end;
 
 		%%%%%%%	Spike Detection %%%%%%%%%%%%%%%%%%%
 		tmp = filter(B, dT, s(:,ch));
-		OnsetSpike = find( diff (tmp > TH) > 0); 	%% spike onset time [samples]
+		OnsetSpike = find( diff (tmp > slopeThreshold) > 0); 	%% spike onset time [samples]
 
 		%%%%%%% Burst Detection %%%%%%%%%%%%%%%%%%%
 		OnsetBurst = OnsetSpike ( [1; 1 + find( diff(OnsetSpike) / HDR.SampleRate > dT_Burst ) ] );
 
 		OnsetBurst(end+1) = size(s,1) + 1;
 		DUR        = repmat(NaN, size(OnsetBurst));
-		BurstTable = repmat(NaN, length(OnsetBurst), 5);
+		BurstTable = repmat(NaN, length(OnsetBurst), 6);
 
 		m2  = 0;	
 		t0  = [1; HDR.EVENT.POS(HDR.EVENT.TYP==hex2dec('7ffe'))];
 		for m = 1:length(OnsetBurst)-1,	% loop for each burst candidate 
 			tmp = OnsetSpike( OnsetBurst(m) <= OnsetSpike & OnsetSpike < OnsetBurst(m+1) );
-			d = mean(diff(tmp));
+			d = diff(tmp);
 			if length(tmp) > 1, 
 				m2 = m2 + 1;	
-				DUR(m) = length(tmp)*d; 
+				DUR(m) = length(tmp)*mean(d); 
 				ix = sum(t0 < OnsetBurst(m));
 				T0 = t0(ix);
-				BurstTable(m,:) = [ch, ix, (OnsetBurst(m) - T0)/HDR.SampleRate, length(tmp), 1000*d/HDR.SampleRate];
+				BurstTable(m,:) = [ch, ix, (OnsetBurst(m) - T0)/HDR.SampleRate, length(tmp), 1000*mean(d)/HDR.SampleRate, 1000*min(d)/HDR.SampleRate];
 			% else 
 			% 	single spikes are not counted as bursts, DUR(m)==NaN marks them as invalid 
 			end; 
