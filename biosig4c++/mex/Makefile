@@ -48,12 +48,9 @@ ifneq ($(shell which matlab), )
   MEX_EXT    := $(shell $(MATLABDIR)mexext)
 endif
 
-# Octave - local install (e.g. compiled from sources) 
-OCTAVE_VERSION 	= -3.4.0
-INCOCTAVE 	= -I /usr/local/include/octave$(OCTAVE_VERSION)/octave 
 # Octave - global install  (e.g. from debian package)
-#OCTAVE_VERSION 	= 
-#INCOCTAVE 	= -I /usr/include/octave 
+# - defined as variable by calling function 
+# OCTAVE_VERSION 	= 
 
 OCT           	= mkoctfile$(OCTAVE_VERSION)
 ##########################################################

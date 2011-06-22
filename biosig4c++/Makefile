@@ -104,10 +104,8 @@ endif
 
 # Octave - global install  (e.g. from debian package)
 OCTAVE_VERSION = 
-INCOCTAVE = -I /usr/include/octave 
 # Octave - local install (e.g. compiled from sources) 
-OCTAVE_VERSION = -3.4.0
-INCOCTAVE = -I /usr/local/include/octave$(OCTAVE_VERSION)/octave 
+OCTAVE_VERSION = -3.4.1
 OCT           = mkoctfile$(OCTAVE_VERSION)
 ##########################################################
 
@@ -340,8 +338,9 @@ win32/getlogin_r.obj: win32/getlogin_r.c
 	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
 
 win32/sigviewer.exe: win32/libbiosig.a win32/libbiosig.dll 
-	-$(DELETE) $(PathToSigViewerWIN32)/extern/include/*.h
-	-$(COPY) biosig.h $(PathToSigViewerWIN32)/extern/include
+	-$(COPY) ../biosig/doc/eventcodes.txt $(PathToSigViewerWIN32)/src/
+        -$(DELETE) $(PathToSigViewerWIN32)/extern/include/*.h
+  	-$(COPY) biosig.h $(PathToSigViewerWIN32)/extern/include
 	-$(DELETE) $(PathToSigViewerWIN32)/extern/lib/lib*
 	-$(COPY) win32/libbiosig.a $(PathToSigViewerWIN32)/extern/lib
 	sed -i 's#\([[:space:]]*-lbiosig\)\([ \\]*\)#\1 -lcholmod -lz \2#' $(PathToSigViewerWIN32)/src/src.pro
@@ -363,6 +362,7 @@ win64/getlogin_r.obj: win32/getlogin_r.c
 	$(MinGW64CC) -c $(MinGW64CFLAGS) $(INCPATH) -o "$@" "$<"
 
 win64/sigviewer.exe: win64/libbiosig.a win64/libbiosig.dll 
+	-$(COPY) ../biosig/doc/eventcodes.txt $(PathToSigViewerWIN64)/src/
 	-$(DELETE) $(PathToSigViewerWIN64)/extern/include/*.h
 	-$(COPY) biosig.h $(PathToSigViewerWIN64)/extern/include
 	-$(DELETE) $(PathToSigViewerWIN64)/extern/lib/lib*
@@ -506,7 +506,7 @@ win64mma: win64/libbiosig.a
 #	MEX-files for Octave and Matlab
 #############################################################
 mex mex4m mex4o oct %.mex %.$(MEX_EXT): libbiosig.a
-	make -C mex CROSS=$(CROSS) CROSS64=$(CROSS64) $@
+	make -C mex CROSS=$(CROSS) CROSS64=$(CROSS64) OCTAVE_VERSION=$(OCTAVE_VERSION) $@
 	-cp mex/*.mex* ../biosig/t200_FileAccess/
 
 mexw32 %.mexw32: win32/libbiosig.a
@@ -527,6 +527,7 @@ sigviewer: $(PathToSigViewer)/bin/sigviewer
 	ln -sf ~/bin/sigviewer-$(TODAY) ~/bin/sigviewer 
 
 $(PathToSigViewer)/bin/sigviewer: libbiosig.$(LIBEXT) biosig.h
+	-$(COPY) ../biosig/doc/eventcodes.txt $(PathToSigViewer)/src/
 	-$(DELETE) $(PathToSigViewer)/extern/include/*
 	-$(COPY) biosig.h $(PathToSigViewer)/extern/include
 	-$(DELETE) $(PathToSigViewer)/extern/lib/lib*
