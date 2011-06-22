@@ -70,7 +70,8 @@ CHAN = 0;
 STATE.CNT32 = 0; 
 STATE.UCAL = 0; 
 STATE.OVERFLOWDETECTION = 1; 
-STATE.NUMBER_OF_NAN_IN_BREAK = 100; 
+STATE.NUMBER_OF_NAN_IN_BREAK = 100; 	%% default value, always include when several files are concatanated
+STATE.FLAG_NUM_NAN   = 0; 		%% flags whether explicit argument NUMBER_OF_NAN_IN_BREAK is used, only then NaNs are introduced between sweeps(segments) within single files
 STATE.EOG_CORRECTION = 0 ; 
 STATE.OUTPUT = 'double';
 
@@ -118,6 +119,7 @@ while (k<=length(varargin))
 		k=k+1;
 	elseif strcmpi(varargin{k},'Number_of_nan_in_break')
 		STATE.NUMBER_OF_NAN_IN_BREAK = varargin{k+1};
+		STATE.FLAG_NUM_NAN = 1; 
 		k=k+1;
 	elseif strcmpi(varargin{k},'SampleRate')
 		Fs = varargin{k+1};
@@ -1360,8 +1362,24 @@ if strcmp(H.TYPE,'GDF')
 end;
 
 
+%%%%% introduce NaNs between segments %%%%%%%
+if STATE.FLAG_NUM_NAN,
+	%% NaN's between segments/sweeps are introduced, but only when argument NUMBER_OF_NAN_IN_BREAK is explicitely defined in the list of input arguments
+	winlen = STATE.NUMBER_OF_NAN_IN_BREAK;
+	ix = [1; H.EVENT.POS(H.EVENT.TYP==hex2dec('7ffe')); size(signal,1)+1];
+	n  = length(ix) - 1;
+	signal  = [signal; repmat(NaN, (n-1)*winlen, size(signal, 2))];	
+	for k = n:-1:1,
+		H.EVENT.POS(H.EVENT.POS >= ix(k+1)) = H.EVENT.POS(H.EVENT.POS >= ix(k+1) ) + winlen;
+		signal([ix(k) : ix(k+1) - 1] + (k-1) * winlen, :) = signal(ix(k) : ix(k+1) - 1,:);
+		if k>1,
+			signal(ix(k) + (k-1) * winlen + [-winlen:-1], :) = NaN;
+		end; 
+	end;
+end;
 
-% resampling 
+
+%%%%% Resampling %%%%%
 if ~isnan(Fs) && (H.SampleRate~=Fs);
         tmp = ~mod(H.SampleRate,Fs) || ~mod(Fs,H.SampleRate);
         tmp2= ~mod(H.SampleRate,Fs*2.56);

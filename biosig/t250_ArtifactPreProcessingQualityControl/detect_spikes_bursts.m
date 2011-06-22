@@ -61,25 +61,18 @@ if nargin < 5,
 	dT_Burst = 75e-3;	%%% smaller ISI is a burst [s]
 end;
 
+Fs = 20000; 	% assumed samplerate 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 %	load data 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-	[s, HDR] = sload(fn);
+	winlen = Fs*.1;
+	[s, HDR] = sload(fn, 0, 'NUMBER_OF_NAN_IN_BREAK', winlen);
+	if Fs < HDR.SampleRate, 
+		winlen   = HDR.SampleRate * .1;
+		[s, HDR] = sload(fn, 0, 'NUMBER_OF_NAN_IN_BREAK', winlen);
+	end; 
+
 	if chan==0, chan = 1:HDR.NS; end; 
-
-	winlen = HDR.SampleRate*.1;
-
-	%%%%% introduce NaNs between segments %%%%%%%
-	ix = [1; HDR.EVENT.POS(HDR.EVENT.TYP==hex2dec('7ffe')); size(s,1)+1];
-	n  = length(ix) - 1;
-	s  = [s; repmat(NaN, (n-1)*winlen, size(s,2))];	
-	for k = n:-1:1,
-		HDR.EVENT.POS(HDR.EVENT.POS >= ix(k+1)) = HDR.EVENT.POS(HDR.EVENT.POS >= ix(k+1) ) + winlen;
-		s([ix(k) : ix(k+1) - 1] + (k-1) * winlen, :) = s(ix(k) : ix(k+1) - 1,:);
-		if k>1,
-			s(ix(k) + (k-1) * winlen + [-winlen:-1], :) = NaN;
-		end; 
-	end;
 
 	EVENT = HDR.EVENT; 
 	if ~isfield(EVENT,'DUR');
