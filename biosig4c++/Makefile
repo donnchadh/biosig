@@ -339,8 +339,8 @@ win32/getlogin_r.obj: win32/getlogin_r.c
 
 win32/sigviewer.exe: win32/libbiosig.a win32/libbiosig.dll 
 	-$(COPY) ../biosig/doc/eventcodes.txt $(PathToSigViewerWIN32)/src/
-        -$(DELETE) $(PathToSigViewerWIN32)/extern/include/*.h
-  	-$(COPY) biosig.h $(PathToSigViewerWIN32)/extern/include
+	-$(DELETE) $(PathToSigViewerWIN32)/extern/include/*.h
+	-$(COPY) biosig.h $(PathToSigViewerWIN32)/extern/include
 	-$(DELETE) $(PathToSigViewerWIN32)/extern/lib/lib*
 	-$(COPY) win32/libbiosig.a $(PathToSigViewerWIN32)/extern/lib
 	sed -i 's#\([[:space:]]*-lbiosig\)\([ \\]*\)#\1 -lcholmod -lz \2#' $(PathToSigViewerWIN32)/src/src.pro
