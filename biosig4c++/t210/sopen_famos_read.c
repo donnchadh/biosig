@@ -445,6 +445,7 @@ EXTERN_C int sopen_FAMOS_read(HDRTYPE* hdr) {
 			}
 			else if (!strncmp(t,"CR,1",4)) {
 				int p;
+				t2[len] = 0;
 				// Transformieren
 				p = strcspn(t2,",");
 				t2[p] = 0;
