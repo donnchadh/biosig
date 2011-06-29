@@ -637,207 +637,7 @@ const struct PhysDimIdx
 		const uint16_t	idx;
 		const char*	PhysDimDesc;
 	} _physdim[] = {
-	{ 0 ,  "?" },
-	{ 512 ,  "-" },
-	{ 544 ,  "%" },
-	{ 576 ,  "ppht" },
-	{ 608 ,  "ppm" },
-	{ 640 ,  "ppmd" },
-	{ 672 ,  "ppb" },
-	{ 704 ,  "ppt" },
-	{ 736 ,  "degree" },
-	{ 768 ,  "rad" },
-	{ 800 ,  "g g-1" },
-	{ 832 ,  "g kg-1" },
-	{ 864 ,  "mol mol-1" },
-	{ 896 ,  "l l-1" },
-	{ 928 ,  "m m-3 " },
-	{ 960 ,  "m cm-3" },
-	{ 6240 ,  "vol %" },
-	{ 992 ,  "pH" },
-	{ 1024 ,  "drop" },
-	{ 1056 ,  "rbc" },
-	{ 1088 ,  "beat" },
-	{ 1120 ,  "breath" },
-	{ 1152 ,  "cell" },
-	{ 1184 ,  "cough" },
-	{ 1216 ,  "sigh" },
-	{ 1248 ,  "%PCV" },
-	{ 1280 ,  "m" },
-	{ 1312 ,  "yd" },
-	{ 1344 ,  "ft" },
-	{ 1376 ,  "in" },
-	{ 1408 ,  "lm-2" },
-	{ 1440 ,  "m-1" },
-	{ 1472 ,  "m2" },
-	{ 1504 ,  "in2" },
-	{ 1536 ,  "m-2" },
-	{ 1568 ,  "m3" },
-	{ 1600 ,  "l" },
-	{ 1632 ,  "l breath-1" },
-	{ 6112 ,  "l beat-1" },
-	{ 1664 ,  "m-3" },
-	{ 1696 ,  "l-1" },
-	{ 1728 ,  "g" },
-	{ 1760 ,  "lb" },
-	{ 1792 ,  "oz" },
-	{ 1824 ,  "g-1" },
-	{ 1856 ,  "g m" },
-	{ 1888 ,  "g m m-2 " },
-	{ 1920 ,  "kg m2" },
-	{ 1952 ,  "kg m-2" },
-	{ 1984 ,  "g m-3 " },
-	{ 2016 ,  "g cm-3" },
-	{ 2048 ,  "g l-1" },
-	{ 2080 ,  "g cl-3" },
-	{ 2112 ,  "g dl-3" },
-	{ 2144 ,  "g ml-3" },
-	{ 2176 ,  "s" },
-	{ 2208 ,  "min" },
-	{ 2240 ,  "h" },
-	{ 2272 ,  "d" },
-	{ 2304 ,  "weeks" },
-	{ 2336 ,  "mth" },
-	{ 2368 ,  "y" },
-	{ 2400 ,  "TOD" },
-	{ 2432 ,  "DATE" },
-	{ 2464 ,  "s-1" },
-	{ 2496 ,  "Hz" },
-	{ 2528 ,  "min-1" },
-	{ 2560 ,  "h-1" },
-	{ 2592 ,  "d-1" },
-	{ 2624 ,  "week-1" },
-	{ 2656 ,  "mth-1" },
-	{ 2688 ,  "y-1" },
-	{ 2720 ,  "bpm" },
-	{ 2752 ,  "puls min-1" },
-	{ 2784 ,  "resp min-1" },
-	{ 2816 ,  "m s-1" },
-	{ 2848 ,  "l min-1 m-2" },
-	{ 2880 ,  "m2 s-1" },
-	{ 2912 ,  "m3 s-1" },
-	{ 2944 ,  "m3 min-1" },
-	{ 2976 ,  "m3 h-1" },
-	{ 3008 ,  "m3 d-1" },
-	{ 3040 ,  "l s-1" },
-	{ 3072 ,  "l min-1" },
-	{ 3104 ,  "l h-1" },
-	{ 3136 ,  "l d-1" },
-	{ 3168 ,  "l kg-1" },
-	{ 3200 ,  "m3 d-1" },
-	{ 3232 ,  "m Pa-1s-1" },
-	{ 3264 ,  "l min-1 mmHG-1" },
-	{ 3296 ,  "g s-1" },
-	{ 3328 ,  "g m-1" },
-	{ 3360 ,  "g h-1" },
-	{ 3392 ,  "g d-1" },
-	{ 3424 ,  "g kg-1 s-1" },
-	{ 3456 ,  "g kg-1 m-1" },
-	{ 3488 ,  "g kg-1 h-1" },
-	{ 3520 ,  "g kg-1 d-1" },
-	{ 3552 ,  "g l-1 s-1" },
-	{ 3584 ,  "g l-1 m-1" },
-	{ 3616 ,  "g l-1 h-1" },
-	{ 3648 ,  "g l-1 d-1" },
-	{ 3680 ,  "g m-1 s-1" },
-	{ 3712 ,  "gm s-1" },
-	{ 3744 ,  "Ns" },
-	{ 3776 ,  "N" },
-	{ 3808 ,  "dyn" },
-	{ 3840 ,  "Pa" },
-	{ 3872 ,  "mmHg" },
-	{ 3904 ,  "cm H2O" },
-	{ 3936 ,  "bar" },
-	{ 3968 ,  "J" },
-	{ 4000 ,  "eV" },
-	{ 4032 ,  "W" },
-	{ 4064 ,  "Pa s m-3" },
-	{ 4096 ,  "Pa s l-1" },
-	{ 4128 ,  "dyn s cm-5" },
-	{ 5888 ,  "l (cmH2O)-1" },
-	{ 6272 ,  "l (mmHg)-1" },
-	{ 6304 ,  "l Pa-1" },
-	{ 6144 ,  "cmH2O l-1" },
-	{ 6336 ,  "mmHg l-1" },
-	{ 6368 ,  "Pa l-1" },
-	{ 4160 ,  "A" },
-	{ 4192 ,  "C" },
-	{ 6080 ,  "Ah" },
-	{ 4224 ,  "A m-1" },
-	{ 4256 ,  "V" },
-	{ 4288 ,  "Ohm" },
-	{ 4320 ,  "Wm" },
-	{ 4352 ,  "F" },
-	{ 4384 ,  "K" },
-	{ 6048 ,  "\xB0\x43" },	//degree C
-	{ 4416 ,  "\xB0\x46" }, //degree F
-	{ 4448 ,  "K W-1" },
-	{ 4480 ,  "cd" },
-	{ 4512 ,  "osmole" },
-	{ 4544 ,  "mol" },
-	{ 4544 ,  "Mol" },
-	{ 4576 ,  "eq" },
-	{ 4608 ,  "osmol l-1" },
-	{ 4640 ,  "mol cm-3" },
-	{ 4672 ,  "mol m-3" },
-	{ 4704 ,  "mol l-1" },
-	{ 4736 ,  "mol ml-1" },
-	{ 4768 ,  "eq cm-3" },
-	{ 4800 ,  "eq m-3" },
-	{ 4832 ,  "eq l-1" },
-	{ 4864 ,  "eq ml-1" },
-	{ 4896 ,  "osmol  kg-1" },
-	{ 4928 ,  "mol kg-1" },
-	{ 4960 ,  "mol s-1" },
-	{ 4992 ,  "mol min-1" },
-	{ 5024 ,  "mol h-1" },
-	{ 5056 ,  "mol d-1" },
-	{ 5088 ,  "eq s-1" },
-	{ 5120 ,  "eq min-1" },
-	{ 5152 ,  "eq h-1" },
-	{ 5184 ,  "eq d-1" },
-	{ 5216 ,  "mol kg-1 s-1" },
-	{ 5248 ,  "mol kg-1 min-1" },
-	{ 5280 ,  "mol kg-1 h-1" },
-	{ 5312 ,  "mol kg-1 d-1" },
-	{ 5344 ,  "eq kg-1 s-1" },
-	{ 5376 ,  "eq kg-1 min-1" },
-	{ 5408 ,  "eq kg-1 h-1" },
-	{ 5440 ,  "eq kg-1 d-1" },
-	{ 5472 ,  "i.u." },
-	{ 5504 ,  "i.u. cm-3" },
-	{ 5536 ,  "i.u. m-3" },
-	{ 5568 ,  "i.u. l-1" },
-	{ 5600 ,  "i.u. ml-1" },
-	{ 5632 ,  "i.u. s-1" },
-	{ 5664 ,  "i.u. min-1" },
-	{ 5696 ,  "i.u. h-1" },
-	{ 5728 ,  "i.u. d-1" },
-	{ 5760 ,  "i.u. kg-1 s-1" },
-	{ 5792 ,  "i.u. kg-1 min-1" },
-	{ 5824 ,  "i.u. kg-1 h-1" },
-	{ 5856 ,  "i.u. kg-1 d-1" },
-	{ 5920 ,  "cmH2O l-1s-1" },
-	{ 5952 ,  "l2s-1" },
-	{ 5984 ,  "cmH2O %-1" },
-	{ 6016 ,  "dyne s m-2 cm-5" },
-	{ 6176 ,  "mmHg %-1" },
-	{ 6208 ,  "Pa %-1" },
-	{ 6432 ,  "B" },
-	{ 6624 ,  "m s-2"},             // acceleration
-	{ 6656 ,  "rad s-2"},           // angular acceleration
-	{65148 ,  "\xb0/m" },
-	{65184 ,  "m/m" },
-	{65216 ,  "km/h" },
-	{65248 ,  "g s-2" },
-	{65280 ,  "g s-3" },
-	{65312 ,  "mHg s-1" },
-	{65344 ,  "mol l-1 mm"}, 	// "light path length","milli(Mol/Liter)*millimeter"
-	{65376 ,  "r.p.m"}, 		// "rotations per minute"
-	{65408 ,  "B"}, 		/* obsolete, use 6432 instead */
-	{65440 ,  "dyne s m2 cm-5" },
-	{65472 ,  "l m-2" },
-	{65504 ,  "T" },
+#include "units.i"
 	{0xffff,  "end-of-table" },
 } ;
 #endif
@@ -11811,13 +11611,13 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 		for (k1=0; k1<hdr->NS; k1++)
     		if (hdr->CHANNEL[k1].OnOff) {
 			CHptr 	= hdr->CHANNEL+k1;
-    			sprintf(strrchr(fn,'.'),".%c%02i",e1,k1+1);
+    			sprintf(strrchr(fn,'.'),".%c%02i",e1,(int)k1+1);
 			if (H1.FILE.COMPRESSION)
 	    			strcat(fn,"_gz");
 	    		else
 
     			if (VERBOSE_LEVEL>7)
-				fprintf(stdout,"#%i: %s\n",k1,fn);
+				fprintf(stdout,"#%i: %s\n",(int)k1,fn);
 
 			H1.FileName = fn;
 			ifopen(&H1,"wb");
@@ -12135,7 +11935,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 		tmp[8] = 0;
 		fprintf(fid,               "\tEquipment       : %s\n",tmp);
 		if (VERBOSE_LEVEL>8)
-			fprintf(fid,       "\t                  %#.16Lx\n",(uint64_t)hdr->ID.Equipment);
+			fprintf(fid,       "\t                  %#.16lx\n",(uint64_t)hdr->ID.Equipment);
 		uint8_t k,IPv6=0;
 		for (k=4; k<16; k++) IPv6 |= hdr->IPaddr[k];
 		if (IPv6) fprintf(fid,     "\tIPv6 address    : %02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",hdr->IPaddr[0],hdr->IPaddr[1],hdr->IPaddr[2],hdr->IPaddr[3],hdr->IPaddr[4],hdr->IPaddr[5],hdr->IPaddr[6],hdr->IPaddr[7],hdr->IPaddr[8],hdr->IPaddr[9],hdr->IPaddr[10],hdr->IPaddr[11],hdr->IPaddr[12],hdr->IPaddr[13],hdr->IPaddr[14],hdr->IPaddr[15]);
@@ -12189,7 +11989,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 		/* display header information */
 		fprintf(fid,"FileName:\t%s\nType    :\t%s\nVersion :\t%4.2f\nHeadLen :\t%i\n",hdr->FileName,GetFileTypeString(hdr->TYPE),hdr->VERSION,hdr->HeadLen);
 //		fprintf(fid,"NoChannels:\t%i\nSPR:\t\t%i\nNRec:\t\t%Li\nDuration[s]:\t%u/%u\nFs:\t\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->Dur[0],hdr->Dur[1],hdr->SampleRate);
-		fprintf(fid,"NoChannels:\t%i\nSPR:\t\t%i\nNRec:\t\t%Li\nFs:\t\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->SampleRate);
+		fprintf(fid,"NoChannels:\t%i\nSPR:\t\t%i\nNRec:\t\t%li\nFs:\t\t%f\n",hdr->NS,hdr->SPR,(long)hdr->NRec,hdr->SampleRate);
 		fprintf(fid,"Events/Annotations:\t%i\nEvents/SampleRate:\t%f\n",hdr->EVENT.N,hdr->EVENT.SampleRate);
 	}
 
@@ -12217,7 +12017,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 
 			if (cp->PhysDimCode) PhysDim(cp->PhysDimCode, p); else p[0] = 0;
 			fprintf(fid,"\n#%2i: %3i %i %-17s\t%5f %5i",
-				k+1,cp->LeadIdCode,cp->bi8,label,cp->SPR*hdr->SampleRate/hdr->SPR,cp->SPR);
+				(int)k+1,cp->LeadIdCode,cp->bi8,label,cp->SPR*hdr->SampleRate/hdr->SPR,cp->SPR);
 
 			if      (cp->GDFTYP<20)  fprintf(fid," %s  ",gdftyp_string[cp->GDFTYP]);
 			else if (cp->GDFTYP>511) fprintf(fid, " bit%i  ", cp->GDFTYP-511);
@@ -12238,7 +12038,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 
 		size_t k;
 		for (k=0; k<hdr->EVENT.N; k++) {
-			fprintf(fid,"\n%5i\t0x%04x\t%d",k+1,hdr->EVENT.TYP[k],hdr->EVENT.POS[k]);
+			fprintf(fid,"\n%5i\t0x%04x\t%d",(int)(k+1),hdr->EVENT.TYP[k],hdr->EVENT.POS[k]);
 			if (hdr->EVENT.DUR != NULL)
 				fprintf(fid,"\t%5d\t%d",hdr->EVENT.DUR[k],hdr->EVENT.CHN[k]);
 
