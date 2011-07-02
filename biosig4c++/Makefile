@@ -105,7 +105,8 @@ endif
 # Octave - global install  (e.g. from debian package)
 OCTAVE_VERSION = 
 # Octave - local install (e.g. compiled from sources) 
-OCTAVE_VERSION = -3.4.1
+OCTAVE_VERSION = -3.4.2
+
 OCT           = mkoctfile$(OCTAVE_VERSION)
 ##########################################################
 
@@ -118,13 +119,13 @@ PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
 ##########################################################
 ## set variables for MinGW Crosscompiler: compile on linux binaries for windows
 ##
-PathToMinGW   = $(dir $(CROSS))../$(nondir $(CROSS))
-PathToMinGW64 = $(dir $(CROSS64))../$(nondir $(CROSS64))
+PathToMinGW   = $(dir $(CROSS))..$(nondir $(CROSS))
+PathToMinGW64 = $(dir $(CROSS64))..$(nondir $(CROSS64))
 
 MinGWCC      = $(CROSS)-gcc
 MinGWCXX     = $(CROSS)-g++
 MinGWDEF     = $(DEFINES) 
-MinGWCFLAGS  = -pipe -fPIC -O2 -D_REENTRANT -D=BUILD_DLL $(MinGWDEF) -I$(PathToMinGW)/include/
+MinGWCFLAGS  = -pipe -fPIC -D_REENTRANT -D=BUILD_DLL $(MinGWDEF) -I$(PathToMinGW)/include/
 MinGWLIBS    = win32/libbiosig.a -L$(PathToMinGW)/lib/ -lws2_32 $(LDLIBS) # static
 MinGWLINK    = $(MinGWCXX)
 
@@ -345,7 +346,7 @@ win32/sigviewer.exe: win32/libbiosig.a win32/libbiosig.dll
 	-$(COPY) biosig.h $(PathToSigViewerWIN32)/extern/include
 	-$(DELETE) $(PathToSigViewerWIN32)/extern/lib/lib*
 	-$(COPY) win32/libbiosig.a $(PathToSigViewerWIN32)/extern/lib
-	sed -i 's#\([[:space:]]*-lbiosig\)\([ \\]*\)$$#\1 -lcholmod -lz \2#' $(PathToSigViewerWIN32)/src/src.pro
+	sed -i 's|\([[:space:]]*-lbiosig\)\([ #\\]*\)$$|\1 -lcholmod -lz \2|' $(PathToSigViewerWIN32)/src/src.pro
 	-(cd $(PathToSigViewerWIN32)/src; $(CROSS)-qmake; make)
 	-$(COPY) $(PathToSigViewerWIN32)/bin/release/sigviewer.exe win32/
 
@@ -369,7 +370,7 @@ win64/sigviewer.exe: win64/libbiosig.a win64/libbiosig.dll
 	-$(COPY) biosig.h $(PathToSigViewerWIN64)/extern/include
 	-$(DELETE) $(PathToSigViewerWIN64)/extern/lib/lib*
 	-$(COPY) win64/libbiosig.a $(PathToSigViewerWIN64)/extern/lib
-	sed -i 's#\([[:space:]]*-lbiosig\)\([ \\]*\)$$#\1 -lcholmod -lz \2#' $(PathToSigViewerWIN64)/src/src.pro
+	sed -i 's|\([[:space:]]*-lbiosig\)\([ #\\]*\)$$|\1 -lcholmod -lz \2|' $(PathToSigViewerWIN64)/src/src.pro
 	-(cd $(PathToSigViewerWIN64)/src; $(CROSS64)-qmake; make)
 	-$(COPY) $(PathToSigViewerWIN64)/bin/release/sigviewer.exe win64/
 
@@ -534,7 +535,7 @@ $(PathToSigViewer)/bin/sigviewer: libbiosig.$(LIBEXT) biosig.h
 	-$(COPY) biosig.h $(PathToSigViewer)/extern/include
 	-$(DELETE) $(PathToSigViewer)/extern/lib/lib*
 	-$(COPY) libbiosig.a $(PathToSigViewer)/extern/lib
-	sed -i 's#\([[:space:]]*-lbiosig\)\([ \\]*\)$$#\1 -lcholmod -lz \2#' $(PathToSigViewer)/src/src.pro
+	sed -i 's|\([[:space:]]*-lbiosig\)\([ #\\]*\)$$|\1 -lcholmod -lz \2|' $(PathToSigViewer)/src/src.pro
 	(cd $(PathToSigViewer)/src; qmake;make;)
 
 docs: 	docs/save2gdf.txt  docs/mexSLOAD.txt

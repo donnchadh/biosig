@@ -231,15 +231,15 @@ void mexFunction(
 	/* process input arguments */
 	for (k = 0; k < nrhs; k++) {	
 		arg = prhs[k];
-		if (mxIsEmpty(arg) && (k>0))
+		if (mxIsEmpty(arg) && (k>0)) {
 #ifdef DEBUG		
-			mexPrintf("arg[%i] Empty\n",k)
+			mexPrintf("arg[%i] Empty\n",k);
 #endif
-			;
+		}
 		else if ((k==0) && mxIsCell(arg) && mxGetNumberOfElements(arg)==1 && mxGetCell(arg,0) && mxIsChar(mxGetCell(arg,0))) {
 			FileName = mxArrayToString(mxGetCell(arg,0));
 #ifdef DEBUG		
-			mexPrintf("arg[%i] IsCell\n",k)
+			mexPrintf("arg[%i] IsCell\n",k);
 #endif
 		}
 		else if ((k==0) && mxIsStruct(arg)) {

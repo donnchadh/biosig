@@ -36,6 +36,7 @@
 #define __4HAERTEL__ 
 */
 
+
 EXTERN_C int sopen_FAMOS_read(HDRTYPE* hdr) {
 #define Header1 ((char*)hdr->AS.Header)	
 
@@ -139,6 +140,13 @@ EXTERN_C int sopen_FAMOS_read(HDRTYPE* hdr) {
 				p = strcspn(t2,",");
 				t2[p] = 0;
 				size_t bpb = atol(t2);
+
+				if (VERBOSE_LEVEL>7) fprintf(stdout,"146 famos: <%s>%d %d %d %d %d [%d] %d\n",t2,bpb,CHAN,bpb,hdr->NS,(int)hdr->SPR*hdr->NRec,hdr->CHANNEL[CHAN].GDFTYP,GDFTYP_BITS[hdr->CHANNEL[CHAN].GDFTYP]);
+				/*
+				   This command causes "Caught MathWorks::System::FatalException" on mexw32 when compiled mingw-cross-env 
+				   /scratch/schloegl/src/mingw-cross-env/usr/bin/i686-pc-mingw32-gcc v4.6.1 with Optimization -O1 or -O2
+				   Turning optimization off solves the problem 
+				*/ 
 				hdr->CHANNEL[CHAN].SPR = 8*bpb/GDFTYP_BITS[hdr->CHANNEL[CHAN].GDFTYP];
 
 
@@ -234,11 +242,11 @@ EXTERN_C int sopen_FAMOS_read(HDRTYPE* hdr) {
 				}
 				
 				//PhysDimCode(t2);
-					
+
 			}
 			else if (!strncmp(t,"NT,1",4) && (level>=3)) {
 				struct tm tm_time;
-			
+
 				int p = strcspn(t2,",");
 				t2[p] = 0;
 				tm_time.tm_mday  = atoi(t2);
@@ -295,7 +303,7 @@ EXTERN_C int sopen_FAMOS_read(HDRTYPE* hdr) {
 			}
 			else if (!strncmp(t,"CP,1",4) && (level==4)) {
 				int p;
-				
+
 				char s[21]; strncpy(s,t2,20);s[20]=0;	
 				if (VERBOSE_LEVEL>7)
 					fprintf(stdout,"CHAN=%i tag=<%s>\n",CHAN,s);
