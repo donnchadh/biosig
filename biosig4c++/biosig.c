@@ -288,19 +288,29 @@ struct global_t {
 #endif
 } Global;
 
+
+// event table desription
 #ifdef HARDCODED_EVENTTABLE
-struct etd_t {
+const struct etd_t {
         uint16_t typ;
+        uint16_t groupid;
         char*   desc;
-} ETD[];
-
-
-struct etd_t ETD[] = { 
+} ETD[] = { 
 #include "eventcodes.i"
-	0, NULL 
+	0, 0, NULL
 };
 
 #endif
+
+// event groups 
+const struct event_groups {
+        uint16_t groupid;
+        char*   GroupDescription;
+} EventGroups [] = {
+#include "eventcodegroups.i"
+	{0xffff,  "end-of-table" },
+};
+
 
 
 /****************************************************************************/

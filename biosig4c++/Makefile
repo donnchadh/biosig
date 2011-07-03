@@ -292,10 +292,10 @@ win64/%.obj: XMLParser/%.cpp
 #	event table: conversion from ascii to C code
 #############################################################
 
-biosig.c: eventcodes.i units.i 
+biosig.c: eventcodes.i eventcodegroups.i units.i 
 
-eventcodes.i : ../biosig/doc/eventcodes.txt
-	awk "-F\t" '/^[^#]/ {print "\t"$$1", \""$$2,"\","}' "$<" > eventcodes.i
+eventcodes.i eventcodegroups.i : ../biosig/doc/eventcodes.txt
+	./eventcodes.awk ../biosig/doc/eventcodes.txt
 
 units.i : ../biosig/doc/units.csv
 	awk "-F," '/^[^#,]/ { split( $$0, a, "\""); sub(/\[.*\]/, "",a[2]); sub(/ *$$/, "",a[2]); print "\t{ "$$1", \"" a[2] "\"}, "}' "$<" > units.i
