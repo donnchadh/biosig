@@ -103,7 +103,7 @@
 0x040D	PLMS
 0x040E	(time of) maximum inspiration 
 0x040F	Start of inspiration, (end of expiration) 
-### 0x041_ Sleep stages according to Rechtschaffen&Kales and AASM'07
+### 0x041_	Sleep stages according to Rechtschaffen&Kales and AASM'07
 0x0410	Sleep stage Wake
 0x0411	Sleep stage 1
 0x0412	Sleep stage 2
@@ -262,7 +262,7 @@
 0x00a8	condition 168
 0x00a9	condition 169
 ### 0x4___	up to 4096 different stimuli
-### 0x7f__      special codes
+### 0x7f__	special codes
 0x7ffe	start of a new segment (after a break)
 0x7fff	non-equidistant sampling value
 # 
