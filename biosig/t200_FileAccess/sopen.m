@@ -31,18 +31,21 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 %       'OVERFLOWDETECTION:OFF' turns off automated overflow detection
 %       'OUTPUT:SINGLE' returned data is of class 'single' [default: 'double']
 %       '32bit' for NeuroScan CNT files reading 4-byte integer data
-%       Several opteions can be concatenated within MODE. 
+%	'BDF:[n]' with [n] some integer number supported by bdf2biosig_events.m
+%	        for details see HELP BDF2BIOSIG_EVENTS
+%       Options can be concatenated within MODE (use some space, tab, colon or 
+%	semicolon in between). 
 %
 % HDR contains the Headerinformation and internal data
 % S 	returns the signal data 
 %
 % Several files can be loaded at once with SLOAD
 %
-% see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
+% see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF, BDF2BIOSIG_EVENTS
 
 
 %	$Id$
-%	(C) 1997-2006,2007,2008,2009.2011 by Alois Schloegl <a.schloegl@ieee.org>	
+%	(C) 1997-2006,2007,2008,2009,2011 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 %    BioSig is free software: you can redistribute it and/or modify
@@ -139,7 +142,7 @@ if isempty(MODE), MODE=' '; end;	% Make sure MODE is not empty -> FINDSTR
 % test for type of file 
 if any(HDR.FILE.PERMISSION=='r'),
         HDR = getfiletype(HDR);
-	if HDR.ErrNum, 
+	if (HDR.ErrNum>0), 
 		fprintf(HDR.FILE.stderr,'%s\n',HDR.ErrMsg);
 		return;
 	end;
@@ -206,6 +209,14 @@ if ~isfield(HDR.FLAG,'OUTPUT')
 		HDR.FLAG.OUTPUT = 'single'; 
 	else
 		HDR.FLAG.OUTPUT = 'double'; 
+	end; 
+end; 
+FLAG.BDF.status2event = regexp (MODE, '(^BDF:|[ \t;,]BDF:)(\d*)([ \t;,]|$)','tokens');
+if ~isempty(FLAG.BDF.status2event)
+	if exist('OCTAVE_VERSION','builtin')
+		FLAG.BDF.status2event = num2int(FLAG.BDF.status2event{1}{2})
+	else
+		FLAG.BDF.status2event = num2int(FLAG.BDF.status2event{2})
 	end; 
 end; 
 
@@ -1020,7 +1031,7 @@ end;
         	                t = t(1:HDR.NRec*HDR.SPR*3);
         	        end;
                         HDR.BDF.ANNONS = reshape(double(t),3,length(t)/3)'*2.^[0;8;16];
-			HDR = bdf2biosig_events(HDR); 
+			HDR = bdf2biosig_events(HDR, FLAG.BDF.status2event); 
 
                 elseif strcmp(HDR.TYPE,'BDF') && ~any(strmatch('Status',HDR.Label)),
                         HDR.FLAG.OVERFLOWDETECTION = 0; 
@@ -6197,7 +6208,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
 		ch = strmatch('Status',HDR.Label);
 		if 0,ch,
 			HDR.BDF.ANNONS = round(2^24 + HDR.data(:,ch)); 
-			HDR = bdf2biosig_events(HDR); 
+			HDR = bdf2biosig_events(HDR, FLAG.BDF.status2event); 
 		else	
 			% HDR.EVENT.N = tmp.MarkerCount; 
 			HDR.EVENT.POS = [tmp.Markers(:).Position]';
@@ -6705,7 +6716,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
 	                end;
 		end; 
 		if isfield(HDR.BDF,'ANNONS'),
-			HDR = bdf2biosig_events(HDR); 	
+			HDR = bdf2biosig_events(HDR,FLAG.BDF.status2event); 	
 		else		
 	                % trial onset and offset event
 	                HDR.EVENT.POS = [ [0:HDR.NRec-1]'*HDR.SPR+1; [1:HDR.NRec]'*HDR.SPR ];

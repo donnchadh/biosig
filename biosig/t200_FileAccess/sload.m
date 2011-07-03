@@ -21,6 +21,8 @@ function [signal,H] = sload(FILENAME,varargin)
 %	'EOG_CORRECTION'	'On'		uses two-channel regression analysis - if possible 
 %				'Off'		no correction of EOG artifacts [default]
 %       'CNT32', '32bit'			force CNT 32bit format 
+%	'BDF'			N		decodes BDF status channel into eventtable 
+%		using Mode = N. For details see HELP BDF2BIOSIG_EVENTS
 %	
 % The list of supported formats is available here: 
 % http://pub.ist.ac.at/~schloegl/biosig/TESTED
@@ -73,6 +75,7 @@ STATE.OVERFLOWDETECTION = 1;
 STATE.NUMBER_OF_NAN_IN_BREAK = 100; 	%% default value, always include when several files are concatanated
 STATE.FLAG_NUM_NAN   = 0; 		%% flags whether explicit argument NUMBER_OF_NAN_IN_BREAK is used, only then NaNs are introduced between sweeps(segments) within single files
 STATE.EOG_CORRECTION = 0 ; 
+STATE.BDF = [] ; 
 STATE.OUTPUT = 'double';
 
 Fs = NaN; 
@@ -123,6 +126,9 @@ while (k<=length(varargin))
 		k=k+1;
 	elseif strcmpi(varargin{k},'SampleRate')
 		Fs = varargin{k+1};
+		k=k+1;
+	elseif strcmpi(varargin{k},'BDF')
+		STATE.BDF = varargin{k+1};
 		k=k+1;
 	elseif strcmpi(varargin{k},'CNT32') || strcmpi(varargin{k},'32bit')  
 		STATE.CNT32 = 1;
@@ -347,6 +353,7 @@ if exist('mexSLOAD','file')==3,
 			signal = signal*ReRefMx(HDR.InChanSelect,:); %% can be sparse if just a single channel is loaded
 			signal = full(signal);  %% make sure signal is not sparse 
 		end;
+		HDR = bdf2biosig_events(HDR, STATE.BDF);
 
 		HDR.T0 = datevec(HDR.T0);
 		HDR.Patient.Birthday = datevec(HDR.Patient.Birthday);
