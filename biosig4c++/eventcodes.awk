@@ -21,23 +21,34 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-BEGIN { FS="\\t" 
-	#clear files 
-	print "" >"eventcodes.i"	
-	print "" >"eventcodegroups.i"	
+BEGIN { FS = "\t" 
+	nG = 0;
+	nC = 0; 
 }
 
-# list of groups
-/^### 0x/	{ 
+# list of event groups
+/^### 0x/ { 
+        nG++;
 	g = substr($1,7,4); 
 	gsub(/_/, "0", g);
-	h = substr($1,11); 
-	print    "\t{ 0x" g ", \"" $2 "\" }," >> "eventcodegroups.i"
-	#print "###\t0x" g ",\t\"" $2 "\"," 
+	G[nG,1] = g;
+	G[nG,2] = $2;
 } 
 
-# list of eventcodes
+# list of event codes
 /^[^#]/ { 
-          print sprintf("\t%s, 0x%s, \"%s\",", $1, g, $2) >> "eventcodes.i"
+        nC++;
+        C[nC,1] = $1;
+        C[nC,2] = g;
+        C[nC,3] = $2;
 } 
         
+END {
+        for (i=1; i<=nG; i++) {
+                printf("\t{ 0x%s, \"%s\" },\n",G[i,1],G[i,2]) | "sort > eventcodegroups.i"
+        } 
+       
+        for (i=1; i<=nC; i++) {
+                printf("\t%s, 0x%s, \"%s\",\n",C[i,1],C[i,2],C[i,3]) | "sort > eventcodes.i"
+        } 
+}

@@ -295,7 +295,7 @@ win64/%.obj: XMLParser/%.cpp
 biosig.c: eventcodes.i eventcodegroups.i units.i 
 
 eventcodes.i eventcodegroups.i : ../biosig/doc/eventcodes.txt
-	./eventcodes.awk ../biosig/doc/eventcodes.txt
+	./eventcodes.awk "$<"
 
 units.i : ../biosig/doc/units.csv
 	awk "-F," '/^[^#,]/ { split( $$0, a, "\""); sub(/\[.*\]/, "",a[2]); sub(/ *$$/, "",a[2]); print "\t{ "$$1", \"" a[2] "\"}, "}' "$<" > units.i
