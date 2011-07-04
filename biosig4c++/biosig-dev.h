@@ -86,7 +86,7 @@
 #endif
 
 
-/* linux, bsd and mingw have these already defined, others might need these definitions */
+/* linux and bsd have these already defined, others might need these definitions */
 #ifndef bswap_16
 #define bswap_16(x)   \
 	((((x) & 0xff00) >> 8) | (((x) & 0x00ff) << 8))
@@ -258,7 +258,6 @@ void bef64a(  double i, uint8_t* r);
 #ifndef VERBOSE_LEVEL
 EXTERN_C int   VERBOSE_LEVEL; 	// used for debugging
 #endif 
-
 
 
 

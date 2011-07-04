@@ -73,7 +73,7 @@ EXTERN_C int sopen_FAMOS_read(HDRTYPE* hdr) {
 				
 			
 			if (VERBOSE_LEVEL>7)
-				fprintf(stdout,"FAMOS %i <%s>: %i,%i OnOff=%i\n",pos,t,l1,len,OnOff);
+				fprintf(stdout,"FAMOS %i <%s>: %i,%i OnOff=%i\n",(int)pos,t,(int)l1,(int)len,OnOff);
 			
 
 			if (!strncmp(t,"CF,2",4) && (level==0)) {
@@ -141,7 +141,7 @@ EXTERN_C int sopen_FAMOS_read(HDRTYPE* hdr) {
 				t2[p] = 0;
 				size_t bpb = atol(t2);
 
-				if (VERBOSE_LEVEL>7) fprintf(stdout,"146 famos: <%s>%d %d %d %d %d [%d] %d\n",t2,bpb,CHAN,bpb,hdr->NS,(int)hdr->SPR*hdr->NRec,hdr->CHANNEL[CHAN].GDFTYP,GDFTYP_BITS[hdr->CHANNEL[CHAN].GDFTYP]);
+				if (VERBOSE_LEVEL>7) fprintf(stdout,"146 famos: <%s>%d %d %d %d %d [%d] %d\n",t2,(int)bpb,CHAN,(int)bpb,hdr->NS,(int)(hdr->SPR*hdr->NRec),hdr->CHANNEL[CHAN].GDFTYP,GDFTYP_BITS[hdr->CHANNEL[CHAN].GDFTYP]);
 				/*
 				   This command causes "Caught MathWorks::System::FatalException" on mexw32 when compiled mingw-cross-env 
 				   /scratch/schloegl/src/mingw-cross-env/usr/bin/i686-pc-mingw32-gcc v4.6.1 with Optimization -O1 or -O2
@@ -292,7 +292,7 @@ EXTERN_C int sopen_FAMOS_read(HDRTYPE* hdr) {
 //					B4C_ERRMSG = "FAMOS: multiple sampling rates not supported";
 				} 
 				if (VERBOSE_LEVEL>7)
-					fprintf(stdout,"CC: %i#%i Fs=%f,%i\n",OnOff,CHAN,Fs,len);
+					fprintf(stdout,"CC: %i#%i Fs=%f,%i\n",OnOff,CHAN,Fs,(int)len);
 
 /*
 				int p = strcspn(t2,",");
@@ -483,11 +483,6 @@ EXTERN_C int sopen_FAMOS_read(HDRTYPE* hdr) {
 				int len = min(atoi(t2),MAX_LENGTH_PHYSDIM); 
 				// Einheit
 				t2 += p+1;
-				/*
-				strncpy(hdr->CHANNEL[CHAN].PhysDim,t2,len);
-				hdr->CHANNEL[CHAN].PhysDim[len] = 0;
-				hdr->CHANNEL[CHAN].PhysDimCode  = PhysDimCode(hdr->CHANNEL[CHAN].PhysDim);
-				*/
 				hdr->CHANNEL[CHAN].PhysDimCode  = PhysDimCode(t2);
 
 			}

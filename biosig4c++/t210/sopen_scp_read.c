@@ -462,7 +462,7 @@ EXTERN_C int sopen_SCP_read(HDRTYPE* hdr) {
 		sectionStart 	  = section[K].index;
 
 	if (VERBOSE_LEVEL>8)
-		fprintf(stdout,"SCP Section %i %i len=%i secStart=%i HeaderLength=%i\n",K,curSect,len,sectionStart,hdr->HeadLen);
+		fprintf(stdout,"SCP Section %i %i len=%i secStart=%i HeaderLength=%i\n",K,curSect,len,(int)sectionStart,hdr->HeadLen);
 
 	if (len==0) continue;	 /***** empty section *****/
 		PtrCurSect = ptr+sectionStart;
@@ -847,7 +847,7 @@ EXTERN_C int sopen_SCP_read(HDRTYPE* hdr) {
 			}
 			if (!section[4].length && en1064.FLAG.HUFFMAN) {
 				 en1064.Section5.Length *= 5; // decompressed data might need more space 
-				 fprintf(stderr,"Warning SCPOPEN: Section 4 not defined - size of Sec5 can be only guessed (%i allocated)\n",en1064.Section5.Length);
+				 fprintf(stderr,"Warning SCPOPEN: Section 4 not defined - size of Sec5 can be only guessed (%i allocated)\n",(int)en1064.Section5.Length);
 			}
 
 			if (en1064.FLAG.REF_BEAT) {

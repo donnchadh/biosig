@@ -176,7 +176,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"<%6.2f> %i- %s | %s\n",hdr->VERSION, STATUS
 					// decode information (filters, PhysDim, etc.) and assign to corresponding channels. 
 					char pd[MAX_LENGTH_PHYSDIM+1];
 					float tmp1, tmp2, HighPass, LowPass;
-					sscanf(t1, "%f, %f, %f, %f, %s, %s", &HighPass,&LowPass, &tmp1,&tmp2,pd); 
+					sscanf(t1, "%f, %f, %f, %f, %s", &HighPass,&LowPass, &tmp1,&tmp2,pd); 
 					strrchr(pd,',')[0]=0;
 					if (!strcmp(pd,"%%")) pd[1]=0; 
 					uint16_t pdc = PhysDimCode(pd); 
@@ -511,7 +511,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"<%6.2f> %i- %s | %s\n",hdr->VERSION, STATUS
 			hdr->AS.length  = (count<<3)/(GDFTYP_BITS[gdftyp]*a[1]);
 		}
 
-		if (VERBOSE_LEVEL>7) fprintf(stdout,"rawdata55: %s c=%i [%i, %i] sizeof(CHAN)=%i\n",fn,count,hdr->AS.first,hdr->AS.length,sizeof(hdr->CHANNEL[0])); 
+		if (VERBOSE_LEVEL>7) fprintf(stdout,"rawdata55: %s c=%i [%i, %i] sizeof(CHAN)=%i\n",fn,(int)count,(int)hdr->AS.first,(int)hdr->AS.length,(int)sizeof(hdr->CHANNEL[0])); 
 
 		free(fn);     
 		hdr->FileName = FileName; 		

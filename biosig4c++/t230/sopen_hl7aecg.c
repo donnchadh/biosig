@@ -361,8 +361,8 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 				strncat(hdr->ID.Recording,strtmp,MAX_LENGTH_RID);
 				free(strtmp); 
 		    		if (len>MAX_LENGTH_RID)	
-					fprintf(stdout,"Warning HL7aECG(read): length of Recording ID exceeds maximum length %i>%i\n",len,MAX_LENGTH_PID); 
-				fprintf(stdout,"IHE (read): length of Recording ID %i,%i\n",len,MAX_LENGTH_PID); 
+					fprintf(stdout,"Warning HL7aECG(read): length of Recording ID exceeds maximum length %i>%i\n",(int)len,MAX_LENGTH_PID); 
+				fprintf(stdout,"IHE (read): length of Recording ID %i,%i\n",(int)len,MAX_LENGTH_PID); 
 			}	
 			if (VERBOSE_LEVEL>8)
 				fprintf(stdout,"IHE: [414] RID= %s\n",hdr->ID.Recording); 
@@ -412,7 +412,7 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 
 		strncpy(hdr->ID.Recording,aECG.FirstChild("id").Element()->Attribute("root"),MAX_LENGTH_RID);
 	    	if (len>MAX_LENGTH_RID)	
-			fprintf(stdout,"Warning HL7aECG(read): length of Recording ID exceeds maximum length %i>%i\n",len,MAX_LENGTH_PID); 
+			fprintf(stdout,"Warning HL7aECG(read): length of Recording ID exceeds maximum length %i>%i\n",(int)len,MAX_LENGTH_PID); 
 
 		if (VERBOSE_LEVEL>8)
 			fprintf(stdout,"hl7r: [414]\n"); 
@@ -442,7 +442,7 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 			const char* tmpstr = id->Attribute("extension");
 			size_t len = strlen(tmpstr); 
 			if (len>MAX_LENGTH_PID)
-				fprintf(stdout,"Warning HL7aECG(read): length of Patient Id exceeds maximum length %i>%i\n",len,MAX_LENGTH_PID); 
+				fprintf(stdout,"Warning HL7aECG(read): length of Patient Id exceeds maximum length %i>%i\n",(int)len,MAX_LENGTH_PID); 
 		    	strncpy(hdr->Patient.Id,tmpstr,MAX_LENGTH_PID);
 		}    
 
@@ -460,7 +460,7 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 					size_t len = strlen(name);
 	
 					if (len>MAX_LENGTH_NAME)
-						fprintf(stdout,"Warning HL7aECG(read): length of Patient Name exceeds maximum length %i>%i\n",len,MAX_LENGTH_PID); 
+						fprintf(stdout,"Warning HL7aECG(read): length of Patient Name exceeds maximum length %i>%i\n",(int)len,MAX_LENGTH_PID); 
 					strncpy(hdr->Patient.Name, name, MAX_LENGTH_NAME);
 				}	
 				else {
@@ -572,7 +572,7 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 		
 		hdr->SampleRate = 1.0/atof(channels.FirstChild("component").FirstChild("sequence").FirstChild("value").FirstChild("increment").Element()->Attribute("value"));
 
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"hl7r: [517] %i\n",hdr->SampleRate); 
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"hl7r: [517] %f\n",hdr->SampleRate); 
 		
                 /*************** Annotations **********************/
 		TiXmlHandle AnnotationSet = aECG.FirstChild("component").FirstChild("series").FirstChild("subjectOf").FirstChild("annotationSet");

@@ -332,7 +332,7 @@ int main(int argc, char **argv){
 	};
 
 	if (VERBOSE_LEVEL>7) 
-		fprintf(stdout,"\n[129] SREAD on %s successful [%i,%i].\n",hdr->FileName,hdr->data.size[0],hdr->data.size[1]);
+		fprintf(stdout,"\n[129] SREAD on %s successful [%i,%i].\n",hdr->FileName,(int)hdr->data.size[0],(int)hdr->data.size[1]);
 
 //	fprintf(stdout,"\n %f,%f.\n",hdr->FileName,hdr->data.block[3*hdr->SPR],hdr->data.block[4*hdr->SPR]);
 	if (VERBOSE_LEVEL>8) 
@@ -575,7 +575,7 @@ int main(int argc, char **argv){
 		savelink(source);
 #endif 
 	if (VERBOSE_LEVEL>7)
-		fprintf(stdout,"\n[221] File %s opened. %i %i %Li Des=%i\n",hdr->FileName,hdr->AS.bpb,hdr->NS,hdr->NRec,hdr->FILE.Des);
+		fprintf(stdout,"\n[221] File %s opened. %i %i %Li Des=%i\n",hdr->FileName,hdr->AS.bpb,hdr->NS,(int)hdr->NRec,hdr->FILE.Des);
 
 	swrite(data, hdr->NRec, hdr);
 

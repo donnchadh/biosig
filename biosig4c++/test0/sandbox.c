@@ -418,7 +418,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 999 %p\n",hdr->EVENT.CodeDesc);
 		for (k1=0; k1<K1; k1++)	{
 		// read group
 
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L1 @%i=\t%i/%i \n",pos+StartOfData,k1,K1);
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L1 @%i=\t%i/%i \n",(int)(pos+StartOfData),k1,K1);
 
 			pos += Sizes.Rec.Group+4;
 			// read number of children
@@ -434,7 +434,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L1 @%i=\t%i/%i \n",pos+StartOfData,k1,
 				double Delay  = *(double*)(hdr->AS.Header+pos+472+176);
 				*(uint64_t*)&Delay = bswap_64(*(uint64_t*)&Delay);
 
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L2 @%i=%s %f\t%i/%i %i/%i \n",pos+StartOfData,SeLabel,Delay,k1,K1,k2,K2);
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L2 @%i=%s %f\t%i/%i %i/%i \n",(int)(pos+StartOfData),SeLabel,Delay,k1,K1,k2,K2);
 
 				pos += Sizes.Rec.Series + 4;
 				// read number of children
@@ -566,7 +566,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L2 @%i=%s %f\t%i/%i %i/%i \n",pos+Star
 							if (!strcmp(hdr->CHANNEL[ns].Label,Label)) break;
 						}
 
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%i %i/%i %i/%i \n",pos+StartOfData,ns,AdcChan,Label,hdr->SampleRate,Fs,k1,K1,k2,K2,k3,K3,k4,K4);
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%i %i/%i %i/%i \n",(int)(pos+StartOfData),ns,AdcChan,Label,hdr->SampleRate,Fs,k1,K1,k2,K2,k3,K3,k4,K4);
 
 						if (ns >= hdr->NS) {
 							hdr->NS = ns + 1;
@@ -635,7 +635,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%
                                                         B4C_ERRMSG = "Heka/Patchmaster: sampling intervals do not match.";
                                                 }
 
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%i %i/%i %i/%i \n",pos+StartOfData,ns,AdcChan,Label,hdr->SampleRate,Fs,k1,K1,k2,K2,k3,K3,k4,K4);
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%i %i/%i %i/%i \n",(int)(pos+StartOfData),ns,AdcChan,Label,hdr->SampleRate,Fs,k1,K1,k2,K2,k3,K3,k4,K4);
 
 						pos += Sizes.Rec.Trace+4;
 						// read number of children -- this should be 0 - ALWAYS;
@@ -743,7 +743,7 @@ if (VERBOSE_LEVEL>7) hdr2ascii(hdr,stdout,4);
 		for (k1=0; k1<K1; k1++)	{
 		// read group
 
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L1 @%i=\t%i/%i \n",pos+StartOfData,k1,K1);
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L1 @%i=\t%i/%i \n",(int)(pos+StartOfData),k1,K1);
 
 			pos += Sizes.Rec.Group+4;
 			// read number of children
@@ -756,7 +756,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L1 @%i=\t%i/%i \n",pos+StartOfData,k1,
 				double Delay    = *(double*)(hdr->AS.Header+pos+472+176);
 				*(uint64_t*)&Delay = bswap_64(*(uint64_t*)&Delay);
 
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L2 @%i=%s %f\t%i/%i %i/%i \n",pos+StartOfData,SeLabel,Delay,k1,K1,k2,K2);
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L2 @%i=%s %f\t%i/%i %i/%i \n",(int)(pos+StartOfData),SeLabel,Delay,k1,K1,k2,K2);
 
 				/* move to reading of data */
 				pos += Sizes.Rec.Series+4;
@@ -768,7 +768,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L2 @%i=%s %f\t%i/%i %i/%i \n",pos+Star
 						              && (hdr->AS.SegSel[1]==0 || k2+1==hdr->AS.SegSel[1])
 							      && (hdr->AS.SegSel[2]==0 || k3+1==hdr->AS.SegSel[2]);
 
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L3 @%i=\t%i/%i %i/%i %i/%i sel=%i\n",pos+StartOfData,k1,K1,k2,K2,k3,K3,flagSweepSelected);
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L3 @%i=\t%i/%i %i/%i %i/%i sel=%i\n",(int)(pos+StartOfData),k1,K1,k2,K2,k3,K3,flagSweepSelected);
 
 					pos += Sizes.Rec.Sweep + 4;
 					// read number of children
@@ -824,7 +824,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L3 @%i=\t%i/%i %i/%i %i/%i sel=%i\n",p
 						}
 						CHANNEL_TYPE *hc = hdr->CHANNEL+ns;
 
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L4 @%i= #%i,%i,%i/%i %s\t%i/%i %i/%i %i/%i %i/%i DIV=%i,%i,%i\n",pos+StartOfData,ns,AdcChan,spr,SPR,Label,k1,K1,k2,K2,k3,K3,k4,K4,DIV,gdftyp,hc->GDFTYP);
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L4 @%i= #%i,%i,%i/%i %s\t%i/%i %i/%i %i/%i %i/%i DIV=%i,%i,%i\n",(int)(pos+StartOfData),ns,AdcChan,spr,SPR,Label,k1,K1,k2,K2,k3,K3,k4,K4,(int)DIV,gdftyp,hc->GDFTYP);
 
 #ifdef NO_BI
 #define _BI (BI[ns])
