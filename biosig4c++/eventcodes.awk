@@ -1,4 +1,4 @@
-#!/usr/bin/awk -f
+#!/usr/bin/gawk -f
 #
 #    Converts eventcodex.txt into eventcodes.i and eventcodegroups.i
 #
@@ -37,10 +37,13 @@ BEGIN { FS = "\t"
 
 # list of event codes
 /^[^#]/ { 
-        nC++;
-        C[nC,1] = $1;
-        C[nC,2] = g;
-        C[nC,3] = $2;
+	if (255 < strtonum($1)) {
+		# ignore user-specified events
+	        nC++;
+        	C[nC,1] = $1;
+        	C[nC,2] = g;
+        	C[nC,3] = $2;
+	}
 } 
         
 END {
@@ -48,7 +51,12 @@ END {
                 printf("\t{ 0x%s, \"%s\" },\n",G[i,1],G[i,2]) | "sort > eventcodegroups.i"
         } 
        
+        for (i=1; i<256; i++) {
+ 		# add pre-defined user-specified events 0x0001-0x00ff
+               printf("\t0x%04x, 0x0000, \"condition %i\",\n",i,i) > "eventcodes.i"
+        } 
         for (i=1; i<=nC; i++) {
-                printf("\t%s, 0x%s, \"%s\",\n",C[i,1],C[i,2],C[i,3]) | "sort > eventcodes.i"
+                printf("\t%s, 0x%s, \"%s\",\n",C[i,1],C[i,2],C[i,3]) | "sort >> eventcodes.i"
         } 
 }
+

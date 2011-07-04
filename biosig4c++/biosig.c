@@ -91,8 +91,6 @@ void CSstart () {
 int VERBOSE_LEVEL = 0;
 #endif
 
-#define HARDCODED_PHYSDIMTABLE
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -268,11 +266,6 @@ const char *MIT_EVENT_DESC[] = {
 /* --------------------------------------------------- *
  *	Global Event Code Table                        *
  * --------------------------------------------------- */
-#ifndef HARDCODED_PHYSDIMTABLE
-static char GLOBAL_PHYSDIMIDX_ISLOADED = 0;
-#else
-#define GLOBAL_PHYSDIMIDX_ISLOADED 1
-#endif
 static char GLOBAL_EVENTCODES_ISLOADED = 0;
 struct global_t {
 	uint16_t LenCodeDesc;
@@ -280,33 +273,17 @@ struct global_t {
 	char 	 **CodeDesc;
 	char  	 *EventCodesTextBuffer;
 
-#ifndef HARDCODED_PHYSDIMTABLE
-	uint16_t LenPhysDimCode;
-	uint16_t *PhysDimCode;
-	char 	 **PhysDim;
-	char	 *PhysUnitsTextBuffer;
-#endif
 } Global;
 
 
 // event table desription
-#ifdef HARDCODED_EVENTTABLE
-const struct etd_t {
-        uint16_t typ;
-        uint16_t groupid;
-        char*   desc;
-} ETD[] = { 
+const struct etd_t ETD [] = { 
 #include "eventcodes.i"
 	0, 0, NULL
 };
 
-#endif
-
 // event groups 
-const struct event_groups {
-        uint16_t groupid;
-        char*   GroupDescription;
-} EventGroups [] = {
+const struct event_groups_t EventCodeGroups [] = {
 #include "eventcodegroups.i"
 	{0xffff,  "end-of-table" },
 };
@@ -641,7 +618,6 @@ int is_nihonkohden_signature(char *str) {
  Table A.4.1: Table of Decimal Factors	const double scale[32] =
 */
 
-#ifdef HARDCODED_PHYSDIMTABLE
 const struct PhysDimIdx
 	{
 		const uint16_t	idx;
@@ -650,7 +626,6 @@ const struct PhysDimIdx
 #include "units.i"
 	{0xffff,  "end-of-table" },
 } ;
-#endif
 
 /*
 	compare first n characters of two strings, ignore case
@@ -728,30 +703,17 @@ double PhysDimScale(uint16_t PhysDimCode)
 	return (scale[PhysDimCode & 0x001f]);
 }
 
-#ifndef HARDCODED_PHYSDIMTABLE
-void LoadGlobalPhysDimCodeTable();	// this functions is defined below
-#endif
-
 char* PhysDim(uint16_t PhysDimCode, char *PhysDim)
 {
 	// converting PhysDimCode -> PhysDim
 
-#ifndef HARDCODED_PHYSDIMTABLE
-	LoadGlobalPhysDimCodeTable();	// make sure Global Code table is loaded
-#endif
 	strcpy(PhysDim,PhysDimFactor[PhysDimCode & 0x001F]);
 
 	PhysDimCode &= ~0x001F;
 	uint16_t k;
-#ifdef HARDCODED_PHYSDIMTABLE
 	for (k=0; _physdim[k].idx<0xffff; k++)
 	if (PhysDimCode == _physdim[k].idx) {
 		strncat(PhysDim, _physdim[k].PhysDimDesc, MAX_LENGTH_PHYSDIM);
-#else
-	for (k=0; Global.PhysDimCode[k]<0xffff; k++)
-	if (PhysDimCode == Global.PhysDimCode[k]) {
-		strncat(PhysDim, Global.PhysDim[k], MAX_LENGTH_PHYSDIM);
-#endif
 		PhysDim[MAX_LENGTH_PHYSDIM]=0;
 		break;
 	}
@@ -765,9 +727,6 @@ uint16_t PhysDimCode(char* PhysDim0)
 	if (PhysDim0==NULL) return(0);
 	if (!strlen(PhysDim0)) return(0);
 
-#ifndef HARDCODED_PHYSDIMTABLE
-	LoadGlobalPhysDimCodeTable();	// make sure Global Code table is loaded
-#endif
 	uint16_t k1, k2;
 	char s[80];
 	char *s1;
@@ -778,20 +737,11 @@ uint16_t PhysDimCode(char* PhysDim0)
 	{ 	// exclude if beginning of PhysDim0 differs from PhysDimFactor and if NaN
 		strcpy(s, PhysDimFactor[k1]);
 		s1 = s+strlen(s);
-#ifdef HARDCODED_PHYSDIMTABLE
 		for (k2=0; _physdim[k2].idx < 0xffff; k2++) {
 			strcpy(s1, _physdim[k2].PhysDimDesc);
-#else
-		for (k2=0; Global.PhysDimCode[k2] < 0xffff; k2++) {
-			strcpy(s1, Global.PhysDim[k2]);
-#endif
 			if (!strcmp8(PhysDim0, s)) {
 		 		if (k1==32) k1 = 19;		// hack for "µ" = "u"
-#ifdef HARDCODED_PHYSDIMTABLE
 				return(_physdim[k2].idx+k1);
-#else
-				return(Global.PhysDimCode[k2]+k1);
-#endif
 			}
 		}
 	}
@@ -1292,8 +1242,6 @@ void LoadGlobalEventCodeTable()
 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(101)%i %i\n",GLOBAL_EVENTCODES_ISLOADED,Global.LenCodeDesc);
 
-#ifdef HARDCODED_EVENTTABLE
-
 	size_t N = 0;
 	while (ETD[N].desc != NULL) N++;
 	N += 256; 	// make sure there is enough space for free text events 
@@ -1306,177 +1254,10 @@ void LoadGlobalEventCodeTable()
 		Global.LenCodeDesc++;
 	}
 
-#else
-	HDRTYPE HDR;
-	HDR.FileName = "eventcodes.txt";
-	HDR.FILE.COMPRESSION = 0;
-	ifopen(&HDR,"r");
-
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(102) OPEN=%i %i\n",HDR.FILE.OPEN,Global.LenCodeDesc);
-
-	if (!HDR.FILE.OPEN) {
-		fprintf(stdout,"table of event codes not found\n");
-		return;	// event code table not available
-	}
-
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(102) OPEN=%i %i\n",HDR.FILE.OPEN,Global.LenCodeDesc);
-
-	atexit(&FreeGlobalEventCodeTable);	// make sure memory is freed
-
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(102) OPEN=%i %i\n",HDR.FILE.OPEN,Global.LenCodeDesc);
-
-	size_t count = 0;
-	if (Global.EventCodesTextBuffer==NULL)
-	while (!ifeof(&HDR)) {
-		const size_t bufsiz = 8092;
-		Global.EventCodesTextBuffer = (char*)realloc(Global.EventCodesTextBuffer,count+bufsiz+1);
-		count  += ifread(Global.EventCodesTextBuffer+count,1,bufsiz,&HDR);
-	}
-	ifclose(&HDR);
-	Global.EventCodesTextBuffer[count]=0;	// terminating /0 character
-
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(103) count=%i\n",count);
-
-	size_t N = 0;
-	char *line = strtok(Global.EventCodesTextBuffer,"\x0a\x0d");
-	while ((line != NULL) && (strlen(line)>0)) {
-//		if (VERBOSE_LEVEL>8) fprintf(stdout,"%i <%s>\n",Global.LenCodeDesc, line);
-
-		if (line[0]=='0') {
-			size_t k;
-			int i;
-			for (k=6; isspace(line[k]); k++) {};
-			char *t = line+k;
-			sscanf(line,"%x",&i);
-			i &= 0xffff;
-
-			if (N<=Global.LenCodeDesc) {
-				N += 256;
-				Global.CodeIndex = (uint16_t*)realloc(Global.CodeIndex,N*sizeof(uint16_t));
-				Global.CodeDesc = (char**)realloc(Global.CodeDesc,N*sizeof(char*));
-
-				if (VERBOSE_LEVEL>8) fprintf(stdout,"++++++++ %i %i %i %i\n",k,i,N,Global.LenCodeDesc);
-			}
-
-			for (k=0; (k<Global.LenCodeDesc) && (Global.CodeIndex[k]!=i); k++) {};
-
-			if (k<Global.LenCodeDesc) {
-				fprintf(stdout,"Warning: Event Type %x is already defined (error in eventcodes.txt)\n",i);
-			}
-			else {
-				Global.CodeDesc[Global.LenCodeDesc]  = t;
-				Global.CodeIndex[Global.LenCodeDesc] = i;
-				Global.LenCodeDesc++;
-			}
-//			if (VERBOSE_LEVEL>8) fprintf(stdout,"%x <%s>\n",i,t);
-		}
-		line = strtok(NULL,"\x0a\x0d");
-	}
-
-#endif 
-
 	GLOBAL_EVENTCODES_ISLOADED = 1;
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"LoadGlobalEventTable(end)%i\n",Global.LenCodeDesc);
 }
 
-#ifndef HARDCODED_PHYSDIMTABLE
-void FreeGlobalPhysDimCodeTable()
-{
-	Global.LenPhysDimCode = 0;
-	if (Global.PhysDimCode) free(Global.PhysDimCode);
-	Global.PhysDimCode = NULL;
-	if (Global.PhysDim) free(Global.PhysDim);
-	Global.PhysDim = NULL;
-	if (Global.PhysUnitsTextBuffer) free(Global.PhysUnitsTextBuffer);
-	Global.PhysUnitsTextBuffer = NULL;
-
-	GLOBAL_PHYSDIMIDX_ISLOADED = 0;
-}
-
-void LoadGlobalPhysDimCodeTable()
-{
-
-	if (GLOBAL_PHYSDIMIDX_ISLOADED) return; 	// table is already loaded
-
-	Global.LenPhysDimCode = 0;
-	Global.PhysDimCode = NULL;
-	Global.PhysDim = NULL;
-	Global.PhysUnitsTextBuffer = NULL;
-
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalPhysDimCodeTable(101)%i %i\n",GLOBAL_PHYSDIMIDX_ISLOADED,Global.LenCodeDesc);
-
-	HDRTYPE HDR;
-	HDR.FileName = "units.csv";
-	ifopen(&HDR,"r");
-	if (!HDR.FILE.OPEN) return;	// event code table not available
-
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(102) OPEN=%i %i\n",HDR.FILE.OPEN,Global.LenCodeDesc);
-
-	atexit(&FreeGlobalPhysDimCodeTable);	// make sure memory is freed
-	size_t count = 0;
-	if (Global.PhysUnitsTextBuffer==NULL)
-	while (!ifeof(&HDR)) {
-		size_t bufsiz = 8092;
-		Global.PhysUnitsTextBuffer = (char*)realloc(Global.PhysUnitsTextBuffer,(count+bufsiz+25));
-		count  += ifread(Global.PhysUnitsTextBuffer+count,1,bufsiz,&HDR);
-	}
-	ifclose(&HDR);
-	strcpy(Global.PhysUnitsTextBuffer+count,"\n65535,\"end-of-table\"\n");	// add terminating entry
-
-	size_t N = 0;
-	char *line = strtok(Global.PhysUnitsTextBuffer,"\x0a\x0d");
-	while ((line != NULL) && (strlen(line)>0)) {
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"%i <%s>\n",Global.LenPhysDimCode, line);
-
-		if (isdigit(line[0])) {
-			int i;
-			char *tok;
-			size_t k;
-			for (k=0; isdigit(line[k]); k++);
-			if ((line[k]==',') && (line[k+1]=='\"') ) {
-				line[k] = 0;
-				line[k+1] = 0;
-				i = atoi(line);
-				tok = line+k+2;
-				*(strchr(tok,'\"'))=0;
-				line = strchr(tok,'[');
-				if (line)
-				do {
-					line[0] = 0;
-					--line;
-				} while (isspace(line[0]));
-			}
-			else
-				fprintf(stdout,"Warning: unable to decode line <%s>  (error in units.csv)\n",line);
-
-			i &= 0xffff;
-
-			if (N<=Global.LenPhysDimCode) {
-				N += 256;
-				Global.PhysDimCode = (uint16_t*)realloc(Global.PhysDimCode,N*sizeof(uint16_t));
-				Global.PhysDim = (char**)realloc(Global.PhysDim,N*sizeof(char*));
-
-				if (VERBOSE_LEVEL>8) fprintf(stdout,"++++++++ %i %i %i %i\n",k,i,N,Global.LenPhysDimCode);
-			}
-
-			for (k=0; (k<Global.LenPhysDimCode) || (Global.PhysDimCode[k]==i); k++);
-			if (Global.PhysDimCode[k]==i) {
-				fprintf(stdout,"Warning: PhysDimCode %u is already defined (error in units.csv)\n",i);
-			}
-			else {
-				Global.PhysDim[Global.LenPhysDimCode]  = tok;
-				Global.PhysDimCode[Global.LenPhysDimCode] = i;
-				Global.LenPhysDimCode++;
-			}
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"%x <%s>\n",i,tok);
-		}
-		line = strtok(NULL,"\x0a\x0d");
-	}
-	GLOBAL_PHYSDIMIDX_ISLOADED = 1;
-	if (VERBOSE_LEVEL>7) fprintf(stdout,"LoadGlobalEventTable(end)%i\n",Global.LenPhysDimCode);
-
-}
-#endif
 
 /*------------------------------------------------------------------------
 	adds free text annotation to event table

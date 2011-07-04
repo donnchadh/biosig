@@ -163,8 +163,8 @@ EXTERN_C int   B4C_ERRNUM;
 EXTERN_C const char *B4C_ERRMSG;
 
 #define BIOSIG_VERSION_MAJOR 0
-#define BIOSIG_VERSION_MINOR 96
-#define BIOSIG_VERSION_STEPPING 3
+#define BIOSIG_VERSION_MINOR 97
+#define BIOSIG_VERSION_STEPPING 1
 #define BIOSIG_VERSION (BIOSIG_VERSION_MAJOR+0.01*BIOSIG_VERSION_MINOR)
 
 EXTERN_C int   VERBOSE_LEVEL; 	// used for debugging
@@ -425,6 +425,26 @@ typedef struct {
 	void *aECG;				/* used as an pointer to (non-standard) auxilary information - mostly used for hacks */
 
 } HDRTYPE;
+
+/*
+	This structure defines codes and groups of the event table
+ */
+
+// Desription of event codes
+struct etd_t {
+        uint16_t typ;		// used in HDR.EVENT.TYP
+        uint16_t groupid;	// defines the group id as used in EventCodeGroups below
+        char*    desc;		// name/description of event code
+}; 
+// Groups of event codes 
+struct event_groups_t {
+        uint16_t groupid;	
+        char*   GroupDescription;
+};  
+
+extern const struct etd_t ETD [];
+extern const struct event_groups_t EventCodeGroups [];
+
 
 
 /****************************************************************************/
