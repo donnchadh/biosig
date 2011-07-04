@@ -1,0 +1,767 @@
+Index: src/file_handling/basic_header.h
+===================================================================
+--- src/file_handling/basic_header.h	(revision 556)
++++ src/file_handling/basic_header.h	(working copy)
+@@ -38,7 +38,7 @@
+     {return recording_info_;}
+ 
+     //-------------------------------------------------------------------------
+-    float getSampleRate () const;
++    float64 getSampleRate () const;
+ 
+     //-------------------------------------------------------------------------
+     QSharedPointer<SignalChannel const> getChannel (ChannelID id) const;
+@@ -47,7 +47,7 @@
+     unsigned getNumberChannels() const;
+ 
+     //-------------------------------------------------------------------------
+-    virtual uint32 getNumberOfSamples () const = 0;
++    virtual size_t getNumberOfSamples () const = 0;
+ 
+     //-------------------------------------------------------------------------
+     virtual QMap<unsigned, QString> getNamesOfUserSpecificEvents () const
+@@ -73,7 +73,7 @@
+ 
+     //-------------------------------------------------------------------------
+     /// required
+-    void setSampleRate (float sample_rate);
++    void setSampleRate (float64 sample_rate);
+ 
+     //-------------------------------------------------------------------------
+     /// required
+@@ -92,7 +92,7 @@
+ private:
+     QString const file_path_;
+     QString file_type_string_;
+-    float sample_rate_;
++    float64 sample_rate_;
+     QMap<ChannelID, QSharedPointer<SignalChannel const> > channels_;
+     QMap<QString, QString> recording_info_;
+     QMap<QString, QString> patient_info_;
+Index: src/file_handling/channel_manager.h
+===================================================================
+--- src/file_handling/channel_manager.h	(revision 556)
++++ src/file_handling/channel_manager.h	(working copy)
+@@ -43,13 +43,13 @@
+                                                      unsigned length) const = 0;
+ 
+     //-------------------------------------------------------------------------
+-    virtual float32 getDurationInSec () const = 0;
++    virtual float64 getDurationInSec () const = 0;
+ 
+     //-------------------------------------------------------------------------
+     virtual uint32 getNumberSamples () const = 0;
+ 
+     //-------------------------------------------------------------------------
+-    virtual float32 getSampleRate () const = 0;
++    virtual float64 getSampleRate () const = 0;
+ 
+     //-------------------------------------------------------------------------
+     void addDownsampledMinMaxVersion (ChannelID id, QSharedPointer<DataBlock const> min,
+Index: src/file_handling/basic_header.cpp
+===================================================================
+--- src/file_handling/basic_header.cpp	(revision 556)
++++ src/file_handling/basic_header.cpp	(working copy)
+@@ -12,7 +12,7 @@
+ }
+ 
+ //-----------------------------------------------------------------------------
+-float32 BasicHeader::getSampleRate () const
++float64 BasicHeader::getSampleRate () const
+ {
+     return sample_rate_;
+ }
+@@ -61,7 +61,7 @@
+ }
+ 
+ //-------------------------------------------------------------------------
+-void BasicHeader::setSampleRate (float sample_rate)
++void BasicHeader::setSampleRate (float64 sample_rate)
+ {
+     sample_rate_ = sample_rate;
+ }
+Index: src/src.pro
+===================================================================
+--- src/src.pro	(revision 556)
++++ src/src.pro	(working copy)
+@@ -33,7 +33,7 @@
+ INCLUDEPATH += $$_PRO_FILE_PWD_/../extern/include \
+                $$_PRO_FILE_PWD_/.
+ LIBS += -L$$_PRO_FILE_PWD_/../extern/lib \
+-    -lbiosig# \
++    -lbiosig -lcholmod -lz  \
+     #-lGDF
+ 
+ RESOURCES = src.qrc
+Index: src/version.txt
+===================================================================
+--- src/version.txt	(revision 556)
++++ src/version.txt	(working copy)
+@@ -1,2 +1,2 @@
+-0.5.1
++0.5.1-as.4
+ 
+Index: src/file_handling_impl/sinus_dummy_reader.cpp
+===================================================================
+--- src/file_handling_impl/sinus_dummy_reader.cpp	(revision 556)
++++ src/file_handling_impl/sinus_dummy_reader.cpp	(working copy)
+@@ -29,11 +29,11 @@
+             data->push_back (sin(sample_index / ((i*i+1))));
+         QSharedPointer<DataBlock const> data_block (new FixedDataBlock (data, 100));
+         data_.insert(i, data_block);
+-
++/*
+         QSharedPointer<SignalChannel> channel (new SignalChannel(i,
+                                                    QString::number(i)));
+         header->addDummyChannel(i, channel);
+-        header_ = header;
++*/        header_ = header;
+     }
+ 
+     for (int i = 0; i < 40; i++)
+Index: src/file_handling_impl/biosig_reader.cpp
+===================================================================
+--- src/file_handling_impl/biosig_reader.cpp	(revision 556)
++++ src/file_handling_impl/biosig_reader.cpp	(working copy)
+@@ -4,7 +4,7 @@
+     Copyright (C) Thomas Brunner  2005,2006,2007
+     Copyright (C) Christoph Eibel 2007,2008
+     Copyright (C) Clemens Brunner 2006,2007,2008
+-    Copyright (C) Alois Schloegl  2008,2009
++    Copyright (C) Alois Schloegl  2008,2009,2011
+     Copyright (C) Oliver Terbu    2008
+     This file is part of the "SigViewer" repository
+     at http://biosig.sf.net/
+@@ -57,6 +57,11 @@
+ FILE_SIGNAL_READER_REGISTRATION(cnt, BioSigReader);
+ FILE_SIGNAL_READER_REGISTRATION(vhdr, BioSigReader);
+ FILE_SIGNAL_READER_REGISTRATION(bkr, BioSigReader);
++FILE_SIGNAL_READER_REGISTRATION(gz,  BioSigReader);
++FILE_SIGNAL_READER_REGISTRATION(itx, BioSigReader);
++FILE_SIGNAL_READER_REGISTRATION(rec, BioSigReader);
++FILE_SIGNAL_READER_REGISTRATION(acq, BioSigReader);
++FILE_SIGNAL_READER_REGISTRATION(bva, BioSigReader);
+ 
+ FILE_SIGNAL_READER_REGISTRATION(evt, BioSigReader);
+ 
+@@ -181,7 +186,7 @@
+             destructHDR(biosig_header_);
+             biosig_header_ = 0;
+             delete c_file_name;
+-            return "file not supported";
++            return B4C_ERRMSG;
+     }
+ 
+     // (C) 2008 AS: EVENT.DUR and EVENT.CHN are optional in SOPEN, but SigViewer needs them.
+@@ -281,10 +286,10 @@
+ void BioSigReader::bufferAllEvents () const
+ {
+     unsigned number_events = biosig_header_->EVENT.N;
++    // Hack Hack: Transforming Events to have the same sample rate as the signals
++    double rate_transition = basic_header_->getEventSamplerate() / biosig_header_->EVENT.SampleRate;
+     for (unsigned index = 0; index < number_events; index++)
+     {
+-        // Hack Hack: Transforming Events to have the same sample rate as the signals
+-        double rate_transition = basic_header_->getEventSamplerate() / biosig_header_->EVENT.SampleRate;
+         QSharedPointer<SignalEvent> event (new SignalEvent (biosig_header_->EVENT.POS[index] * rate_transition,
+                                                             biosig_header_->EVENT.TYP[index],
+                                                             biosig_header_->EVENT.SampleRate * rate_transition));
+@@ -295,7 +300,12 @@
+             else
+                 event->setChannel (biosig_header_->EVENT.CHN[index] - 1);
+             event->setDuration (biosig_header_->EVENT.DUR[index] * rate_transition);
+-        }
++        } 
++	else 
++	{
++		event->setChannel (UNDEFINED_CHANNEL);
++		event->setDuration (1);
++	}
+         events_.append (event);
+     }
+ 
+Index: src/file_handling_impl/event_table_file_reader.cpp
+===================================================================
+--- src/file_handling_impl/event_table_file_reader.cpp	(revision 556)
++++ src/file_handling_impl/event_table_file_reader.cpp	(working copy)
+@@ -1,3 +1,27 @@
++/*
++
++    $Id$
++    Copyright (C) Christoph Eibel 2010 
++    Copyright (C) Alois Schloegl  2011
++		and others ???
++    This file is part of the "SigViewer" repository 
++    at http://biosig.sf.net/ 
++
++    This program is free software; you can redistribute it and/or
++    modify it under the terms of the GNU General Public License
++    as published by the Free Software Foundation; either version 3
++    of the License, or (at your option) any later version.
++
++    This program is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++    GNU General Public License for more details.
++
++    You should have received a copy of the GNU General Public License
++    along with this program.  If not, see <http://www.gnu.org/licenses/>. 
++    
++*/
++
+ #include "event_table_file_reader.h"
+ 
+ #include <QFile>
+@@ -16,9 +40,14 @@
+ //-------------------------------------------------------------------------------------------------
+ EventTableFileReader::EventTableFileReader()
+ {
++#ifdef OLD_EVENTCODES
+     QSettings settings;
+     QString event_codes_file = settings.value ("eventcodes_file", ":/eventcodes.txt").toString();
+     load (event_codes_file);
++#else
++    load ();
++#endif
++
+     event_group_ids_.append (UNKNOWN_GROUP_ID);
+     group_id2name_[UNKNOWN_GROUP_ID] = UNKNOWN_GROUP_ID;
+ }
+@@ -29,7 +58,9 @@
+     // nothing
+ }
+ 
+-// load
++#ifdef OLD_EVENTCODES
++/************** OBSOLETE ******************/
++// load from file "eventcodes.txt"
+ bool EventTableFileReader::load(const QString& file_name)
+ {
+     event_file_path_ = file_name;
+@@ -84,7 +115,33 @@
+     qSort(event_group_ids_);
+     return true;
+ }
++#else
+ 
++// load pre-defined event codes from libbiosig
++bool EventTableFileReader::load()
++{
++        char g[10];
++	uint16_t k;
++	for (k = 0; EventCodeGroups[k].groupid < 0xffff; k++) {
++	        sprintf(g,"0x%04x", EventCodeGroups[k].groupid);
++		QString group_id = QString(g);
++	        group_id2name_[group_id] = QString(EventCodeGroups[k++].GroupDescription);
++                event_group_ids_ << group_id;
++	}
++
++        EventItem item;
++	for (k=0; ETD[k].typ ; k++) {
++	        sprintf(g,"0x%04x", ETD[k].groupid);
++		QString group_id = QString(g);
++		item.name     =  QString(ETD[k].desc);
++                item.group_id = group_id;
++                event_type2name_[ETD[k].typ] = item;
++                event_types_ << ETD[k].typ;
++	}
++        return true;
++}
++#endif
++
+ // get group id begin
+ EventTableFileReader::StringIterator EventTableFileReader::getGroupIdBegin() const
+ {
+@@ -127,7 +184,11 @@
+ //-----------------------------------------------------------------------------
+ void EventTableFileReader::restoreEventNames ()
+ {
++#ifdef OLD_EVENTCODES
+     load (event_file_path_);
++#else
++    load ();
++#endif
+ }
+ 
+ //-----------------------------------------------------------------------------
+Index: src/file_handling_impl/event_table_file_reader.h
+===================================================================
+--- src/file_handling_impl/event_table_file_reader.h	(revision 556)
++++ src/file_handling_impl/event_table_file_reader.h	(working copy)
+@@ -1,3 +1,27 @@
++/*
++
++    $Id$
++    Copyright (C) Christoph Eibel 2010 
++    Copyright (C) Alois Schloegl  2011
++		and others ???
++    This file is part of the "SigViewer" repository 
++    at http://biosig.sf.net/ 
++
++    This program is free software; you can redistribute it and/or
++    modify it under the terms of the GNU General Public License
++    as published by the Free Software Foundation; either version 3
++    of the License, or (at your option) any later version.
++
++    This program is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++    GNU General Public License for more details.
++
++    You should have received a copy of the GNU General Public License
++    along with this program.  If not, see <http://www.gnu.org/licenses/>. 
++    
++*/
++
+ // event_table_file_reader.h
+ 
+ #ifndef EVENT_TABLE_FILE_READER
+@@ -4,6 +28,8 @@
+ #define EVENT_TABLE_FILE_READER
+ 
+ #include "base/sigviewer_user_types.h"
++#include "biosig.h"
++//#define  OLD_EVENTCODES
+ 
+ #include <QStringList>
+ #include <QMap>
+@@ -11,6 +37,7 @@
+ 
+ #include <set>
+ 
++
+ class QTextStream;
+ 
+ namespace SigViewer_
+@@ -53,8 +80,10 @@
+ 
+     std::set<uint16> getAllEventTypes () const;
+ private:
++    bool load();
++#ifdef OLD_EVENTCODES
+     bool load(const QString& file_name);
+-
++#endif
+     static QString const UNKNOWN_GROUP_ID;
+ 
+     struct EventItem
+@@ -69,11 +98,14 @@
+     Q_DISABLE_COPY(EventTableFileReader)
+ 
+     QList<EventType> event_types_;
++    Int2EventItemMap event_type2name_;
++
+     QStringList event_group_ids_;
+-    Int2EventItemMap event_type2name_;
+     String2StringMap group_id2name_;
+ 
++#ifdef OLD_EVENTCODES
+     QString event_file_path_;
++#endif
+ };
+ 
+ } // namespace SigViewer_
+Index: src/file_handling_impl/channel_manager_impl.cpp
+===================================================================
+--- src/file_handling_impl/channel_manager_impl.cpp	(revision 556)
++++ src/file_handling_impl/channel_manager_impl.cpp	(working copy)
+@@ -66,7 +66,7 @@
+ }
+ 
+ //-----------------------------------------------------------------------------
+-float32 ChannelManagerImpl::getDurationInSec () const
++float64 ChannelManagerImpl::getDurationInSec () const
+ {
+     return reader_->getBasicHeader()->getNumberOfSamples() /
+            reader_->getBasicHeader()->getSampleRate();
+@@ -80,7 +80,7 @@
+ }
+ 
+ //-----------------------------------------------------------------------------
+-float32 ChannelManagerImpl::getSampleRate () const
++float64 ChannelManagerImpl::getSampleRate () const
+ {
+     return reader_->getBasicHeader()->getSampleRate();
+ }
+Index: src/file_handling_impl/biosig_basic_header.cpp
+===================================================================
+--- src/file_handling_impl/biosig_basic_header.cpp	(revision 556)
++++ src/file_handling_impl/biosig_basic_header.cpp	(working copy)
+@@ -1,3 +1,26 @@
++/*
++
++    $Id$
++    Copyright (C) Christoph Eibel 2010, 2011
++    Copyright (C) Alois Schloegl 2011
++    This file is part of the "SigViewer" repository
++    at http://biosig.sf.net/
++
++    This program is free software; you can redistribute it and/or
++    modify it under the terms of the GNU General Public License
++    as published by the Free Software Foundation; either version 3
++    of the License, or (at your option) any later version.
++
++    This program is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++    GNU General Public License for more details.
++
++    You should have received a copy of the GNU General Public License
++    along with this program.  If not, see <http://www.gnu.org/licenses/>.
++
++*/
++
+ #include "biosig_basic_header.h"
+ 
+ #include <ctime>
+@@ -23,7 +46,7 @@
+ 
+     setFileTypeString (QString (GetFileTypeString(raw_header->TYPE)).append(" v").append(QString::number(raw_header->VERSION)));
+ 
+-    float sampling_rate = raw_header->SampleRate;
++    float64 sampling_rate = raw_header->SampleRate;
+ 
+     setSampleRate (sampling_rate);
+     readChannelsInfo (raw_header);
+@@ -32,7 +55,7 @@
+ }
+ 
+ //-----------------------------------------------------------------------------
+-uint32 BiosigBasicHeader::getNumberOfSamples () const
++size_t BiosigBasicHeader::getNumberOfSamples () const
+ {
+     return ceil(static_cast<double>(number_samples_));
+ }
+@@ -48,6 +71,7 @@
+ {
+     for (unsigned channel_index = 0; channel_index < raw_header->NS; channel_index++)
+     {
++/*
+         QString label = QString (QByteArray(raw_header->CHANNEL[channel_index].Label, MAX_LENGTH_LABEL)).trimmed();
+ 
+         char p[MAX_LENGTH_PHYSDIM+1];
+@@ -56,8 +80,8 @@
+         QString phys_y_dim_label = QString (p).trimmed();
+         if (phys_y_dim_label.compare("uV") == 0)
+             phys_y_dim_label = QString (QChar((ushort)0xb5)).append("V");
+-        QSharedPointer<SignalChannel> channel (new SignalChannel(channel_index, label,
+-                                                                 phys_y_dim_label));
++*/
++        QSharedPointer<SignalChannel> channel (new SignalChannel(channel_index, raw_header));
+         addChannel (channel_index, channel);
+     }
+ }
+Index: src/file_handling_impl/channel_manager_impl.h
+===================================================================
+--- src/file_handling_impl/channel_manager_impl.h	(revision 556)
++++ src/file_handling_impl/channel_manager_impl.h	(working copy)
+@@ -41,13 +41,13 @@
+                                                      unsigned length) const;
+ 
+     //-------------------------------------------------------------------------
+-    virtual float32 getDurationInSec () const;
++    virtual float64 getDurationInSec () const;
+ 
+     //-------------------------------------------------------------------------
+     virtual uint32 getNumberSamples () const;
+ 
+     //-------------------------------------------------------------------------
+-    virtual float32 getSampleRate () const;
++    virtual float64 getSampleRate () const;
+ 
+ private:
+     FileSignalReader* reader_;
+Index: src/file_handling_impl/sinus_dummy_header.h
+===================================================================
+--- src/file_handling_impl/sinus_dummy_header.h	(revision 556)
++++ src/file_handling_impl/sinus_dummy_header.h	(working copy)
+@@ -13,7 +13,7 @@
+     SinusDummyHeader ();
+ 
+     //-------------------------------------------------------------------------
+-    virtual uint32 getNumberOfSamples () const {return 10000;}
++    virtual size_t getNumberOfSamples () const {return 10000;}
+ 
+     //-------------------------------------------------------------------------
+     void addDummyChannel (ChannelID id, QSharedPointer<SignalChannel const> channel)
+Index: src/file_handling_impl/biosig_basic_header.h
+===================================================================
+--- src/file_handling_impl/biosig_basic_header.h	(revision 556)
++++ src/file_handling_impl/biosig_basic_header.h	(working copy)
+@@ -14,7 +14,7 @@
+     BiosigBasicHeader (HDRTYPE* raw_header, QString const& file_path);
+ 
+     //-------------------------------------------------------------------------
+-    virtual uint32 getNumberOfSamples () const;
++    virtual size_t getNumberOfSamples () const;
+ 
+     //-------------------------------------------------------------------------
+     virtual QMap<unsigned, QString> getNamesOfUserSpecificEvents () const;
+Index: src/gui_impl/dialogs/basic_header_info_dialog.cpp
+===================================================================
+--- src/gui_impl/dialogs/basic_header_info_dialog.cpp	(revision 556)
++++ src/gui_impl/dialogs/basic_header_info_dialog.cpp	(working copy)
+@@ -1,3 +1,26 @@
++/*
++
++    $Id: biosig_reader.cpp,v 1.36 2009/03/03 11:57:07 cle1109 Exp $
++    Copyright (C) Christoph Eibel 2010, 2011
++    Copyright (C) Alois Schloegl  2011
++    This file is part of the "SigViewer" repository
++    at http://biosig.sf.net/
++
++    This program is free software; you can redistribute it and/or
++    modify it under the terms of the GNU General Public License
++    as published by the Free Software Foundation; either version 3
++    of the License, or (at your option) any later version.
++
++    This program is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++    GNU General Public License for more details.
++
++    You should have received a copy of the GNU General Public License
++    along with this program.  If not, see <http://www.gnu.org/licenses/>.
++
++*/
++
+ // basic_header_info_dialog.cpp
+ 
+ #include "basic_header_info_dialog.h"
+@@ -176,7 +199,9 @@
+         tmp_item = new QTreeWidgetItem(channel_item);
+ 
+         tmp_item->setText(0, tr("Sample Rate"));
+-        tmp_item->setText(1, QString::number(basic_header_->getSampleRate()));
++        float64 fs = channel->getSampleRate();
++        if (fs < 0.0) fs = basic_header_->getSampleRate();
++        tmp_item->setText(1, QString::number(fs));
+         tmp_item->setText(2, tr("Hz"));
+ 
+         tmp_item = new QTreeWidgetItem(channel_item);
+Index: src/gui_impl/dialogs/about_dialog.ui
+===================================================================
+--- src/gui_impl/dialogs/about_dialog.ui	(revision 556)
++++ src/gui_impl/dialogs/about_dialog.ui	(working copy)
+@@ -47,7 +47,7 @@
+ &lt;tr&gt;
+ &lt;td style=&quot;border: none;&quot;&gt;
+ &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'Sans Serif'; font-size:11pt; font-weight:600;&quot;&gt;SigViewer [VERSION-NUMBER]&lt;/span&gt;&lt;/p&gt;
+-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;a href=&quot;http://sigviewer.sf.net&quot;&gt;&lt;span style=&quot; font-family:'Sans Serif'; font-size:8pt; text-decoration: underline; color:#0000ff;&quot;&gt;http://sigviewer.sourceforge.net/&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;
++&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;a href=&quot;http://sigviewer.sf.net&quot;&gt;&lt;span style=&quot; font-family:'Sans Serif'; font-size:8pt; text-decoration: underline; color:#0000ff;&quot;&gt;http://biosig.sourceforge.net/&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;
+ &lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:'Sans Serif'; font-size:8pt; text-decoration: underline; color:#0000ff;&quot;&gt;&lt;/p&gt;
+ &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'Sans Serif'; font-size:8pt;&quot;&gt;Clemens Brunner (Coordinator)&lt;/span&gt;&lt;/p&gt;
+ &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'Sans Serif'; font-size:8pt;&quot;&gt;Christoph Eibel&lt;/span&gt;&lt;/p&gt;
+Index: src/gui_impl/processed_signal_channel_manager.cpp
+===================================================================
+--- src/gui_impl/processed_signal_channel_manager.cpp	(revision 556)
++++ src/gui_impl/processed_signal_channel_manager.cpp	(working copy)
+@@ -4,7 +4,7 @@
+ {
+ 
+ //-------------------------------------------------------------------------
+-ProcessedSignalChannelManager::ProcessedSignalChannelManager (float32 sample_rate, unsigned length, QObject* parent)
++ProcessedSignalChannelManager::ProcessedSignalChannelManager (float64 sample_rate, unsigned length, QObject* parent)
+     : QObject (parent),
+       sample_rate_ (sample_rate),
+       length_ (length)
+@@ -69,9 +69,9 @@
+ }
+ 
+ //-------------------------------------------------------------------------
+-float32 ProcessedSignalChannelManager::getDurationInSec () const
++float64 ProcessedSignalChannelManager::getDurationInSec () const
+ {
+-    return static_cast<float32>(length_) / sample_rate_;
++    return static_cast<float64>(length_) / sample_rate_;
+ }
+ 
+ //-------------------------------------------------------------------------
+@@ -81,7 +81,7 @@
+ }
+ 
+ //-------------------------------------------------------------------------
+-float32 ProcessedSignalChannelManager::getSampleRate () const
++float64 ProcessedSignalChannelManager::getSampleRate () const
+ {
+     return sample_rate_;
+ }
+Index: src/gui_impl/processed_signal_channel_manager.h
+===================================================================
+--- src/gui_impl/processed_signal_channel_manager.h	(revision 556)
++++ src/gui_impl/processed_signal_channel_manager.h	(working copy)
+@@ -13,7 +13,7 @@
+ {
+ public:
+     //-------------------------------------------------------------------------
+-    ProcessedSignalChannelManager (float32 sample_rate, unsigned length, QObject* parent);
++    ProcessedSignalChannelManager (float64 sample_rate, unsigned length, QObject* parent);
+ 
+     //-------------------------------------------------------------------------
+     void addChannel (ChannelID id, QSharedPointer<DataBlock const> data_block,
+@@ -44,13 +44,13 @@
+                                                      unsigned length) const;
+ 
+     //-------------------------------------------------------------------------
+-    virtual float32 getDurationInSec () const;
++    virtual float64 getDurationInSec () const;
+ 
+     //-------------------------------------------------------------------------
+     virtual uint32 getNumberSamples () const;
+ 
+     //-------------------------------------------------------------------------
+-    virtual float32 getSampleRate () const;
++    virtual float64 getSampleRate () const;
+ 
+ private:
+     float32 sample_rate_;
+Index: src/base/signal_channel.cpp
+===================================================================
+--- src/base/signal_channel.cpp	(revision 556)
++++ src/base/signal_channel.cpp	(working copy)
+@@ -4,7 +4,7 @@
+     Copyright (C) Thomas Brunner  2006,2007 
+     Copyright (C) Christoph Eibel 2007,2008, 
+     Copyright (C) Clemens Brunner 2006,2007,2008  
+-    Copyright (C) Alois Schloegl  2008,2009
++    Copyright (C) Alois Schloegl  2008,2009,2011
+     This file is part of the "SigViewer" repository 
+     at http://biosig.sf.net/ 
+ 
+@@ -31,14 +31,60 @@
+ {
+ 
+ //-----------------------------------------------------------------------------
++SignalChannel::SignalChannel (unsigned ch,
++                              const HDRTYPE* hdr) :
++    number_ (ch),
++    label_ (QString(hdr->CHANNEL[ch].Label).trimmed()),
++    physical_maximum_(hdr->CHANNEL[ch].PhysMax), 	 
++    digital_maximum_(hdr->CHANNEL[ch].DigMax), 	 
++    physical_minimum_(hdr->CHANNEL[ch].PhysMin), 	 
++    digital_minimum_(hdr->CHANNEL[ch].DigMin), 	 
++    data_type_(hdr->CHANNEL[ch].GDFTYP), 	 
++    lowpass_(hdr->CHANNEL[ch].LowPass), 	 
++    highpass_(hdr->CHANNEL[ch].HighPass), 	 
++    notch_(hdr->CHANNEL[ch].Notch) 	 
++
++{
++/*
++     scale_ = (C.PhysMax - C.PhysMin) / (C.DigMax - C.DigMin); 	 
++     offset_ = C.PhysMin - C.DigMin * scale_; 	 
++*/
++     char p[MAX_LENGTH_PHYSDIM+1]; 	 
++     PhysDim(hdr->CHANNEL[ch].PhysDimCode,p); 	 
++     phys_y_dimension_label_ = QString(p);
++     samplerate_ = hdr->SampleRate * hdr->CHANNEL[ch].SPR / hdr->SPR; 
++}
++
+ SignalChannel::SignalChannel (unsigned number,
+-                              QString const& label,
+-                              QString const& phys_y_dimension_label) :
++                              CHANNEL_STRUCT C) :
++
++    /* obsolete */                              
+     number_ (number),
+-    label_ (label),
+-    phys_y_dimension_label_ (phys_y_dimension_label)
++    label_ (QString(C.Label).trimmed()),
++    physical_maximum_(C.PhysMax), 	 
++    digital_maximum_(C.DigMax), 	 
++    physical_minimum_(C.PhysMin), 	 
++    digital_minimum_(C.DigMin), 	 
++    data_type_(C.GDFTYP), 	 
++    lowpass_(C.LowPass), 	 
++    highpass_(C.HighPass), 	 
++    notch_(C.Notch) 	 
++
+ {
++/*
++     scale_ = (C.PhysMax - C.PhysMin) / (C.DigMax - C.DigMin); 	 
++     offset_ = C.PhysMin - C.DigMin * scale_; 	 
++*/
++     char p[MAX_LENGTH_PHYSDIM+1]; 	 
++     PhysDim(C.PhysDimCode,p); 	 
++     phys_y_dimension_label_ = QString(p);
++     samplerate_ = -1.0; 
++}
+ 
++//-----------------------------------------------------------------------------
++float64 SignalChannel::getSampleRate() const
++{
++    return samplerate_;
+ }
+ 
+ //-----------------------------------------------------------------------------
+Index: src/base/signal_channel.h
+===================================================================
+--- src/base/signal_channel.h	(revision 556)
++++ src/base/signal_channel.h	(working copy)
+@@ -4,7 +4,7 @@
+     Copyright (C) Thomas Brunner  2006,2007 
+     Copyright (C) Christoph Eibel 2007,2008, 
+     Copyright (C) Clemens Brunner 2006,2007,2008  
+-    Copyright (C) Alois Schloegl  2008,2009
++    Copyright (C) Alois Schloegl  2008,2009,2011
+     This file is part of the "SigViewer" repository 
+     at http://biosig.sf.net/ 
+ 
+@@ -29,6 +29,7 @@
+ #define SIGNAL_CHANNEL_H
+ 
+ #include "sigviewer_user_types.h"
++#include "biosig.h"
+ 
+ #include <QString>
+ #include <QMutex>
+@@ -43,9 +44,8 @@
+ {
+ public:
+     //-------------------------------------------------------------------------
+-    SignalChannel (unsigned number,
+-                   QString const& label,
+-                   QString const& phys_y_dimension_label = "");
++SignalChannel (unsigned ch, const HDRTYPE* hdr);
++SignalChannel (unsigned number, CHANNEL_STRUCT C);  /* obsolete, deprecated */
+ 
+     //-------------------------------------------------------------------------
+     QString typeString() const;
+@@ -59,6 +59,7 @@
+     float64 getDigitalMaximum() const;
+     float64 getPhysicalMinimum() const;
+     float64 getDigitalMinimum() const;
++    float64 getSampleRate() const; 
+ 
+ private:
+     // from GDF format
+@@ -95,6 +96,7 @@
+     uint16_t data_type_;
+     float64 lowpass_;
+     float64 highpass_;
++    float64 samplerate_;
+     bool notch_;
+ };
+ 
+Index: src/src.qrc
+===================================================================
+--- src/src.qrc	(revision 556)
++++ src/src.qrc	(working copy)
+@@ -27,7 +27,6 @@
+         <file>images/file_16x16.png</file>
+         <file>images/info_16x16.png</file>
+         <file>images/patient_16x16.png</file>
+-        <file>eventcodes.txt</file>
+         <file>images/zoom_in_vertical_22x22.png</file>
+         <file>images/icons/fileclose.png</file>
+         <file>images/icons/fileopen.png</file>
+Index: deb_building_stuff/deb_control_template
+===================================================================
+--- deb_building_stuff/deb_control_template	(revision 556)
++++ deb_building_stuff/deb_control_template	(working copy)
+@@ -7,5 +7,5 @@
+ Replaces: sigviewer (<< <version>)
+ Installed-Size: <bin-size-via-script>
+ Maintainer: Christoph Eibel <christoph.eibel@tugraz.at>
+-Homepage: http://sigviewer.sourceforge.net
++Homepage: http://biosig.sourceforge.net
+ Description: SigViewer is a powerful viewing application for biosignals, originally designed to display electroencephalographic (EEG) data.
