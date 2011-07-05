@@ -311,7 +311,7 @@ sopen_fef_read.o: t240/sopen_fef_read.c biosig-dev.h biosig.h
 #	#asn1c -fcompound-names iso11073-10471.asn1
 #	#asn1c -fcompound-names iso11073-20601.asn1
 #	cd ..
-#	make -C t240 -f Makefile.am.sample
+#	$(MAKE) -C t240 -f Makefile.am.sample
 	$(CC) -c $(CFLAGS) -I t240 $(INCPATH) -o "$@" "$<"
 
 sopen_hl7aecg.o: t230/sopen_hl7aecg.c biosig-dev.h biosig.h XMLParser/tinyxml.h XMLParser/tinystr.h
@@ -341,14 +341,15 @@ win32/getlogin_r.obj: win32/getlogin_r.c
 	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
 
 win32/sigviewer.exe: win32/libbiosig.a win32/libbiosig.dll 
-	-$(COPY) ../biosig/doc/eventcodes.txt $(PathToSigViewerWIN32)/src/
+	#-$(COPY) ../biosig/doc/eventcodes.txt $(PathToSigViewerWIN32)/src/
 	-$(DELETE) $(PathToSigViewerWIN32)/extern/include/*.h
 	-$(COPY) biosig.h $(PathToSigViewerWIN32)/extern/include
 	-$(DELETE) $(PathToSigViewerWIN32)/extern/lib/lib*
 	-$(COPY) win32/libbiosig.a $(PathToSigViewerWIN32)/extern/lib
 	sed -i 's|\([[:space:]]*-lbiosig\)\([ #\\]*\)$$|\1 -lcholmod -lz \2|' $(PathToSigViewerWIN32)/src/src.pro
 	-(cd $(PathToSigViewerWIN32)/src; $(CROSS)-qmake; make)
-	-$(COPY) $(PathToSigViewerWIN32)/bin/release/sigviewer.exe win32/sigviewer-$(shell cat $(PathToSigViewerWIN32)/src/version.txt)
+	#-(cd $(PathToSigViewerWIN32); svn revert -R .; svn up -r 556; patch -p0 <../biosig4c++/patches/patch_sigviewer_0.5.1-as.4-DisplayHeaderInfo+EventTableAlways4Columns+SampleRateChanged2FLOAT64+libbiosigEventTable.diff; cd src; $(CROSS32)-qmake; $(MAKE);)
+	-$(COPY) $(PathToSigViewerWIN32)/bin/release/sigviewer.exe win32/sigviewer-$(shell cat $(PathToSigViewerWIN32)/src/version.txt)-win32.exe
 
 ########### WIN64 ##################
 
@@ -365,14 +366,15 @@ win64/getlogin_r.obj: win32/getlogin_r.c
 	$(MinGW64CC) -c $(MinGW64CFLAGS) $(INCPATH) -o "$@" "$<"
 
 win64/sigviewer.exe: win64/libbiosig.a win64/libbiosig.dll 
-	-$(COPY) ../biosig/doc/eventcodes.txt $(PathToSigViewerWIN64)/src/
+	#-$(COPY) ../biosig/doc/eventcodes.txt $(PathToSigViewerWIN64)/src/
 	-$(DELETE) $(PathToSigViewerWIN64)/extern/include/*.h
 	-$(COPY) biosig.h $(PathToSigViewerWIN64)/extern/include
 	-$(DELETE) $(PathToSigViewerWIN64)/extern/lib/lib*
 	-$(COPY) win64/libbiosig.a $(PathToSigViewerWIN64)/extern/lib
 	sed -i 's|\([[:space:]]*-lbiosig\)\([ #\\]*\)$$|\1 -lcholmod -lz \2|' $(PathToSigViewerWIN64)/src/src.pro
 	-(cd $(PathToSigViewerWIN64)/src; $(CROSS64)-qmake; make)
-	-$(COPY) $(PathToSigViewerWIN64)/bin/release/sigviewer.exe win64/sigviewer-$(shell cat $(PathToSigViewerWIN64)/src/version.txt)
+	#-(cd $(PathToSigViewerWIN64); svn revert -R .; svn up -r 556; patch -p0 <../biosig4c++/patches/patch_sigviewer_0.5.1-as.4-DisplayHeaderInfo+EventTableAlways4Columns+SampleRateChanged2FLOAT64+libbiosigEventTable.diff; cd src; $(CROSS64)-qmake; $(MAKE);)
+	-$(COPY) $(PathToSigViewerWIN64)/bin/release/sigviewer.exe win64/sigviewer-$(shell cat $(PathToSigViewerWIN64)/src/version.txt)-win64.exe
 
 
 #############################################################
@@ -390,17 +392,17 @@ python/_biosig.so : python/swig_wrap.cxx  libbiosig.$(LIBEXT)
 
 
 java: libbiosig.$(LIBEXT) java/biosig.i
-	make -C java 
+	$(MAKE) -C java 
 perl: libbiosig.$(LIBEXT) perl/biosig.i
-	make -C perl 
+	$(MAKE) -C perl 
 php: libbiosig.$(LIBEXT) php/biosig.i
-	make -C php 
+	$(MAKE) -C php 
 python: libbiosig.$(LIBEXT) python/swig.i
-	make -C python 
+	$(MAKE) -C python 
 ruby: libbiosig.$(LIBEXT) ruby/biosig.i
-	make -C ruby 
+	$(MAKE) -C ruby 
 tcl: libbiosig.$(LIBEXT) tcl/biosig.i
-	make -C tcl 
+	$(MAKE) -C tcl 
 
 
 #############################################################
@@ -415,7 +417,7 @@ win32/libbiosig.a: $(MinGWOBJECTS) win32/libcnsfef.a biosig.h biosig-dev.h
 	$(CROSS)-$(AR) "$@" $(MinGWOBJECTS) t240/*.obj
 
 win32/libcnsfef.a:
-	make CROSS=$(CROSS) -C t240 ../win32/libcnsfef.a 
+	$(MAKE) CROSS=$(CROSS) -C t240 ../win32/libcnsfef.a 
 
 win32/libbiosig.dll: $(MinGWOBJECTS) biosig.h biosig-dev.h
 	$(MinGWLINK) -shared -fPIC  $(MinGWOBJECTS) $(MinGWLIBS) -o "$@" -Wl,--output-def,win32/libbiosig.def,--out-implib,win32/libbiosig.dll.a
@@ -442,7 +444,7 @@ win64/libbiosig.a: $(MinGW64OBJECTS) win64/libcnsfef.a biosig.h biosig-dev.h
 	$(CROSS64)-$(AR) "$@" $(MinGW64OBJECTS) t240/*.o64
 
 win64/libcnsfef.a:
-	make CROSS64=$(CROSS64) -C t240 ../win64/libcnsfef.a 
+	$(MAKE) CROSS64=$(CROSS64) -C t240 ../win64/libcnsfef.a 
 
 win64/libbiosig.dll: $(MinGW64OBJECTS) biosig.h biosig-dev.h
 	$(MinGW64LINK) -shared -fPIC  $(MinGW64OBJECTS) $(MinGW64LIBS) -o "$@" -Wl,--output-def,win32/libbiosig.def,--out-implib,win32/libbiosig.dll.a
@@ -462,8 +464,8 @@ win64: win64/save2gdf.exe win64/libbiosig.dll win64/libbiosig.a #mexw64 win64mma
 #############################################################
 
 t240/libcnsfef.a:
-#	make -C t240 regen		#
-	make -C t240 libcnsfef.a	# generate t240/*.o files
+#	$(MAKE) -C t240 regen		#
+	$(MAKE) -C t240 libcnsfef.a	# generate t240/*.o files
 
 libbiosig.a: $(OBJECTS) t240/libcnsfef.a biosig.h biosig-dev.h
 	-$(DELETE) libbiosig.a
@@ -496,28 +498,28 @@ biosig_server: biosig_server.c libbiosig.$(LIBEXT) biosig-network.o Makefile
 #	MathLink interface to Mathematica
 #############################################################
 mma: libbiosig.$(LIBEXT)
-	make -C mma CROSS=$(CROSS) CROSS64=$(CROSS64) sload
+	$(MAKE) C mma CROSS=$(CROSS) CROSS64=$(CROSS64) sload
 
 win32mma: win32/libbiosig.a
-	make -C mma CROSS=$(CROSS) CROSS64=$(CROSS64) sload.exe
+	$(MAKE) -C mma CROSS=$(CROSS) CROSS64=$(CROSS64) sload.exe
 
 win64mma: win64/libbiosig.a 
-	make -C mma CROSS=$(CROSS) CROSS64=$(CROSS64) sload.w64.exe
+	$(MAKE) -C mma CROSS=$(CROSS) CROSS64=$(CROSS64) sload.w64.exe
 
 
 #############################################################
 #	MEX-files for Octave and Matlab
 #############################################################
 mex mex4m mex4o oct %.mex %.$(MEX_EXT): libbiosig.a
-	make -C mex CROSS=$(CROSS) CROSS64=$(CROSS64) OCTAVE_VERSION=$(OCTAVE_VERSION) $@
+	$(MAKE) -C mex CROSS=$(CROSS) CROSS64=$(CROSS64) OCTAVE_VERSION=$(OCTAVE_VERSION) $@
 	-cp mex/*.mex* ../biosig/t200_FileAccess/
 
 mexw32 %.mexw32: win32/libbiosig.a
-	make -C mex CROSS=$(CROSS) CROSS64=$(CROSS64) $(@F)
+	$(MAKE) -C mex CROSS=$(CROSS) CROSS64=$(CROSS64) $(@F)
 	-cp mex/*.mexw32 ../biosig/t200_FileAccess/
 	
 mexw64 %.mexw64: win64/libbiosig.a
-	make -C mex CROSS=$(CROSS) CROSS64=$(CROSS64) $(@F)
+	$(MAKE) -C mex CROSS=$(CROSS) CROSS64=$(CROSS64) $(@F)
 	-cp mex/*.mexw64 ../biosig/t200_FileAccess/
 
 #############################################################
@@ -525,18 +527,18 @@ mexw64 %.mexw64: win64/libbiosig.a
 #############################################################
 
 sigviewer: $(PathToSigViewer)/bin/sigviewer 
-	$(COPY) $(PathToSigViewer)/bin/release/sigviewer ~/bin/sigviewer-$(TODAY)
-	mv $(PathToSigViewer)/bin/release/sigviewer ~/bin/sigviewer-$(shell cat $(PathToSigViewer)/src/version.txt)
-	ln -sf ~/bin/sigviewer-$(TODAY) ~/bin/sigviewer 
+	$(COPY) $(PathToSigViewer)/bin/release/sigviewer bin/sigviewer-$(TODAY)
+	$(COPY) $(PathToSigViewer)/bin/release/sigviewer bin/sigviewer-$(shell cat $(PathToSigViewer)/src/version.txt)
+	ln -sf bin/sigviewer-$(TODAY) bin/sigviewer 
 
 $(PathToSigViewer)/bin/sigviewer: libbiosig.$(LIBEXT) biosig.h
-	-$(COPY) ../biosig/doc/eventcodes.txt $(PathToSigViewer)/src/
 	-$(DELETE) $(PathToSigViewer)/extern/include/*
 	-$(COPY) biosig.h $(PathToSigViewer)/extern/include
 	-$(DELETE) $(PathToSigViewer)/extern/lib/lib*
 	-$(COPY) libbiosig.a $(PathToSigViewer)/extern/lib
 	sed -i 's|\([[:space:]]*-lbiosig\)\([ #\\]*\)$$|\1 -lcholmod -lz \2|' $(PathToSigViewer)/src/src.pro
-	(cd $(PathToSigViewer)/src; qmake;make;)
+	(cd $(PathToSigViewer)/src; qmake; $(MAKE);)
+	#(cd $(PathToSigViewer); svn revert -R .; svn up -r 556; patch -p0 <../biosig4c++/patches/patch_sigviewer_0.5.1-as.4-DisplayHeaderInfo+EventTableAlways4Columns+SampleRateChanged2FLOAT64+libbiosigEventTable.diff; cd src; qmake; $(MAKE);)
 
 docs: 	docs/save2gdf.txt  docs/mexSLOAD.txt
 	asciidoc -d manpage docs/save2gdf.txt
@@ -569,14 +571,14 @@ distclean:
 	-$(DELETE) win32/*.a win32/*.lib win32/libbiosig.* win32/*.obj win32/*.exe
 	-$(DELETE) win64/*.a win64/*.lib win64/libbiosig.* win64/*.obj win64/*.exe
 	-$(DELETE) -rf win32/zlib
-	-make -C java clean
-	-make -C matlab clean
-	-make -C mma clean
-	-make -C php clean
-	-make -C perl clean
-	-make -C ruby clean
-	-make -C tcl clean
-	-make -C mex clean
+	-$(MAKE) -C java clean
+	-$(MAKE) -C matlab clean
+	-$(MAKE) -C mma clean
+	-$(MAKE) -C php clean
+	-$(MAKE) -C perl clean
+	-$(MAKE) -C ruby clean
+	-$(MAKE) -C tcl clean
+	-$(MAKE) -C mex clean
 
 clean:
 	-$(DELETE) *~
@@ -596,14 +598,14 @@ clean:
 	-$(DELETE) t240/libbiosig.*
 	-$(DELETE) t240/*.obj
 	-$(DELETE) pdp2gdf
-	-make -C java clean
-	-make -C matlab clean
-	-make -C mma clean
-	-make -C php clean
-	-make -C perl clean
-	-make -C ruby clean
-	-make -C tcl clean
-	-make -C mex clean
+	-$(MAKE) -C java clean
+	-$(MAKE) -C matlab clean
+	-$(MAKE) -C mma clean
+	-$(MAKE) -C php clean
+	-$(MAKE) -C perl clean
+	-$(MAKE) -C ruby clean
+	-$(MAKE) -C tcl clean
+	-$(MAKE) -C mex clean
 
 install_sigviewer: sigviewer
 	install $(PathToSigViewer)/bin/release/sigviewer $(BIN)
@@ -630,8 +632,8 @@ install: save2gdf libbiosig.a libbiosig.so doc/save2gdf.1
 	mkdir -p  		$(DESTDIR)/usr/share/man/man1
 	install doc/*.1  	$(DESTDIR)/usr/share/man/man1
 	#install libbiosig.man $(DESTDIR)/usr/share/
-	#make install_sigviewer
-	#make install_octave
+	#$(MAKE)  install_sigviewer
+	#$(MAKE)  install_octave
 
 remove:
 	rm $(BIN)/save2gdf

@@ -1,3 +1,16 @@
+Index: src/file_handling/basic_header.h
+===================================================================
+--- src/file_handling/basic_header.h	(revision 556)
++++ src/file_handling/basic_header.h	(working copy)
+@@ -47,7 +47,7 @@
+     unsigned getNumberChannels() const;
+ 
+     //-------------------------------------------------------------------------
+-    virtual uint32 getNumberOfSamples () const = 0;
++    virtual size_t getNumberOfSamples () const = 0;
+ 
+     //-------------------------------------------------------------------------
+     virtual QMap<unsigned, QString> getNamesOfUserSpecificEvents () const
 Index: src/file_handling/channel_manager.h
 ===================================================================
 --- src/file_handling/channel_manager.h	(revision 556)
@@ -39,24 +52,6 @@ Index: src/version.txt
 -0.5.1
 +0.5.1-as.4
  
-Index: src/file_handling_impl/sinus_dummy_reader.cpp
-===================================================================
---- src/file_handling_impl/sinus_dummy_reader.cpp	(revision 556)
-+++ src/file_handling_impl/sinus_dummy_reader.cpp	(working copy)
-@@ -29,11 +29,11 @@
-             data->push_back (sin(sample_index / ((i*i+1))));
-         QSharedPointer<DataBlock const> data_block (new FixedDataBlock (data, 100));
-         data_.insert(i, data_block);
--
-+/*
-         QSharedPointer<SignalChannel> channel (new SignalChannel(i,
-                                                    QString::number(i)));
-         header->addDummyChannel(i, channel);
--        header_ = header;
-+*/        header_ = header;
-     }
- 
-     for (int i = 0; i < 40; i++)
 Index: src/file_handling_impl/biosig_reader.cpp
 ===================================================================
 --- src/file_handling_impl/biosig_reader.cpp	(revision 556)
@@ -118,6 +113,24 @@ Index: src/file_handling_impl/biosig_reader.cpp
          events_.append (event);
      }
  
+Index: src/file_handling_impl/sinus_dummy_reader.cpp
+===================================================================
+--- src/file_handling_impl/sinus_dummy_reader.cpp	(revision 556)
++++ src/file_handling_impl/sinus_dummy_reader.cpp	(working copy)
+@@ -29,11 +29,11 @@
+             data->push_back (sin(sample_index / ((i*i+1))));
+         QSharedPointer<DataBlock const> data_block (new FixedDataBlock (data, 100));
+         data_.insert(i, data_block);
+-
++/*
+         QSharedPointer<SignalChannel> channel (new SignalChannel(i,
+                                                    QString::number(i)));
+         header->addDummyChannel(i, channel);
+-        header_ = header;
++*/        header_ = header;
+     }
+ 
+     for (int i = 0; i < 40; i++)
 Index: src/file_handling_impl/event_table_file_reader.cpp
 ===================================================================
 --- src/file_handling_impl/event_table_file_reader.cpp	(revision 556)
@@ -444,6 +457,19 @@ Index: src/file_handling_impl/sinus_dummy_header.h
  
      //-------------------------------------------------------------------------
      void addDummyChannel (ChannelID id, QSharedPointer<SignalChannel const> channel)
+Index: src/file_handling_impl/biosig_basic_header.h
+===================================================================
+--- src/file_handling_impl/biosig_basic_header.h	(revision 556)
++++ src/file_handling_impl/biosig_basic_header.h	(working copy)
+@@ -14,7 +14,7 @@
+     BiosigBasicHeader (HDRTYPE* raw_header, QString const& file_path);
+ 
+     //-------------------------------------------------------------------------
+-    virtual uint32 getNumberOfSamples () const;
++    virtual size_t getNumberOfSamples () const;
+ 
+     //-------------------------------------------------------------------------
+     virtual QMap<unsigned, QString> getNamesOfUserSpecificEvents () const;
 Index: src/gui_impl/signal_browser/signal_browser_model_4.cpp
 ===================================================================
 --- src/gui_impl/signal_browser/signal_browser_model_4.cpp	(revision 556)
@@ -774,6 +800,19 @@ Index: src/base/signal_channel.h
      bool notch_;
  };
  
+Index: src/base/math_utils.h
+===================================================================
+--- src/base/math_utils.h	(revision 556)
++++ src/base/math_utils.h	(working copy)
+@@ -42,7 +42,7 @@
+ 
+ //-----------------------------------------------------------------------------
+ /// @return number of decimals needed to display time intervals correctly
+-int sampleRateToDecimalPrecision (float sample_rate);
++int sampleRateToDecimalPrecision (float64 sample_rate);
+ 
+ }
+ 
 Index: src/base/signal_event.cpp
 ===================================================================
 --- src/base/signal_event.cpp	(revision 556)
@@ -810,39 +849,6 @@ Index: src/base/signal_event.cpp
  }
  
  //-----------------------------------------------------------------------------
-Index: src/base/math_utils.h
-===================================================================
---- src/base/math_utils.h	(revision 556)
-+++ src/base/math_utils.h	(working copy)
-@@ -42,7 +42,7 @@
- 
- //-----------------------------------------------------------------------------
- /// @return number of decimals needed to display time intervals correctly
--int sampleRateToDecimalPrecision (float sample_rate);
-+int sampleRateToDecimalPrecision (float64 sample_rate);
- 
- }
- 
-Index: src/base/signal_event.h
-===================================================================
---- src/base/signal_event.h	(revision 556)
-+++ src/base/signal_event.h	(working copy)
-@@ -24,12 +24,12 @@
- 
-     int32 getId() const;
-     uint32 getPosition() const;
--    float32 getPositionInSec() const;
-+    float64 getPositionInSec() const;
-     uint16 getType() const;
-     ChannelID getChannel() const;
-     uint32 getDuration() const;
--    float32 getDurationInSec() const;
--    float32 getEndInSec () const;
-+    float64 getDurationInSec() const;
-+    float64 getEndInSec () const;
-     float64 getSampleRate () const;
- 
-     void setId (EventID id);
 Index: src/base/data_block.cpp
 ===================================================================
 --- src/base/data_block.cpp	(revision 556)
@@ -865,6 +871,26 @@ Index: src/base/data_block.cpp
  {
      return sample_rate_per_unit_;
  }
+Index: src/base/signal_event.h
+===================================================================
+--- src/base/signal_event.h	(revision 556)
++++ src/base/signal_event.h	(working copy)
+@@ -24,12 +24,12 @@
+ 
+     int32 getId() const;
+     uint32 getPosition() const;
+-    float32 getPositionInSec() const;
++    float64 getPositionInSec() const;
+     uint16 getType() const;
+     ChannelID getChannel() const;
+     uint32 getDuration() const;
+-    float32 getDurationInSec() const;
+-    float32 getEndInSec () const;
++    float64 getDurationInSec() const;
++    float64 getEndInSec () const;
+     float64 getSampleRate () const;
+ 
+     void setId (EventID id);
 Index: src/base/data_block.h
 ===================================================================
 --- src/base/data_block.h	(revision 556)

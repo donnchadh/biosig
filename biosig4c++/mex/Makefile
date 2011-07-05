@@ -56,10 +56,10 @@ OCT           	= mkoctfile$(OCTAVE_VERSION)
 ##########################################################
 
 ../libbiosig.$(LIBEXT):
-	make -C .. libbiosig.$(LIBEXT)
+	$(MAKE) -C .. libbiosig.$(LIBEXT)
 
 ../win32/libbiosig.a:
-	make -C .. win32/libbiosig.a
+	$(MAKE) -C .. win32/libbiosig.a
 
 #############################################################
 #	MEX-Interface for Octave and Matlab
