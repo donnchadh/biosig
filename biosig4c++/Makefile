@@ -125,7 +125,7 @@ PathToMinGW64 = $(dir $(CROSS64))..$(nondir $(CROSS64))
 MinGWCC      = $(CROSS)-gcc
 MinGWCXX     = $(CROSS)-g++
 MinGWDEF     = $(DEFINES) 
-MinGWCFLAGS  = -pipe -fPIC -D_REENTRANT -D=BUILD_DLL $(MinGWDEF) -I$(PathToMinGW)/include/
+MinGWCFLAGS  = -pipe -fPIC  -D_REENTRANT -D=BUILD_DLL $(MinGWDEF) -I$(PathToMinGW)/include/
 MinGWLIBS    = win32/libbiosig.a -L$(PathToMinGW)/lib/ -lws2_32 $(LDLIBS) # static
 MinGWLINK    = $(MinGWCXX)
 
@@ -348,7 +348,7 @@ win32/sigviewer.exe: win32/libbiosig.a win32/libbiosig.dll
 	-$(COPY) win32/libbiosig.a $(PathToSigViewerWIN32)/extern/lib
 	sed -i 's|\([[:space:]]*-lbiosig\)\([ #\\]*\)$$|\1 -lcholmod -lz \2|' $(PathToSigViewerWIN32)/src/src.pro
 	-(cd $(PathToSigViewerWIN32)/src; $(CROSS)-qmake; make)
-	-$(COPY) $(PathToSigViewerWIN32)/bin/release/sigviewer.exe win32/
+	-$(COPY) $(PathToSigViewerWIN32)/bin/release/sigviewer.exe win32/sigviewer-$(shell cat $(PathToSigViewerWIN32)/src/version.txt)
 
 ########### WIN64 ##################
 
@@ -372,7 +372,7 @@ win64/sigviewer.exe: win64/libbiosig.a win64/libbiosig.dll
 	-$(COPY) win64/libbiosig.a $(PathToSigViewerWIN64)/extern/lib
 	sed -i 's|\([[:space:]]*-lbiosig\)\([ #\\]*\)$$|\1 -lcholmod -lz \2|' $(PathToSigViewerWIN64)/src/src.pro
 	-(cd $(PathToSigViewerWIN64)/src; $(CROSS64)-qmake; make)
-	-$(COPY) $(PathToSigViewerWIN64)/bin/release/sigviewer.exe win64/
+	-$(COPY) $(PathToSigViewerWIN64)/bin/release/sigviewer.exe win64/sigviewer-$(shell cat $(PathToSigViewerWIN64)/src/version.txt)
 
 
 #############################################################
@@ -526,7 +526,7 @@ mexw64 %.mexw64: win64/libbiosig.a
 
 sigviewer: $(PathToSigViewer)/bin/sigviewer 
 	$(COPY) $(PathToSigViewer)/bin/release/sigviewer ~/bin/sigviewer-$(TODAY)
-	mv $(PathToSigViewer)/bin/release/sigviewer ~/bin/sigviewer-$(TODAY)
+	mv $(PathToSigViewer)/bin/release/sigviewer ~/bin/sigviewer-$(shell cat $(PathToSigViewer)/src/version.txt)
 	ln -sf ~/bin/sigviewer-$(TODAY) ~/bin/sigviewer 
 
 $(PathToSigViewer)/bin/sigviewer: libbiosig.$(LIBEXT) biosig.h
