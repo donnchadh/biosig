@@ -6423,6 +6423,10 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",(int)SPR,hdr-
 	else if (hdr->TYPE==EEG1100) {
 		// the information of this format is derived from nk2edf-0.43beta-src of Teunis van Beelen
 
+		if (VERBOSE_LEVEL>7)
+			fprintf(stdout,"EEG1100 [207]: \n");
+
+
 		char *fn = (char*)malloc((strlen(hdr->FileName)+5)*sizeof(char));
 		strcpy(fn,hdr->FileName);
 		uint8_t *LOG=NULL;
@@ -6471,6 +6475,11 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",(int)SPR,hdr-
 			}
 
 
+		if (VERBOSE_LEVEL>7)
+			fprintf(stdout,"EEG1100 [222]: \n");
+
+
+
 		size_t n1,n2,k2,pos1,pos2;
 		n1 = hdr->AS.Header[145];
 		if ((n1*20+0x92) > count) {
@@ -6491,6 +6500,12 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",(int)SPR,hdr-
 		uint8_t *h2 = (uint8_t*)malloc(22);
 		uint8_t *h3 = (uint8_t*)malloc(40);
 		for (k=0; k<n1; k++) {
+
+
+		if (VERBOSE_LEVEL>7)
+			fprintf(stdout,"EEG1100 [232] %i: \n",k);
+
+
 			pos1 = leu32p(hdr->AS.Header+146+k*20);
 			ifseek(hdr, pos1, SEEK_SET);
 			ifread(h2, 1, 22, hdr);
@@ -6637,6 +6652,8 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",(int)SPR,hdr-
 		if ((numSegments>1) && (hdr->FLAG.TARGETSEGMENT==1))
 			fprintf(stdout,"File %s has more than one (%i) segment; use TARGET_SEGMENT argument to select other segments.\n",hdr->FileName,numSegments);
 
+		if (VERBOSE_LEVEL>7) fprintf(stdout,"EEG1100 [242]: <%s>\n",fn);
+
 
 		/* read .log */
 		char *c = strrchr(fn,'.');
@@ -6658,14 +6675,28 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",(int)SPR,hdr-
 				LOG[count]=0;
 
 				for (k=0; k<LOG[145]; k++) {
+
+				if (VERBOSE_LEVEL>7) fprintf(stdout,"EEG1100 [252]: %i,%i<%s>\n",k,count,fn);
+
 					uint32_t lba = leu32p(LOG+146+k*20);
+
+				if (VERBOSE_LEVEL>7) fprintf(stdout,"EEG1100 [253]: <%d> %d 0x%x\n",k,lba,lba);
+break;
 					uint32_t N = LOG[lba+18];
+
+				if (VERBOSE_LEVEL>7) fprintf(stdout,"EEG1100 [254]: <%d> %d %d\n",k,lba,N);
+
 					hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP,(hdr->EVENT.N+N)*sizeof(*hdr->EVENT.TYP));
 					hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS,(hdr->EVENT.N+N)*sizeof(*hdr->EVENT.POS));
 					hdr->EVENT.CHN = (typeof(hdr->EVENT.CHN)) realloc(hdr->EVENT.CHN,(hdr->EVENT.N+N)*sizeof(*hdr->EVENT.CHN));
 					hdr->EVENT.DUR = (typeof(hdr->EVENT.DUR)) realloc(hdr->EVENT.DUR,(hdr->EVENT.N+N)*sizeof(*hdr->EVENT.DUR));
+
 					size_t k1;
 					for (k1=0; k1<N; k1++) {
+
+						if (VERBOSE_LEVEL>7) fprintf(stdout,"EEG1100 [257]: [%d,%d] N=%d, <%s>\n",k,k1,hdr->EVENT.N,(char*)(LOG+lba+20+k1*45));
+
+
 						FreeTextEvent(hdr,hdr->EVENT.N,(char*)(LOG+lba+20+k1*45));
 						// fprintf(stdout,"%s %s\n",(char*)(LOG+lba+20+k1*45),(char*)(LOG+lba+40+k1*45));
 						sscanf((char*)(LOG+lba+46+k1*45),"(%02u%02u%02u%02u%02u%02u)",&tm_time.tm_year,&tm_time.tm_mon,&tm_time.tm_mday,&tm_time.tm_hour,&tm_time.tm_min,&tm_time.tm_sec);
@@ -6687,6 +6718,10 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",(int)SPR,hdr-
 		}
 		hdr->AS.auxBUF = LOG;
 		free(fn);
+
+		if (VERBOSE_LEVEL>7)
+			fprintf(stdout,"EEG1100 [292]: \n");
+
 	}
 
 	else if (hdr->TYPE==EEProbe) {
@@ -11787,7 +11822,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 	if (VERBOSE>2) {
 		/* channel settings */
 		fprintf(fid,"\n[CHANNEL HEADER] %p",hdr->CHANNEL);
-		fprintf(fid,"\n#No  LeadId Label\tFs[Hz]\tSPR\tGDFTYP\tCal\tOff\tPhysDim PhysMax  PhysMin DigMax DigMin HighPass LowPass Notch X Y Z");
+		fprintf(fid,"\n#No  LeadId Label\tFs[Hz]\tSPR\tGDFTYP\tCal\tOff\tPhysDim\tPhysMax \tPhysMin \tDigMax  \tDigMin  \tHighPass\tLowPass \tNotch   \tdelay [s]\tX\tY\tZ");
 		size_t k;
 #ifdef CHOLMOD_H
                 typeof(hdr->NS) NS = hdr->NS;
@@ -11814,7 +11849,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 			else if (cp->GDFTYP>511) fprintf(fid, " bit%i  ", cp->GDFTYP-511);
 			else if (cp->GDFTYP>255) fprintf(fid, " bit%i  ", cp->GDFTYP-255);
 
-			fprintf(fid,"%e %e %s\t%g\t%g\t%5f\t%5f\t%5f\t%5f\t%5f\t%5gs\t%5f\t%5f\t%5f",
+			fprintf(fid,"%e %e %s\t%g\t%g\t%5f\t%5f\t%5f\t%5f\t%5f\t%5g\t%5f\t%5f\t%5f",
 				cp->Cal, cp->Off, p,
 				cp->PhysMax, cp->PhysMin, cp->DigMax, cp->DigMin,cp->HighPass,cp->LowPass,cp->Notch,cp->TOffset,
 				cp->XYZ[0],cp->XYZ[1],cp->XYZ[2]);
