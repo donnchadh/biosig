@@ -18,6 +18,7 @@
 ,,"Dimension- less",
 512,"-",,"<dimensionless>"
 544,"%",,"10-2 (percent)"
+544,"percent",,"10-2 (percent)"
 576,"ppht",,"10-3 (part(s) per thousand )"
 608,"ppm",,"10-6 (part(s) per million )"
 640,"ppmd",,"10-9 (part(s) per milliard)"
@@ -114,6 +115,7 @@
 2816,"m s-1",,"<magnitude> metre(s) per second"
 ,,"LT-1  (areic volume rate)",
 2848,"l min-1 m-2",,"<magnitude> litre(s) per minute per square meter"
+2848,"l/(min*m²)",,"<magnitude> litre(s) per minute per square meter"
 2880,"m2 s-1 [cm2 s-1]",,"square <magnitude>  metre(s) per second"
 ,,"L3T-1  (volume flow rate)",
 2912,"m3 s-1",,"cubic <magnitude> metre(s) per second"
@@ -122,6 +124,7 @@
 3008,"m3 d-1",,"cubic <magnitude> metre(s) per day"
 3040,"l s-1",,"<magnitude> litre(s) per second"
 3072,"l min-1",,"<magnitude> litre(s) per minute"
+3072,"l/min",,"<magnitude> litre(s) per minute"
 3104,"l h-1",,"<magnitude> litre(s) per hour"
 3136,"l d-1",,"<magnitude> litre(s) per day"
 ,,"L3M-1 (volume content)",
@@ -167,6 +170,7 @@
 4064,"Pa s m-3",,"<magnitude> pascal second per cubic meter"
 4096,"Pa s l-1",,"<magnitude> pascal second per litre"
 4128,"dyn s cm-5",,"<magnitude> dyne second per cm5"
+4128,"dyne*s/cm^5",,"<magnitude> dyne second per cm5"
 ,,"L4M-1T2 (compliance)",
 5888,"l (cmH2O)-1",,"<magnitude> litre per centimetre of water"
 6272,"l (mmHg)-1",,"<magnitude> litre per millimetre of mercury"
@@ -256,6 +260,7 @@
 6208,"Pa %-1","- ratio of paO2 to FIO2","<magnitude> pascal per percent"
 6432,"B", "Bel", "relative power decibel"	
 6624,"m s-2", "meter per second squared", "acceleration"
+6624,"m/s²", "meter per second squared", "acceleration"
 6656,"rad s2-2", "radians per second squared", "(angular) acceleration" 
 ### private: units with no standardized code
 #,"kgf m [J]",,Left Stroke Work (LSW)
@@ -269,7 +274,10 @@
 65376,"r.p.m",,"rotations per minute"
 65408,"B", "Bel", "relative power decibel"
 65440,"dyne s m2 cm-5","Vascular Resistance Index","dyne seconds square meter per centimetre to the power of 5"
+65440,"dyne*s*m²/cm^5","Vascular Resistance Index","dyne seconds square meter per centimetre to the power of 5"
 65472,"l m-2","stroke index","litres per square meter"
+65472,"l/m²","stroke index","litres per square meter"
 65504,"T",,"<magnitude> Tesla" 
+65504,"ml/m²",,"<magnitude> Tesla" 
 #
 #
