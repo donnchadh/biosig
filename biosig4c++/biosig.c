@@ -51,6 +51,7 @@
 //#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+/*@=skipposixheaders@*/
 #include <sys/stat.h>
 
 #include "biosig-dev.h"
@@ -266,7 +267,7 @@ const char *MIT_EVENT_DESC[] = {
 /* --------------------------------------------------- *
  *	Global Event Code Table                        *
  * --------------------------------------------------- */
-static char GLOBAL_EVENTCODES_ISLOADED = 0;
+static uint8_t GLOBAL_EVENTCODES_ISLOADED = 0;
 struct global_t {
 	uint16_t LenCodeDesc;
 	uint16_t *CodeIndex;
@@ -279,7 +280,7 @@ struct global_t {
 // event table desription
 const struct etd_t ETD [] = { 
 #include "eventcodes.i"
-	0, 0, NULL
+	{0, 0, ""}
 };
 
 // event groups 
@@ -302,7 +303,7 @@ uint32_t gcd(uint32_t A, uint32_t B)
 	if (A<B) {t=B; B=A; A=t;};
 	while (B>0) {
 		t = B;
-		B = A%B;
+		B = A%B;	
 		A = t;
 	}
 	return(A);
@@ -315,7 +316,7 @@ uint32_t lcm(uint32_t A, uint32_t B)
 	uint64_t A64 = A;
 	A64 *= B/gcd(A,B);
 	if (A64 > 0x00000000ffffffffllu) {
-		fprintf(stderr,"Error: HDR.SPR=LCM(%u,%u) overflows and does not fit into uint32.\n",A,B);
+		fprintf(stderr,"Error: HDR.SPR=LCM(%u,%u) overflows and does not fit into uint32.\n",(unsigned)A,(unsigned)B);
 		exit(-4);
 	}
 	return((uint32_t)A64);
@@ -543,8 +544,9 @@ void bef64a(  double i, uint8_t* r) {
 void* mfer_swap8b(uint8_t *buf, int8_t len, char FLAG_SWAP)
 {
 	if (VERBOSE_LEVEL==9)
-		fprintf(stdout,"swap=%i %i %i \nlen=%i %2x%2x%2x%2x%2x%2x%2x%2x\n",(int)FLAG_SWAP, __BYTE_ORDER, __LITTLE_ENDIAN, len, buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6],buf[7]);
+		fprintf(stdout,"swap=%i %i %i \nlen=%i %2x%2x%2x%2x%2x%2x%2x%2x\n",(int)FLAG_SWAP, __BYTE_ORDER, __LITTLE_ENDIAN, (int)len, (unsigned)buf[0],(unsigned)buf[1],(unsigned)buf[2],(unsigned)buf[3],(unsigned)buf[4],(unsigned)buf[5],(unsigned)buf[6],(unsigned)buf[7]);
 
+#ifndef S_SPLINT_S
 	typedef uint64_t iType;
 #if __BYTE_ORDER == __BIG_ENDIAN
         if (FLAG_SWAP) {
@@ -563,7 +565,7 @@ void* mfer_swap8b(uint8_t *buf, int8_t len, char FLAG_SWAP)
 	}
 
 #endif
-
+#endif
 	if (VERBOSE_LEVEL==9)
 		fprintf(stdout,"%2x%2x%2x%2x%2x%2x%2x%2x %li %f\n",buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6],buf[7],*(uint64_t*)buf,*(double*)buf);
 
@@ -676,7 +678,7 @@ int strcmp8(const char* str1, const char* str2)
 */
 int u32cmp(const void *a,const void *b)
 {
-	return(*(uint32_t*)a - *(uint32_t*)b);
+	return((int)(*(uint32_t*)a - *(uint32_t*)b));
 }
 
 
@@ -706,15 +708,15 @@ double PhysDimScale(uint16_t PhysDimCode)
 char* PhysDim(uint16_t PhysDimCode, char *PhysDim)
 {
 	// converting PhysDimCode -> PhysDim
+	uint16_t k=0;
 
 	strcpy(PhysDim,PhysDimFactor[PhysDimCode & 0x001F]);
 
 	PhysDimCode &= ~0x001F;
-	uint16_t k;
 	for (k=0; _physdim[k].idx<0xffff; k++)
 	if (PhysDimCode == _physdim[k].idx) {
 		strncat(PhysDim, _physdim[k].PhysDimDesc, MAX_LENGTH_PHYSDIM);
-		PhysDim[MAX_LENGTH_PHYSDIM]=0;
+		PhysDim[MAX_LENGTH_PHYSDIM]='\0';
 		break;
 	}
 	return(PhysDim);
@@ -724,12 +726,12 @@ uint16_t PhysDimCode(char* PhysDim0)
 {
 // converting PhysDim -> PhysDimCode
 	/* converts Physical dimension into 16 bit code */
-	if (PhysDim0==NULL) return(0);
-	if (!strlen(PhysDim0)) return(0);
-
 	uint16_t k1, k2;
 	char s[80];
 	char *s1;
+
+	if (PhysDim0==NULL) return(0);
+	if (strlen(PhysDim0)!=0) return(0);
 
 	// greedy search - check all codes 0..65535
 	for (k1=0; k1<33; k1++)
@@ -780,8 +782,9 @@ gdf_time tm_time2gdf_time(struct tm *t){
 	int Y,M,s; //h,m,
 	double D;
 	gdf_time o;
+  	const int monthstart[] = {306, 337, 0, 31, 61, 92, 122, 153, 184, 214, 245, 275};
 
-	D = t->tm_mday;
+	D = (double)t->tm_mday;
 	M = t->tm_mon+1;
 	Y = t->tm_year+1900;
 
@@ -789,19 +792,18 @@ gdf_time tm_time2gdf_time(struct tm *t){
   	// Correct for months > 12 by moving to subsequent years.
   	Y += fix ((M-14.0)/12);
 
-  	const int monthstart[] = {306, 337, 0, 31, 61, 92, 122, 153, 184, 214, 245, 275};
 	// Lookup number of days since start of the current year.
   	D += monthstart[t->tm_mon % 12] + 60;
 
 	// Add number of days to the start of the current year. Correct
   	// for leap year every 4 years except centuries not divisible by 400.
-  	D += 365*Y + floor (Y/4) - floor (Y/100) + floor (Y/400);
+  	D += 365*Y + floor (Y/4.0) - floor (Y/100.0) + floor (Y/400.0);
 
   	// Add fraction representing current second of the day.
   	s = t->tm_hour*3600 + t->tm_min*60 + t->tm_sec;
 
 	// s -= timezone;
-  	o = (((int64_t)D) << 32) + (((int64_t)s) << 32)/86400;
+  	o = (((uint64_t)D) << 32) + (((uint64_t)s) << 32)/86400;
 
 	return(o);
 }
@@ -819,7 +821,8 @@ struct tm *gdf_time2tm_time(gdf_time t) {
 	static struct tm tt;	// allocate memory for t3;
 	struct tm *t3 = &tt;
 	int32_t rd = (int32_t)floor(ldexp((double)t,-32)); // days since 0001-01-01
-
+	double s = ldexp((t & 0x00000000ffffffff)*86400,-32); // seconds of the day
+	// s += timezone;
 
 	/* derived from datenum.m from Octave 3.0.0 */
 
@@ -842,9 +845,6 @@ struct tm *gdf_time2tm_time(gdf_time t) {
 	t3->tm_year = y-1900;
 	t3->tm_mon  = (int)m-1;
 	t3->tm_mday = (int)d;
-
-	double s = ldexp((t & 0x00000000ffffffff)*86400,-32); // seconds of the day
-	// s += timezone;
 
 	t3->tm_hour = (int)(floor (s / 3600));
 	s = s - 3600 * t3->tm_hour;
@@ -1131,9 +1131,9 @@ void convert2to4_eventtable(HDRTYPE *hdr) {
 	converts event table from [TYP,POS,CHN,DUR} to {TYP,POS} format
   ------------------------------------------------------------------------*/
 void convert4to2_eventtable(HDRTYPE *hdr) {
+	size_t k1,k2,N = hdr->EVENT.N;
 	if ((hdr->EVENT.DUR == NULL) || (hdr->EVENT.CHN == NULL)) return;
 
-	size_t k1,k2,N = hdr->EVENT.N;
 	for (k1=0; k1<N; k1++)
 		if (hdr->EVENT.CHN[k1]) return;
 
@@ -1230,6 +1230,7 @@ void FreeGlobalEventCodeTable() {
 
 void LoadGlobalEventCodeTable()
 {
+	size_t N = 0;
 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(start)%i\n",GLOBAL_EVENTCODES_ISLOADED);
 
@@ -1242,7 +1243,6 @@ void LoadGlobalEventCodeTable()
 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(101)%i %i\n",GLOBAL_EVENTCODES_ISLOADED,Global.LenCodeDesc);
 
-	size_t N = 0;
 	while (ETD[N].desc != NULL) N++;
 	N += 256; 	// make sure there is enough space for free text events 
 	Global.CodeIndex = (uint16_t*)realloc(Global.CodeIndex, N*sizeof(uint16_t));
@@ -1270,6 +1270,7 @@ void FreeTextEvent(HDRTYPE* hdr,size_t N_EVENT, char* annotation) {
 	/* free text annotations encoded as user specific events (codes 1-255) */
 
 	size_t k;
+	int flag;
 //	static int LengthCodeDesc = 0;
 	if (hdr->EVENT.CodeDesc == NULL) {
 		hdr->EVENT.CodeDesc = (typeof(hdr->EVENT.CodeDesc)) realloc(hdr->EVENT.CodeDesc,257*sizeof(*hdr->EVENT.CodeDesc));
@@ -1293,7 +1294,7 @@ void FreeTextEvent(HDRTYPE* hdr,size_t N_EVENT, char* annotation) {
 	}
 
 	// Second, compare text with user-defined event description
-	int flag=1;
+	flag=1;
 	for (k=0; (k < hdr->EVENT.LenCodeDesc) && flag; k++) {
 		if (!strncmp(hdr->EVENT.CodeDesc[k], annotation, strlen(annotation))) {
 			hdr->EVENT.TYP[N_EVENT] = k;
@@ -1341,9 +1342,13 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 		uint8_t  testbyte[sizeof(uint32_t)];
 	} EndianTest;
     	int k,k1;
+	uint8_t	LittleEndian;
+      	// set default IP address to local IP address
+	char localhostname[HOST_NAME_MAX+1];
+	size_t BitsPerBlock;
 
 	EndianTest.testword = 0x4a3b2c1d;
-	uint8_t	LittleEndian = (EndianTest.testbyte[0]==0x1d);
+	LittleEndian = (EndianTest.testbyte[0]==0x1d);
 
 	if  ((LittleEndian) && (__BYTE_ORDER == __BIG_ENDIAN))	{
 		B4C_ERRNUM = B4C_ENDIAN_PROBLEM;
@@ -1404,9 +1409,6 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	getlogin_r(hdr->ID.Technician, MAX_LENGTH_TECHNICIAN);
 	//hdr->ID.Technician[MAX_LENGTH_TECHNICIAN]=0;
 
-      	// set default IP address to local IP address
-	char localhostname[HOST_NAME_MAX+1];
-
 #ifndef WITHOUT_NETWORK
 #ifdef _WIN32
 	WSADATA wsadata;
@@ -1454,8 +1456,9 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 
        	// define variable header
 	hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS,sizeof(CHANNEL_TYPE));
-	size_t BitsPerBlock = 0;
+	BitsPerBlock = 0;
 	for (k=0;k<hdr->NS;k++)	{
+		uint32_t nbits;
 		CHANNEL_TYPE *hc = hdr->CHANNEL+k;
 	      	hc->Label[0]  = 0;
 	      	hc->LeadIdCode= 0;
@@ -1472,7 +1475,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	      	hc->SPR       = 1;	// one sample per block
 	      	hc->bi 	      = 2*k;
 	      	hc->bi8	      = BitsPerBlock;
-		uint32_t nbits 	= GDFTYP_BITS[hc->GDFTYP]*hc->SPR;
+	 	nbits = GDFTYP_BITS[hc->GDFTYP]*hc->SPR;
 		BitsPerBlock   += nbits;
 	      	hc->OnOff     = 1;
 	      	hc->HighPass  = 0.16;

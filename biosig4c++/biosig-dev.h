@@ -256,7 +256,7 @@ void bef64a(  double i, uint8_t* r);
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #ifndef VERBOSE_LEVEL
-EXTERN_C int   VERBOSE_LEVEL; 	// used for debugging
+extern int   VERBOSE_LEVEL; 	// used for debugging
 #endif 
 
 
@@ -391,8 +391,8 @@ int             iferror(HDRTYPE* hdr);
 uint32_t gcd(uint32_t A, uint32_t B);
 uint32_t lcm(uint32_t A, uint32_t B);
 
-EXTERN_C const int16_t GDFTYP_BITS[];
-EXTERN_C const char *LEAD_ID_TABLE[];
+extern const int16_t GDFTYP_BITS[];
+extern const char *LEAD_ID_TABLE[];
 
 uint16_t CRCEvaluate(uint8_t* datablock, uint32_t datalength);
 int16_t CRCCheck(uint8_t* datablock, uint32_t datalength);

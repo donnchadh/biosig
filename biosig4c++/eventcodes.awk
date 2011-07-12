@@ -53,10 +53,10 @@ END {
        
         for (i=1; i<256; i++) {
  		# add pre-defined user-specified events 0x0001-0x00ff
-               printf("\t0x%04x, 0x0000, \"condition %i\",\n",i,i) > "eventcodes.i"
+               printf("\t{ 0x%04x, 0x0000, \"condition %i\" },\n",i,i) > "eventcodes.i"
         } 
         for (i=1; i<=nC; i++) {
-                printf("\t%s, 0x%s, \"%s\",\n",C[i,1],C[i,2],C[i,3]) | "sort >> eventcodes.i"
+                printf("\t{ %s, 0x%s, \"%s\" },\n",C[i,1],C[i,2],C[i,3]) | "sort >> eventcodes.i"
         } 
 }
 
