@@ -13,6 +13,14 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % PLOTA(X, 'BLAND-ALTMAN')    Bland-Altman plot, or mean-difference plot
 %        data is organized in columns               
 %
+% PLOTA(HDR, 'ISI')
+% PLOTA(filename, 'ISI')
+%       plot Inter-spike-Interval 
+% PLOTA(HDR, 'HRV')
+% PLOTA(filename, 'HRV')
+% PLOTA(HDR, 'RRI')
+% PLOTA(filename, 'RRI')
+%       R-R interval, instantaneous Heart rate  
 % 
 % if X.TYPE=='EVENT' and X.EVENT
 % 
@@ -131,31 +139,55 @@ end;
 
 if 0,
 
-elseif strcmp(arg2,'ISI') 
+elseif strcmp(arg2,'ISI') || strcmp(arg2,'HRV')  || strcmp(arg2,'RRI') 
+	if strcmp(arg2,'ISI') 
+		TYP = hex2dec('0201');	% spike/action potential
+		YLABEL = 'inter-spike interval [s]';
+	elseif strcmp(arg2,'HRV') ||  || strcmp(arg2,'RRI') 
+		TYP = hex2dec('0501');	% fiducial QRS point
+		YLABEL = 'R-R interval [s]';
+	end; 
 
-		if isstruct(X) && strcmp(arg2,'ISI') && isfield(X,'EVENT') && isfield(X.EVENT,'POS') 
-			HDR = X;
-		elseif ischar(X) && exist(X,'file')
-			HDR = sopen(X); HDR=sclose(HDR); 
-		end; 
-		%%% histogram of inter-spike interval 
-		T = repmat(NaN,length(HDR.EVENT.POS),1);
-		ix = find(HDR.EVENT.TYP==hex2dec('0201'));
-		T(ix) = HDR.EVENT.POS(ix); 
-		d = diff(T); 
-		d = d(~isnan(d))/HDR.SampleRate;
-		if 0, 
-			C = 0:size(T,1)-2;
-			CC = zeros(size(C));
-			ix = diff(T) > 50e-3*HDR.SampleRate; 
-			CC(ix) = C(ix);
-			C = C - cumsum(CC) + 1;
-		end; 
+	if isstruct(X) && isfield(X,'EVENT') && isfield(X.EVENT,'POS') 
+		HDR = X;
+	elseif ischar(X) && exist(X,'file')
+		HDR = sopen(X);
+		%%%%% here, an automated event detection could be include. 
+		% 	candiates are QRS_DETECT, and DETECT_SPIKE_BURST
+		% 	however, the methods are currently not good enough for a fully automated detection
+		%	so, the user should be aware what's going, therefore this is currently not included. 	
+		HDR = sclose(HDR); 
+	else
+		error('1st input argument unknown/unsupported')
+	end; 
 
-		semilogy((T(1:end-1)+T(2:end))/(2*HDR.EVENT.SampleRate), diff(T)/HDR.EVENT.SampleRate,'.');
-		title(HDR.FileName);
-		ylabel('inter-spike interval [s]');
-		xlabel('time [s]');
+	ix = find(HDR.EVENT.TYP==TYP | HDR.EVENT.TYP==hex2dec('7ffe'));
+	T = HDR.EVENT.POS(ix); 
+	T(HDR.EVENT.TYP(ix)==hex2dec('7ffe'))=NaN;	% segment limit, do not compute interval across segments
+	if isfield(HDR.EVENT,'CHN');
+		CHN = HDR.EVENT.CHN(ix); 
+	else
+		CHN = [];
+	end;
+	if length(unique(CHN))>1,
+		error('events of multiple channels are not supported.');
+	end;
+
+	d = diff(T); 
+	d = d(~isnan(d))/HDR.SampleRate;
+	if 0, 
+		%% coloured ISI's
+		C = 0:size(T,1)-2;
+		CC = zeros(size(C));
+		ix = diff(T) > 50e-3*HDR.SampleRate; 
+		CC(ix) = C(ix);
+		C = C - cumsum(CC) + 1;
+	end; 
+
+	semilogy((T(1:end-1)+T(2:end)) / (2*HDR.EVENT.SampleRate), diff(T)/HDR.EVENT.SampleRate, '.');
+	title(HDR.FileName);
+	ylabel(YLABEL);
+	xlabel('time [s]');
 
 
 elseif strcmp(X.datatype,'MVAR'),
