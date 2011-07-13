@@ -108,7 +108,7 @@ struct Time_Zone
 {
 	int_M offset;
 	U_int_M index;
-	char *description;
+	const char *description;
 };
 
 struct demographic

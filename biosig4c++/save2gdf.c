@@ -57,7 +57,8 @@ int main(int argc, char **argv){
     char 	*source, *dest, tmp[1024], *tmpstr; 
     enum FileFormat SOURCE_TYPE, TARGET_TYPE=GDF; 		// type of file format
     int		COMPRESSION_LEVEL=0;
-    int		status, k; 
+    int		status; 	
+    uint16_t	k;
     int		TARGETSEGMENT=1; 	// select segment in multi-segment file format EEG1100 (Nihon Kohden)
     int 	VERBOSE	= 1; 
     char	FLAG_CNT32 = 0; 	// assume CNT format is 16bit
@@ -434,7 +435,7 @@ int main(int argc, char **argv){
 
         double PhysMaxValue0 = -INF; //hdr->data.block[0];
 	double PhysMinValue0 = +INF; //hdr->data.block[0];
-	biosig_data_type val; 
+	biosig_data_type val = NaN; 
 	char FLAG_CONVERSION_TESTED = 1;
 	size_t N; 
 #ifdef T1T2
@@ -443,7 +444,7 @@ int main(int argc, char **argv){
 #else
 	N = hdr->NRec*hdr->SPR;
 #endif
-	int k2=0;
+	typeof(hdr->NS) k2=0;
     	for (k=0; k<hdr->NS; k++)
     	if (hdr->CHANNEL[k].OnOff && hdr->CHANNEL[k].SPR) 
     	{
@@ -487,6 +488,8 @@ int main(int argc, char **argv){
 			if (PhysMaxValue0 < MaxValueF) PhysMaxValue0 = MaxValueF;
 			MinValueF = MinValue * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
 			if (PhysMinValue0 > MinValue) PhysMinValue0 = MinValueF;
+			MaxValueD = MaxValue;
+			MinValueD = MinValue;
 		}
 
 		if ((SOURCE_TYPE==alpha) && (hdr->CHANNEL[k].GDFTYP==(255+12)) && (TARGET_TYPE==GDF)) 

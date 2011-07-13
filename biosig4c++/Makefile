@@ -292,7 +292,7 @@ win64/%.obj: XMLParser/%.cpp
 #	event table: conversion from ascii to C code
 #############################################################
 
-biosig.o win32/biosig.obj win32/biosig.obj: eventcodes.i eventcodegroups.i units.i 
+biosig.o win32/biosig.obj win32/biosig.obj: eventcodes.i eventcodegroups.i units.i biosig.c biosig.h biosig-dev.h
 
 eventcodes.i eventcodegroups.i : ../biosig/doc/eventcodes.txt
 	./eventcodes.awk "$<"

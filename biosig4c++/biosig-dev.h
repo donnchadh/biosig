@@ -391,7 +391,7 @@ int             iferror(HDRTYPE* hdr);
 uint32_t gcd(uint32_t A, uint32_t B);
 uint32_t lcm(uint32_t A, uint32_t B);
 
-extern const int16_t GDFTYP_BITS[];
+extern const uint16_t GDFTYP_BITS[];
 extern const char *LEAD_ID_TABLE[];
 
 uint16_t CRCEvaluate(uint8_t* datablock, uint32_t datalength);

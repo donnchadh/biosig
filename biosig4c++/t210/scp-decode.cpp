@@ -4,6 +4,7 @@
     (biosig4c++) at http://biosig.sf.net/ 
 
 Modifications by Alois Schloegl 
+    Jul 2011: get rid of warnings for unitialized variables and signed/unsigned comparison
     Jun 2007: replaced ultoa with sprintf	
     Aug 2007: On-The-Fly-Decompression using ZLIB
     Oct 2007: Consider SunOS/SPARC platform 
@@ -2034,7 +2035,7 @@ void section_7(pointer_section info_sections ,DATA_RECORD &data, int_S version)
 	//fpos_t filepos;
 	long filepos;
 	int_S version_loc;
-	int_L length_eval;
+	U_int_L length_eval;
 
 	_COUNT_BYTE=info_sections.index;
 	ifseek(in,info_sections.index-1,0);
@@ -2745,7 +2746,7 @@ void decompress(TREE_NODE *tree, U_int_S *raw_in, U_int_M &pos_in, U_int_M max_i
 //out_data       , length           , in_data           , n_samples                     , n_lead                , t_Huffman      , flag_Huffman
 void Huffman(int_L *out_data, U_int_M *length, U_int_S *in_data, U_int_M &n_samples, U_int_M n_lead, table_H *t_Huffman, U_int_M *flag_Huffman)
 {
-	TREE_NODE *tree;
+	TREE_NODE *tree = NULL;
 	U_int_M pos_in, pos_out, pos_tH;
 	U_int_S i;
 
@@ -2770,7 +2771,7 @@ void Decode_Data(pointer_section *section, DATA_DECODE &data, bool &add_filter)
 	U_int_L t;
 	U_int_L dim_B, dim_R, dim_R_, number_samples_;
 
-	int_L *dati_Res_;
+	int_L *dati_Res_ = NULL;
 
 	//Decode the reference beat
 	if(section[5].length)
@@ -2867,7 +2868,7 @@ void Decode_Data(pointer_section *section, DATA_DECODE &data, bool &add_filter)
 			exit(2);
 		}
 */
-		int dim_RR=dim_R/sizeof(int_L);       // by E.C. 15.10.2003   This to correct a trivial error
+		unsigned dim_RR=dim_R/sizeof(int_L);       // by E.C. 15.10.2003   This to correct a trivial error
 		for(t=0;t<dim_RR;t++)                 // of array overflow!!
 			data.Reconstructed[t]=data.Residual[t];   // by E.C. 19.02.2004: first copy rhythm then add the reference beat
 
@@ -3048,7 +3049,7 @@ void DoFilter(int_L *raw_out, int_L *raw_in, f_Res flag, f_lead flag_L, lead *ma
 // but taking into account transients at the boundaries of the subtraction zones (marker_S)
 //It's included rounding.
 {
-	U_int_M a, b;         //interval
+	U_int_M a, b=0;         //interval
 	int_M num;
 	U_int_L pos;
 	U_int_M nz;
@@ -3153,7 +3154,7 @@ void Opt_Filter(int_L *raw_out, int_L *raw_in, f_Res flag, f_lead flag_L, lead *
 // in the range of the signal (marker_A) for each lead
 // this is simpler than DoFilter()
 {
-	U_int_M a, b;         //interval for filtering
+	U_int_M a, b=0;         //interval for filtering
 	int_M num;
 	U_int_L pos;
 	U_int_M nz;

@@ -563,8 +563,9 @@ EXTERN_C int sopen_FAMOS_read(HDRTYPE* hdr) {
 		 	// This part is necessary for broken files (if header information does not fit file size) 
 			struct stat FileBuf;
 			stat(hdr->FileName,&FileBuf);
-			size_t tmp = (FileBuf.st_size - hdr->HeadLen)/bpb;
-			if (tmp < hdr->NRec) hdr->NRec =  tmp; 
+			nrec_t tmp = (FileBuf.st_size - hdr->HeadLen)/bpb;
+			if (tmp < 0) hdr->NRec = -1;	
+			else if (tmp < hdr->NRec) hdr->NRec =  tmp; 
 		}
 #endif
 			

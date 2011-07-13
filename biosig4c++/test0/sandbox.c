@@ -512,6 +512,8 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L2 @%i=%s %f\t%i/%i %i/%i \n",(int)(po
 							DigMin = -1e9;
 							break;
 						default:
+							DigMax =  NaN;
+							DigMin =  NaN;
 							B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 							B4C_ERRMSG = "Heka/Patchmaster: data type not supported.";
 						};
@@ -801,6 +803,9 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L3 @%i=\t%i/%i %i/%i %i/%i sel=%i\n",(
 						case 1: gdftyp = 5;  break;	// int32
 						case 2: gdftyp = 16; break;	// float32
 						case 3: gdftyp = 17; break;	// float64
+						default: 
+							B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+							B4C_ERRMSG = "Heka/Patchmaster unknown data type is used.";
 						};
 
 						if (SWAP) {
@@ -862,13 +867,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L4 @%i= #%i,%i,%i/%i %s\t%i/%i %i/%i %
 						double *data = (double*)hdr->AS.rawdata;
 						// no need to check byte order because File.Endian is set and endian conversion is done in sread
 						if ((DIV==1) && (gdftyp == hc->GDFTYP))	{
-							int sz;	
-							switch (hc->GDFTYP) {
-							case 3:  sz = 2; break;
-							case 5:
-							case 16: sz = 4; break;
-							case 17: sz = 8; break;
-							}
+							uint16_t sz = GDFTYP_BITS[hc->GDFTYP]>>3;	
 							memcpy(hdr->AS.rawdata + _BI + SPR * sz, hdr->AS.Header + DataPos, spr * sz);
 						}
 						else if (1) {

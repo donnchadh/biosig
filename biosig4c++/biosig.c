@@ -119,7 +119,7 @@ int sopen_dicom_read(HDRTYPE* hdr);
 
 
 
-const int16_t GDFTYP_BITS[] = {
+const uint16_t GDFTYP_BITS[] = {
 	8, 8, 8,16,16,32,32,64,64,32,64, 0, 0, 0, 0, 0,   /* 0  */
 	32,64,128,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   /* 16 */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   /* 32 */
@@ -8471,8 +8471,9 @@ break;
 					*(double*)(hdr->AS.rawdata + spr*sizeof(double)) = atof(t);
 					spr++;
 				}
-				if (spr >= hdr->NRec) {
-					void *ptr = realloc(hdr->AS.rawdata, 2 * min(spr, hdr->NRec) * sizeof(double));
+				if (hdr->NRec >= 0)
+				if (spr >= (size_t)hdr->NRec) {
+					void *ptr = realloc(hdr->AS.rawdata, 2 * min(spr, (size_t)hdr->NRec) * sizeof(double));
 					if (ptr==NULL) break; 
 					hdr->AS.rawdata = ptr; 
 				}
