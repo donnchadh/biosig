@@ -1,4 +1,4 @@
-function [HDR, s] = detect_spikes_bursts(fn, chan, slopeThreshold, dT, dT_Burst)
+function [HDR, s] = detect_spikes_bursts(fn, chan, slopeThreshold, dT, dT_Burst, dT_Exclude)
 % DETECT_SPIKES_BURSTS detects spikes and bursts of spikes in 
 % neural recordings. 
 % Spikes are detected when voltages increase is larger than 20 V/s
@@ -6,12 +6,26 @@ function [HDR, s] = detect_spikes_bursts(fn, chan, slopeThreshold, dT, dT_Burst)
 % than 75 ms are considered a burst. The results are stored as an 
 % event table. 
 %
-% HDR = detect_spikes_bursts(filename, [, chan])
-% [HDR,data] = detect_spikes_bursts(...)
+% HDR = detect_spikes_bursts(filename, chan)
+% ... = detect_spikes_bursts(HDR, data)
+% ... = detect_spikes_bursts(... ,[slopeThreshold [, winlen [, dT_Burst [,dT_Exclude ]]] ])
+% [HDR, data] = detect_spikes_bursts(...)
 %   
 % Input: 
 %     filename  
 %     chan	list of channels that should be analyzed (default is 0: all channels)
+%     HDR	header structure obtained by SOPEN, SLOAD, or meXSLOAD
+%     data	signal data that should be analyized
+%     slopeThreshold	[default: 5V/s] Spike is detected when 
+%		slope (over time winlen) exceeds this value	
+%     winlen	[default: .2e-3 s] windowlength in seconds for computing slope	
+%     dT_Burst	[default: 50e-3 s] am inter-spike-interval (ISI) exceeding this value, 
+%		marks the beginning of a new burst  
+%     dT_Exclude an interspike interval smaller than this value, indicates a
+%		double detection, and the second detection is deleted. 
+%		in case of several consecutive ISI's smaller than this value, 
+%		all except the first spikes are deleted. 
+%
 % Output:  
 %     HDR	header structure as defined in biosig
 %     HDR.EVENT includes the detected spikes and bursts. 
@@ -50,7 +64,7 @@ if nargin < 2,
 end;
 
 if nargin < 3, 
-	slopeThreshold = 20; %% [V/s]
+	slopeThreshold = 5; %% [V/s]
 end;
 
 if nargin < 4 
@@ -58,21 +72,33 @@ if nargin < 4
 end;
 
 if nargin < 5, 
-	dT_Burst = 75e-3;	%%% smaller ISI is a burst [s]
+	dT_Burst = 50e-3;	%%% smaller ISI is a burst [s]
+end;
+
+if (nargin < 6),
+	dT_Exclude = [];	%%% smaller ISI is a burst [s]
 end;
 
 Fs = 20000; 	% assumed samplerate 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 %	load data 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-	winlen = Fs*.1;
-	[s, HDR] = sload(fn, 0, 'NUMBER_OF_NAN_IN_BREAK', winlen);
-	if Fs < HDR.SampleRate, 
-		winlen   = HDR.SampleRate * .1;
+	if ischar(fn) && exist(fn,'file') && any(size(chan)==1)	
+		winlen = Fs*.1;
 		[s, HDR] = sload(fn, 0, 'NUMBER_OF_NAN_IN_BREAK', winlen);
-	end; 
+		if Fs < HDR.SampleRate, 
+			winlen   = HDR.SampleRate * .1;	
+			[s, HDR] = sload(fn, 0, 'NUMBER_OF_NAN_IN_BREAK', winlen);
+		end; 
+		if chan==0, chan = 1:HDR.NS; end; 
+	elseif isstruct(fn)
+		HDR = fn; 
+		s = chan; 
+		chan = 1:size(s,2);		
+	else 
+		help(mfilename); 
+	end
 
-	if chan==0, chan = 1:HDR.NS; end; 
 
 	EVENT = HDR.EVENT; 
 	if ~isfield(EVENT,'DUR');
@@ -93,6 +119,10 @@ Fs = 20000; 	% assumed samplerate
 		%%%%%%%	Spike Detection %%%%%%%%%%%%%%%%%%%
 		tmp = filter(B, dT, s(:,ch));
 		OnsetSpike = find( diff (tmp > slopeThreshold) > 0); 	%% spike onset time [samples]
+		% --- remove double detections < 1 ms
+		if ~isempty(dT_Exclude)
+			OnsetSpike = OnsetSpike([1; 1+find(diff(OnsetSpike) > Fs * dT_Exclude)]); 
+		end; 
 
 		%%%%%%% Burst Detection %%%%%%%%%%%%%%%%%%%
 		OnsetBurst = OnsetSpike ( [1; 1 + find( diff(OnsetSpike) / HDR.SampleRate > dT_Burst ) ] );
@@ -125,8 +155,8 @@ Fs = 20000; 	% assumed samplerate
 		
 		EVENT.TYP = [EVENT.TYP; repmat(hex2dec('0201'), size(OnsetSpike)); repmat(hex2dec('0202'), size(OnsetBurst))]; 
 		EVENT.POS = [EVENT.POS; OnsetSpike; OnsetBurst];
-		EVENT.DUR = [EVENT.DUR; repmat(1,size(OnsetSpike)); DUR]; 
-		EVENT.CHN = [EVENT.CHN; repmat(ch,size(EVENT.DUR)) ]; 
+		EVENT.DUR = [EVENT.DUR; repmat(1,  size(OnsetSpike)); DUR]; 
+		EVENT.CHN = [EVENT.CHN; repmat(ch, size(OnsetSpike,1) + size(DUR,1), 1) ]; 
 	end; 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 

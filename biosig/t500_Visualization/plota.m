@@ -67,7 +67,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 
 
 %	$Id$
-%	Copyright (C) 2006,2007,2008,2009 by Alois Schloegl <a.schloegl@ieee.org>
+%	Copyright (C) 2006,2007,2008,2009,2011 by Alois Schloegl <alois.schloegl@gmail.com>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 %    BioSig is free software: you can redistribute it and/or modify
@@ -122,11 +122,41 @@ elseif isfield(X,'TYPE');
                         end;
                 end;
         end;
+elseif (nargin>1)
+	
 else
         return;
 end;
 
+
 if 0,
+
+elseif strcmp(arg2,'ISI') 
+
+		if isstruct(X) && strcmp(arg2,'ISI') && isfield(X,'EVENT') && isfield(X.EVENT,'POS') 
+			HDR = X;
+		elseif ischar(X) && exist(X,'file')
+			HDR = sopen(X); HDR=sclose(HDR); 
+		end; 
+		%%% histogram of inter-spike interval 
+		T = repmat(NaN,length(HDR.EVENT.POS),1);
+		ix = find(HDR.EVENT.TYP==hex2dec('0201'));
+		T(ix) = HDR.EVENT.POS(ix); 
+		d = diff(T); 
+		d = d(~isnan(d))/HDR.SampleRate;
+		if 0, 
+			C = 0:size(T,1)-2;
+			CC = zeros(size(C));
+			ix = diff(T) > 50e-3*HDR.SampleRate; 
+			CC(ix) = C(ix);
+			C = C - cumsum(CC) + 1;
+		end; 
+
+		semilogy((T(1:end-1)+T(2:end))/(2*HDR.EVENT.SampleRate), diff(T)/HDR.EVENT.SampleRate,'.');
+		title(HDR.FileName);
+		ylabel('inter-spike interval [s]');
+		xlabel('time [s]');
+
 
 elseif strcmp(X.datatype,'MVAR'),
         if ~isfield(X,'A') || ~isfield(X,'B'),
@@ -1872,7 +1902,7 @@ elseif strcmp(X.datatype,'Classifier')
                         legend(LEG);
                 end
 
-        elseif strcmpi(arg2,'KAPPA') | strcmpi(arg2,'KAPPA-MDA')
+        elseif strcmpi(arg2,'KAPPA') || strcmpi(arg2,'KAPPA-MDA')
                 if isfield(X,'tsc'),
                         patch(X.T(X.tsc([1,1,2,2,1])),[0,1,1,0,0]*100,[1,1,1]*.8);
                 end;
@@ -2913,6 +2943,7 @@ elseif strcmp(X.datatype,'MD'),
                 xlabel('model order p')
                 ylabel('log_{10}(MD)')
         end;
+
 end;
 
 if nargout,
