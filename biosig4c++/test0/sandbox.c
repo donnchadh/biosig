@@ -235,7 +235,7 @@ char *IgorChanLabel(char *inLabel, HDRTYPE *hdr, size_t *ngroup, size_t *nseries
 }
 
 
-int sopen_heka(HDRTYPE* hdr, FILE *itx) {
+void sopen_heka(HDRTYPE* hdr, FILE *itx) {
 	size_t count = hdr->HeadLen;
 
 	if (hdr->TYPE==HEKA && hdr->VERSION > 0) {
@@ -326,7 +326,6 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA #%i: <%s> [%i:+%i]\n",k,ext,start,leng
 
 			if (!memcmp(ext,".pul\0\0\0\0",8)) {
 				// find pulse data
-				uint16_t gdftyp = 3;
 				ifseek(hdr, start, SEEK_SET);
 
 				//magic  = *(int32_t*)(hdr->AS.Header+start);
@@ -335,7 +334,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA #%i: <%s> [%i:+%i]\n",k,ext,start,leng
 				if (Levels>5) {
 					B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 					B4C_ERRMSG = "Heka/Patchmaster format with more than 5 levels not supported;";
-					return(-1);
+					return;
 				}
 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA124 #%i    Levels=%i\n",k,Levels);
@@ -390,7 +389,12 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 995 %i %i \n",StartOfPulse, Sizes.Rec.
 		if (SWAP) {
 			K1 		= bswap_32(*(uint32_t*)(hdr->AS.Header + StartOfPulse + Sizes.Rec.Root));
 			hdr->VERSION 	= bswap_32(*(uint32_t*)(hdr->AS.Header + StartOfPulse));
-			*(uint64_t*)&t	= bswap_64(*(uint64_t*)(hdr->AS.Header + StartOfPulse + 520));
+			union {
+				double f64;
+				uint64_t u64;
+			} c;	
+			c.u64 = bswap_64(*(uint64_t*)(hdr->AS.Header + StartOfPulse + 520));
+			t = c.f64;
 		} else {
 			K1 		= (*(uint32_t*)(hdr->AS.Header + StartOfPulse + Sizes.Rec.Root));
 			hdr->VERSION 	= (*(uint32_t*)(hdr->AS.Header + StartOfPulse));
@@ -427,14 +431,17 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L1 @%i=\t%i/%i \n",(int)(pos+StartOfDa
 			hdr->AS.auxBUF = (uint8_t*)realloc(hdr->AS.auxBUF,K2*33);	// used to store name of series
 			for (k2=0; k2<K2; k2++)	{
 				// read series
+				union {
+					double   f64;
+					uint64_t u64
+				} Delay;
 				char *SeLabel =  (char*)(hdr->AS.Header+pos+4);		// max 32 bytes
 				strncpy((char*)hdr->AS.auxBUF + 33*k2, (char*)hdr->AS.Header+pos+4, 32); hdr->AS.auxBUF[33*k2+32] = 0;
 				SeLabel = (char*)hdr->AS.auxBUF + 33*k2;
 				double t  = *(double*)(hdr->AS.Header+pos+136);		// time of series 
-				double Delay  = *(double*)(hdr->AS.Header+pos+472+176);
-				*(uint64_t*)&Delay = bswap_64(*(uint64_t*)&Delay);
-
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L2 @%i=%s %f\t%i/%i %i/%i \n",(int)(pos+StartOfData),SeLabel,Delay,k1,K1,k2,K2);
+				Delay.u64 = bswap_64(*(uint64_t*)(hdr->AS.Header+pos+472+176));
+	
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L2 @%i=%s %f\t%i/%i %i/%i \n",(int)(pos+StartOfData),SeLabel,Delay.f64,k1,K1,k2,K2);
 
 				pos += Sizes.Rec.Series + 4;
 				// read number of children
@@ -486,7 +493,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L2 @%i=%s %f\t%i/%i %i/%i \n",(int)(po
 						spr              = (*(uint32_t*)(hdr->AS.Header+pos+44));
 						double Toffset   = (*(double*)(hdr->AS.Header+pos+80));		// time offset of 
 						uint16_t pdc     = PhysDimCode((char*)(hdr->AS.Header + pos + 96));
-						uint64_t dT_i    = *(uint64_t*)(hdr->AS.Header+pos+104);
+						double dT        = (*(double*)(hdr->AS.Header+pos+104));
 						double YRange    = (*(double*)(hdr->AS.Header+pos+128));
 						double YOffset   = (*(double*)(hdr->AS.Header+pos+136));
 						uint16_t AdcChan = (*(uint16_t*)(hdr->AS.Header+pos+222));
@@ -523,18 +530,20 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L2 @%i=%s %f\t%i/%i %i/%i \n",(int)(po
  							ns  = bswap_32(ns);
  							DataPos = bswap_32(DataPos);
 							spr = bswap_32(spr);
-							dT_i= bswap_64(dT_i);
-							*(uint64_t*)&YRange  = bswap_64(*(uint64_t*)&YRange);
-							*(uint64_t*)&YOffset = bswap_64(*(uint64_t*)&YOffset);
-							*(uint64_t*)&PhysMax = bswap_64(*(uint64_t*)&PhysMax);
-							*(uint64_t*)&PhysMin = bswap_64(*(uint64_t*)&PhysMin);
-							*(uint64_t*)&Toffset = bswap_64(*(uint64_t*)&Toffset);
+							// avoid breaking strict-aliasing rules
+							union {
+								double f64;
+								uint64_t u64;
+							} c;	
+							c.f64 = dT;      c.u64 = bswap_64(c.u64); dT      = c.f64;
+							c.f64 = YRange;  c.u64 = bswap_64(c.u64); YRange  = c.f64;
+							c.f64 = YOffset; c.u64 = bswap_64(c.u64); YOffset = c.f64;
+							c.f64 = PhysMax; c.u64 = bswap_64(c.u64); PhysMax = c.f64;
+							c.f64 = PhysMin; c.u64 = bswap_64(c.u64); PhysMin = c.f64;
+							c.f64 = Toffset; c.u64 = bswap_64(c.u64); Toffset = c.f64;
  						}
 						double Cal = 2 * YRange / (DigMax - DigMin);
 						double Off = YOffset;
-
-                                                // sample rate
-						double dT = *(double*)(&dT_i);
                                                 double Fs = round(1.0 / dT);
 
 						if (flagSweepSelected) {
@@ -559,7 +568,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L2 @%i=%s %f\t%i/%i %i/%i \n",(int)(po
 							else if (SPR != spr) {
 								B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 								B4C_ERRMSG = "Heka/Patchmaster: number of samples amoung channels within a single sweep do not match.";
-								return(-1);
+								return;
 							}
 						}
 
@@ -679,7 +688,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%
 #ifdef NO_BI
 			if (BI) free(BI);
 #endif
- 			return(-1);
+ 			return;
 		}
 
 		void* tmpptr = realloc(hdr->AS.rawdata, hdr->NRec * hdr->AS.bpb);
@@ -688,7 +697,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%
 		else {
                         B4C_ERRNUM = B4C_MEMORY_ALLOCATION_FAILED;
                         B4C_ERRMSG = "memory allocation failed - not enough memory!";
-                        return(0);
+                        return;
 		}	
 		memset(hdr->AS.rawdata, 0xff, hdr->NRec * hdr->AS.bpb); 	// initialize with NaN's
 
@@ -753,12 +762,15 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L1 @%i=\t%i/%i \n",(int)(pos+StartOfDa
 
 			for (k2=0; k2<K2; k2++)	{
 				// read series
+				union {
+					double   f64;
+					uint64_t u64;
+				} Delay;
 				uint32_t spr = 0;
 				char *SeLabel = (char*)(hdr->AS.Header+pos+4);		// max 32 bytes
-				double Delay    = *(double*)(hdr->AS.Header+pos+472+176);
-				*(uint64_t*)&Delay = bswap_64(*(uint64_t*)&Delay);
+				Delay.u64 = bswap_64(*(uint64_t*)(hdr->AS.Header+pos+472+176));
 
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L2 @%i=%s %f\t%i/%i %i/%i \n",(int)(pos+StartOfData),SeLabel,Delay,k1,K1,k2,K2);
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L2 @%i=%s %f\t%i/%i %i/%i \n",(int)(pos+StartOfData),SeLabel,Delay.f64,k1,K1,k2,K2);
 
 				/* move to reading of data */
 				pos += Sizes.Rec.Series+4;
@@ -791,7 +803,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L3 @%i=\t%i/%i %i/%i %i/%i sel=%i\n",(
 						double Toffset   = (*(double*)(hdr->AS.Header+pos+80));		// time offset of 
 						uint16_t pdc     = PhysDimCode((char*)(hdr->AS.Header + pos + 96));
 						char *physdim    = (char*)(hdr->AS.Header + pos + 96);
-						uint64_t dT_i    = *(uint64_t*)(hdr->AS.Header+pos+104);
+						double dT        = (*(double*)(hdr->AS.Header+pos+104));
 						double YRange    = (*(double*)(hdr->AS.Header+pos+128));
 						double YOffset   = (*(double*)(hdr->AS.Header+pos+136));
 						uint16_t AdcChan = (*(uint16_t*)(hdr->AS.Header+pos+222));
@@ -813,13 +825,18 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L3 @%i=\t%i/%i %i/%i %i/%i sel=%i\n",(
  							ns       = bswap_32(ns);
  							DataPos  = bswap_32(DataPos);
 							spr      = bswap_32(spr);
-							dT_i     = bswap_64(dT_i);
-							*(uint64_t*)&YRange  = bswap_64(*(uint64_t*)&YRange);
-							*(uint64_t*)&YOffset = bswap_64(*(uint64_t*)&YOffset);
-							*(uint64_t*)&PhysMax = bswap_64(*(uint64_t*)&PhysMax);
-							*(uint64_t*)&PhysMin = bswap_64(*(uint64_t*)&PhysMin);
+							// avoid breaking strict-aliasing rules
+							union {
+								double f64;
+								uint64_t u64;
+							} c;	
+							c.f64 = dT;      c.u64 = bswap_64(c.u64); dT      = c.f64;
+							c.f64 = YRange;  c.u64 = bswap_64(c.u64); YRange  = c.f64;
+							c.f64 = YOffset; c.u64 = bswap_64(c.u64); YOffset = c.f64;
+							c.f64 = PhysMax; c.u64 = bswap_64(c.u64); PhysMax = c.f64;
+							c.f64 = PhysMin; c.u64 = bswap_64(c.u64); PhysMin = c.f64;
+							c.f64 = Toffset; c.u64 = bswap_64(c.u64); Toffset = c.f64;
  						}
-						double dT = *(double*)(&dT_i);
                                                 double Fs  = round(1.0 / dT);
 						DIV = round(hdr->SampleRate / Fs);
 

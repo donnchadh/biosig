@@ -764,7 +764,6 @@ void Init_S1(DATA_INFO &inf)
 	inf.ana.second_last_name=STR_NULL;
 	inf.ana.age.value=0;
 	inf.ana.age.unit=0;
-	inf.ana.date_birth=STR_NULL;
 	inf.ana.height.value=0;
 	inf.ana.height.unit=0;
 	inf.ana.weight.value=0;
@@ -832,8 +831,6 @@ void Init_S1(DATA_INFO &inf)
 	inf.des.room=STR_NULL;
 	inf.des.stat_code=0;
 
-	inf.dev.date_acquisition=STR_NULL;
-	inf.dev.time_acquisition=STR_NULL;
 	inf.dev.baseline_filter=0;
 	inf.dev.lowpass_filter=0;
 	inf.dev.other_filter[0]=0;
@@ -1033,23 +1030,13 @@ void section_1_5(demographic &ana)
 {
 	U_int_M dim;
 
-	char data[18]; // temp[18];
-	U_int_S m, g, num;
+	U_int_S m, g;
 	U_int_M a;
 
 	ReadByte(dim);
 	ReadByte(a);
 	ReadByte(m);
 	ReadByte(g);
-
-	sprintf(data,"%u%s%u",g,_month[m].sentence,a);
-	num=strlen(data);
-	if(num!=0 && (ana.date_birth=(char*)mymalloc(num+1))==NULL)
-	{
-		fprintf(stderr,"Not enough memory");  // no, exit //
-		exit(2);
-	}
-	strcpy(ana.date_birth,data);
 
         struct tm tmf;                      // by E.C. feb 2006
         tmf.tm_year = a - 1900;
@@ -1470,23 +1457,13 @@ void section_1_25(device &dev)
 // section 1 tag 25
 {
 	U_int_M dim;
-	char data[18];
-	U_int_S m, g, num;
+	U_int_S m, g;
 	U_int_M a;
 
 	ReadByte(dim);
 	ReadByte(a);
 	ReadByte(m);
 	ReadByte(g);
-	
-	sprintf(data,"%u%s%u",g,_month[m].sentence,a);
-	num=strlen(data);                                               // by E.C. may 2004
-	if(num!=0 && (dev.date_acquisition=(char*)mymalloc(num+1))==NULL)
-	{
-		fprintf(stderr,"Not enough memory");  // no, exit //
-		exit(2);
-	}
-	strcpy(dev.date_acquisition,data);
 
         struct tm tmf;                      // by E.C. feb 2006
         tmf.tm_year = a - 1900;
@@ -1504,22 +1481,13 @@ void section_1_26(device &dev)
 // section 1 tag 26
 {
 	U_int_M dim;
-	char hour[9];
-	U_int_S h, m, s, num;
+	U_int_S h, m, s;
 
 	ReadByte(dim);
 	ReadByte(h);
 	ReadByte(m);
 	ReadByte(s);
 	
-	sprintf(hour,"%u:%u:%u",h,m,s);
-	num=strlen(hour);                                               // by E.C. may 2004
-	if(num!=0 && (dev.time_acquisition=(char*)mymalloc(num+1))==NULL)
-	{
-		fprintf(stderr,"Not enough memory");  // no, exit //
-		exit(2);
-	}
-	strcpy(dev.time_acquisition,hour);
         dev.time_acquisition2 = (time_t) (s + m*(60 + h*24));   // by E.C. feb 2006 time in seconds
 }//end section_1_26
 
@@ -2173,8 +2141,8 @@ void section_7(pointer_section info_sections ,DATA_RECORD &data, int_S version)
 void section_8(pointer_section info_sections,DATA_INFO &data)
 {
 	U_int_S m, g, h, s, i;
-	U_int_M a, num, dim;
-	char dates[18], hour[9], *temp_string, *c;
+	U_int_M a, dim;
+	char *temp_string, *c;
 	//fpos_t filepos;
 	long filepos;
 	int_S version;
@@ -2189,27 +2157,25 @@ void section_8(pointer_section info_sections,DATA_INFO &data)
 	ReadByte(a);
 	ReadByte(m);
 	ReadByte(g);
-	
-	sprintf(dates,"%u%s%u",g,_month[m].sentence,a);
-	num=strlen(dates);                                          // by E.C. may 2004
-	if(num!=0 && (data.flag_report.date=(char*)mymalloc(num+1))==NULL)
-	{
-		fprintf(stderr,"Not enough memory");  // no, exit //
-		exit(2);
-	}
-	strcpy(data.flag_report.date,dates);
+
 	ReadByte(h);
 	ReadByte(m);
 	ReadByte(s);
 	
-	sprintf(hour,"%u:%u:%u",h,m,s);
-	num=strlen(hour);                                              // by E.C. may 2004
-	if(num!=0 && (data.flag_report.time=(char*)mymalloc(num+1))==NULL)
-	{
-		fprintf(stderr,"Not enough memory");  // no, exit //
-		exit(2);
-	}
-	strcpy(data.flag_report.time,hour);
+	struct tm tmf; 
+	tmf.tm_year = a; 
+	tmf.tm_mon  = m; 
+	tmf.tm_mday = g; 
+	tmf.tm_hour = h; 
+	tmf.tm_min  = m;
+	tmf.tm_sec  = s; 
+
+	data.flag_report.date = (char*)mymalloc(18);
+	strftime(data.flag_report.date,18,"%d %b %Y", &tmf);
+
+	data.flag_report.time = (char*)mymalloc(18);
+	strftime(data.flag_report.date,18,"%H:%M:%S", &tmf);
+
 	ReadByte(data.flag_report.number);
 	if(data.flag_report.number)
 	{
@@ -2394,8 +2360,8 @@ void section_11(pointer_section info_sections,DATA_INFO &data)
 */
 {
 	U_int_S m, g, h, s, i, j;
-	U_int_M a, num, dim;
-	char dates[8], hour[9], *temp_string, *punt, c;
+	U_int_M a, dim;
+	char *temp_string, *punt, c;
 	//fpos_t filepos;
 	long filepos;
 	int_S version;
@@ -2410,27 +2376,23 @@ void section_11(pointer_section info_sections,DATA_INFO &data)
 	ReadByte(a);
 	ReadByte(m);
 	ReadByte(g);
-	
-	sprintf(dates,"%u%s%u",g,_month[m].sentence,a);
-	num=strlen(dates);                                      // by E.C. may 2004
-	if(num!=0 && (data.flag_statement.date=(char*)mymalloc(num+1))==NULL)
-	{
-		fprintf(stderr,"Not enough memory");  // no, exit //
-		exit(2);
-	}
-	strcpy(data.flag_statement.date,dates);
 	ReadByte(h);
 	ReadByte(m);
 	ReadByte(s);
 	
-	sprintf(hour,"%u:%u:%u",h,m,s);	
-	num=strlen(hour);                                           // by E.C. may 2004
-	if(num!=0 && (data.flag_statement.time=(char*)mymalloc(num+1))==NULL)
-	{
-		fprintf(stderr,"Not enough memory");  // no, exit //
-		exit(2);
-	}
-	strcpy(data.flag_statement.time,hour);
+	struct tm tmf; 
+	tmf.tm_year = a; 
+	tmf.tm_mon  = m; 
+	tmf.tm_mday = g; 
+	tmf.tm_hour = h; 
+	tmf.tm_min  = m;
+	tmf.tm_sec  = s; 
+
+	data.flag_statement.date = (char*)mymalloc(18);
+	strftime(data.flag_statement.date,18,"%d %b %Y", &tmf);
+
+	data.flag_statement.time = (char*)mymalloc(18);
+	strftime(data.flag_statement.time,18,"%H:%M:%S", &tmf);
 
 	ReadByte(data.flag_statement.number); //number of expressions
 	if(!data.flag_statement.number)

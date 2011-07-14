@@ -107,7 +107,7 @@ int sopen_trc_read   (HDRTYPE* hdr);
 int sopen_unipro_read   (HDRTYPE* hdr);
 int sopen_eeprobe(HDRTYPE* hdr);
 int sopen_fef_read(HDRTYPE* hdr);
-int sopen_heka(HDRTYPE* hdr,FILE *fid);
+void sopen_heka(HDRTYPE* hdr,FILE *fid);
 int sclose_fef_read(HDRTYPE* hdr);
 int sopen_zzztest(HDRTYPE* hdr);
 #ifdef WITH_DICOM
@@ -7455,6 +7455,7 @@ break;		// FIXME: there is at least one EEG1100C file that breaks this
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// MFER does not support automated overflow and saturation detection
 
 	    	uint8_t buf[128];
+		void* ptrbuf = buf;
 		uint8_t gdftyp = 3; 	// default: int16
 		uint8_t UnitCode=0;
 		double Cal = 1.0, Off = 0.0;
@@ -7626,30 +7627,30 @@ break;		// FIXME: there is at least one EEG1100C file that breaks this
 				if      (gdftyp == 1) Off = ( int8_t)buf[0];
 				else if (gdftyp == 2) Off = (uint8_t)buf[0];
 				else if (SWAP) {
-					if      (gdftyp == 3) Off = ( int16_t)bswap_16(*( int16_t*)buf);
-					else if (gdftyp == 4) Off = (uint16_t)bswap_16(*(uint16_t*)buf);
-					else if (gdftyp == 5) Off = ( int32_t)bswap_32(*( int32_t*)buf);
-					else if (gdftyp == 6) Off = (uint32_t)bswap_32(*(uint32_t*)buf);
-					else if (gdftyp == 7) Off = ( int64_t)bswap_64(*( int64_t*)buf);
-					else if (gdftyp == 8) Off = (uint64_t)bswap_64(*(uint64_t*)buf);
+					if      (gdftyp == 3) Off = ( int16_t)bswap_16(*( int16_t*)ptrbuf);
+					else if (gdftyp == 4) Off = (uint16_t)bswap_16(*(uint16_t*)ptrbuf);
+					else if (gdftyp == 5) Off = ( int32_t)bswap_32(*( int32_t*)ptrbuf);
+					else if (gdftyp == 6) Off = (uint32_t)bswap_32(*(uint32_t*)ptrbuf);
+					else if (gdftyp == 7) Off = ( int64_t)bswap_64(*( int64_t*)ptrbuf);
+					else if (gdftyp == 8) Off = (uint64_t)bswap_64(*(uint64_t*)ptrbuf);
 					else if (gdftyp ==16) {
-						*(uint32_t*)buf = bswap_32(*(uint32_t*)buf);
-						Off = *(float*)buf;
+						*(uint32_t*)ptrbuf = bswap_32(*(uint32_t*)ptrbuf);
+						Off = *(float*)ptrbuf;
 					}
 					else if (gdftyp ==17) {
-						*(uint64_t*)buf = bswap_64(*(uint64_t*)buf);
-						Off = *(double*)buf;
+						*(uint64_t*)ptrbuf = bswap_64(*(uint64_t*)ptrbuf);
+						Off = *(double*)ptrbuf;
 					}
 				}
 				else {
-					if      (gdftyp == 3) Off = *( int16_t*)buf;
-					else if (gdftyp == 4) Off = *(uint16_t*)buf;
-					else if (gdftyp == 5) Off = *( int32_t*)buf;
-					else if (gdftyp == 6) Off = *(uint32_t*)buf;
-					else if (gdftyp == 7) Off = *( int64_t*)buf;
-					else if (gdftyp == 8) Off = *(uint64_t*)buf;
-					else if (gdftyp ==16) Off = *(float*)buf;
-					else if (gdftyp ==17) Off = *(double*)buf;
+					if      (gdftyp == 3) Off = *( int16_t*)ptrbuf;
+					else if (gdftyp == 4) Off = *(uint16_t*)ptrbuf;
+					else if (gdftyp == 5) Off = *( int32_t*)ptrbuf;
+					else if (gdftyp == 6) Off = *(uint32_t*)ptrbuf;
+					else if (gdftyp == 7) Off = *( int64_t*)ptrbuf;
+					else if (gdftyp == 8) Off = *(uint64_t*)ptrbuf;
+					else if (gdftyp ==16) Off = *(float*)ptrbuf;
+					else if (gdftyp ==17) Off = *(double*)ptrbuf;
 				}
 			}
 			else if (tag==23) {
@@ -7770,13 +7771,13 @@ break;		// FIXME: there is at least one EEG1100C file that breaks this
 					hdr->EVENT.CHN[hdr->EVENT.N] = 0;
 					hdr->EVENT.DUR[hdr->EVENT.N] = 0;
 					if (SWAP) {
-						hdr->EVENT.TYP[hdr->EVENT.N] = bswap_16(*(uint16_t*)(buf));
+						hdr->EVENT.TYP[hdr->EVENT.N] = bswap_16(*(uint16_t*)ptrbuf);
 						hdr->EVENT.POS[hdr->EVENT.N] = bswap_32(*(uint32_t*)(buf+2));   // 0-based indexing
 						if (len>6)
 							hdr->EVENT.DUR[hdr->EVENT.N] = bswap_32(*(uint32_t*)(buf+6));
 					}
 					else {
-						hdr->EVENT.TYP[hdr->EVENT.N] = *(uint16_t*)buf;
+						hdr->EVENT.TYP[hdr->EVENT.N] = *(uint16_t*)ptrbuf;
 						hdr->EVENT.POS[hdr->EVENT.N] = *(uint32_t*)(buf+2);   // 0-based indexing
 						if (len>6)
 							hdr->EVENT.DUR[hdr->EVENT.N] = *(uint32_t*)(buf+6);
@@ -7835,7 +7836,7 @@ break;		// FIXME: there is at least one EEG1100C file that breaks this
 			else if (tag==133)    //0x85
 			{
 				curPos += ifread(buf,1,len,hdr);
-				tm_time.tm_year = *(uint16_t*)buf;
+				tm_time.tm_year = *(uint16_t*)ptrbuf;
 				if (SWAP) tm_time.tm_year = bswap_16(tm_time.tm_year);
 				tm_time.tm_year-= 1900;
 		    		tm_time.tm_mon  = buf[2] - 1;

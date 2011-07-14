@@ -118,7 +118,6 @@ struct demographic
 	char 	 *ID;
 	char 	 *second_last_name;
 	struct numeric  age;
-	char 	 *date_birth;
         time_t   date_birth2;    // by E.C. feb 2006
 	struct numeric  height;
 	struct numeric  weight;
@@ -168,8 +167,6 @@ struct descriptive
 
 struct device
 {
-	char 	  *date_acquisition;
-	char 	  *time_acquisition;
         time_t    date_acquisition2;       // by E.C. feb 2006
         time_t    time_acquisition2;       // by E.C. feb 2006
 	U_int_M   baseline_filter;
