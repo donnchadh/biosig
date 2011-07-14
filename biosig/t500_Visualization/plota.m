@@ -143,7 +143,7 @@ elseif strcmp(arg2,'ISI') || strcmp(arg2,'HRV')  || strcmp(arg2,'RRI')
 	if strcmp(arg2,'ISI') 
 		TYP = hex2dec('0201');	% spike/action potential
 		YLABEL = 'inter-spike interval [s]';
-	elseif strcmp(arg2,'HRV') ||  || strcmp(arg2,'RRI') 
+	elseif strcmp(arg2,'HRV') || strcmp(arg2,'RRI') 
 		TYP = hex2dec('0501');	% fiducial QRS point
 		YLABEL = 'R-R interval [s]';
 	end; 
@@ -169,7 +169,9 @@ elseif strcmp(arg2,'ISI') || strcmp(arg2,'HRV')  || strcmp(arg2,'RRI')
 	else
 		CHN = [];
 	end;
-	if length(unique(CHN))>1,
+
+	if 0, length(unique(CHN))>1,
+		%% FIXME	
 		error('events of multiple channels are not supported.');
 	end;
 
