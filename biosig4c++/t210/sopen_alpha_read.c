@@ -30,7 +30,7 @@
 #include "../biosig-dev.h"
 
 
-EXTERN_C int sopen_alpha_read(HDRTYPE* hdr) {	
+EXTERN_C void sopen_alpha_read(HDRTYPE* hdr) {	
 /*
 	this function will be called by the function SOPEN in "biosig.c"
 
@@ -193,7 +193,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"<%6.2f> %i- %s | %s\n",hdr->VERSION, STATUS
 						}
 						if (ChanType[k] != NULL) flag = 1;	// not done yet 
 					}	
-					if (!flag) STATUS== 99; 	// done with channel definition
+					if (!flag) STATUS==99; 	// done with channel definition
 				}	
 			}	
 			t = strtok(NULL,"\xA\xD");
@@ -222,9 +222,11 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"<%6.2f> %i- %s | %s\n",hdr->VERSION, STATUS
 			count  = fread(buf,1,bufsiz-1,fid); fclose(fid); buf[count]=0;	// terminating 0 character 		
 			t   = strtok(buf,"\xA\xD");
 			t   = strtok(NULL,"\xA\xD");	// skip lines 1 and 2 
+			/*
 			char label[MAX_LENGTH_LABEL+1];
 			char flag[MAX_LENGTH_LABEL+1];
 			double cal,off; 
+			*/
 			char *t0,*t1,*t2,*t3; 
 			unsigned n=0; 	// 		
 			for (k=0; max(k,n)<hdr->NS; k++) { 

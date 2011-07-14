@@ -61,8 +61,8 @@ CXX           = g++
 #DEFINES      = -D=WITHOUT_SCP_DECODE
 DEFINES       = -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_CHOLMOD #-D=WITH_FEF #-D=WITH_PDP -D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
 #DEFINES      += -D=CNT32
-CFLAGS        = -pipe -fPIC -W -O2 $(DEFINES) -Wextra # -I cntopenlib/include/
-CXXFLAGS      = -pipe -fPIC -W -O2 $(DEFINES) -Wextra # -I cntopenlib/include/
+CFLAGS        = -pipe -fPIC -Wall -O2 $(DEFINES) -Wextra # -I cntopenlib/include/
+CXXFLAGS      = -pipe -fPIC -Wall -O2 $(DEFINES) -Wextra # -I cntopenlib/include/
 AR            = ar crs
 INCPATH       = -I /usr/local/include/gdcm-2.0/
 #		../gdcm-2.0.10/Source/DataStructureAndEncodingDefinition \
@@ -498,7 +498,7 @@ biosig_server: biosig_server.c libbiosig.$(LIBEXT) biosig-network.o Makefile
 #	MathLink interface to Mathematica
 #############################################################
 mma: libbiosig.$(LIBEXT)
-	$(MAKE) C mma CROSS=$(CROSS) CROSS64=$(CROSS64) sload
+	$(MAKE) -C mma CROSS=$(CROSS) CROSS64=$(CROSS64) sload
 
 win32mma: win32/libbiosig.a
 	$(MAKE) -C mma CROSS=$(CROSS) CROSS64=$(CROSS64) sload.exe

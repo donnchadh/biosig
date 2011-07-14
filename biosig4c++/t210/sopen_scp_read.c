@@ -274,8 +274,8 @@ int DecodeHuffman(htree_t *HTrees[], huffman_t *HuffmanTables, uint8_t* indata, 
 					acc = (acc<<8)+(uint32_t)indata[i+k3];
 				
 				outdata[k2] = (acc >> (k3*8 - r - dlen)) & ((1L << dlen) - 1L) ; 
-				if (outdata[k2] >= (1<<dlen-1))
-					outdata[k2] -= 1<<dlen;
+				if (outdata[k2] >= (1 << (dlen-1)))
+					outdata[k2] -= 1 << dlen;
 				k1 += dlen; 
 				++k2;
 			}
@@ -701,11 +701,12 @@ EXTERN_C int sopen_SCP_read(HDRTYPE* hdr) {
 				}
 				else if (tag==34) {
 					int16_t tzmin = lei16p(PtrCurSect+curSectPos);
-					if (tzmin != 0x7fff)
+					if (tzmin != 0x7fff) {
 						if (abs(tzmin)<=780) 
 							t0.tm_min += tzmin;
 						else 
 							fprintf(stderr,"Warning SOPEN(SCP-READ): invalid time zone (Section 1, Tag34)\n");
+					}
 					//fprintf(stdout,"SOPEN(SCP-READ): tzmin = %i %x \n",tzmin,tzmin); 
 				}
 				else {
