@@ -477,6 +477,10 @@ EXTERN_C int sopen_SCP_read(HDRTYPE* hdr) {
 
 		uint8_t versionSection  = *(ptr+sectionStart+8);
 		uint8_t versionProtocol = *(ptr+sectionStart+9);
+		if (versionSection != 13)
+			fprintf(stderr,"Warning SOPEN(SCP-READ): Version of section is not 13 but %i. This is not tested.\n", versionSection);
+		if (versionProtocol != 13)
+			fprintf(stderr,"Warning SOPEN(SCP-READ): Version of Protocol is not 13 but %i. This is not tested.\n", versionProtocol);
 
 		curSectPos = 16;
 
@@ -1029,10 +1033,10 @@ EXTERN_C int sopen_SCP_read(HDRTYPE* hdr) {
 		else if (curSect==7)  {
 			uint16_t N_QRS = *(uint8_t*)(PtrCurSect+curSectPos)-1;
 			uint8_t  N_PaceMaker = *(uint8_t*)(PtrCurSect+curSectPos+1);
-			uint16_t RRI = leu16p(PtrCurSect+curSectPos+2);
-			uint16_t PPI = leu16p(PtrCurSect+curSectPos+4);
+			// uint16_t RRI = leu16p(PtrCurSect+curSectPos+2);
+			// uint16_t PPI = leu16p(PtrCurSect+curSectPos+4);
 			curSectPos += 6;
-			size_t curSectPos0 = curSectPos; // backup of pointer 
+			//size_t curSectPos0 = curSectPos; // backup of pointer 
 			
 			// skip data on QRS measurements 
 			/*

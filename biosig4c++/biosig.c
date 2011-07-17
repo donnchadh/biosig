@@ -5355,8 +5355,9 @@ if (VERBOSE_LEVEL>8)
 			for (k=0; k < hdr->NS*npts; k++) {
 		    		if (((orientation==MUL) && !(k%hdr->NS)) ||
 		    		    ((orientation==VEC) && !(k%npts))) {
+		    		    	double d;
 			    		int sc = SKIPCOLUMNS;
-					while (sc--) strtod(POS,&POS);
+					while (sc--) d=strtod(POS,&POS);	// skip value, return value is ignored
 	    			}
 		    		*(double*)(hdr->AS.rawdata+k*sizeof(double)) = strtod(POS,&POS);
 	    		}
@@ -6727,7 +6728,7 @@ break;		// FIXME: there is at least one EEG1100C file that breaks this
 		hdr->T0 = tm_time2gdf_time(&tm_time);
 		hdr->SampleRate = beu16p(hdr->AS.Header+20);
 		hdr->NS         = beu16p(hdr->AS.Header+22);
-		uint16_t  Gain  = beu16p(Header1+24);
+		// uint16_t  Gain  = beu16p(Header1+24);	// not used 
 		uint16_t  Bits  = beu16p(hdr->AS.Header+26);
 		uint16_t PhysMax= beu16p(hdr->AS.Header+28);
 		size_t POS;
@@ -6819,8 +6820,6 @@ break;		// FIXME: there is at least one EEG1100C file that breaks this
 			/* read event information */
 
 			size_t sz	= GDFTYP_BITS[gdftyp]>>3;
-			size_t len	= hdr->SPR * hdr->NRec * NEC * sz;
-
 			uint8_t *buf 	= (uint8_t*)calloc(NEC, sz);
 			uint8_t *buf8 	= (uint8_t*)calloc(NEC*2, 1);
 			size_t *ix 	= (size_t*)calloc(NEC, sizeof(size_t));
@@ -7164,8 +7163,7 @@ break;		// FIXME: there is at least one EEG1100C file that breaks this
                         fprintf(stdout,"[701] start reading %s,v%4.2f format \n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
 
 		typeof(hdr->SPR) SPR = 0, spr = 0;
-		typeof(hdr->NS)  ns  = 0, NS  = 0;
-    		size_t DIV = 1;
+		typeof(hdr->NS)  ns  = 0;
 		int chanNo=0, PrevChanNo=0, sweepNo=0, PrevSweepNo=0;
     		hdr->SPR = 0;
     		hdr->NRec= 0;
@@ -7359,7 +7357,6 @@ break;		// FIXME: there is at least one EEG1100C file that breaks this
     	        uint16_t Table1[] = {0,0,16,17,18,1,2,87,88,89,90,3,4,5,6,7,8,131,132,133};
     	        size_t len;
     	        struct tm  t;
-		size_t bufsiz = 522;
 		hdr->HeadLen = 522 + lei32p(hdr->AS.Header+10);
                 if (count < hdr->HeadLen) {
 		    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,hdr->HeadLen);
@@ -7367,7 +7364,7 @@ break;		// FIXME: there is at least one EEG1100C file that breaks this
 		}
 		hdr->HeadLen = count;
 
-		int offsetVarHdr = lei32p(hdr->AS.Header+18);
+		//int offsetVarHdr = lei32p(hdr->AS.Header+18);
 		int offsetData = lei32p(hdr->AS.Header+22);
 		hdr->VERSION = (float)lei16p(hdr->AS.Header+26);
 
@@ -7947,9 +7944,17 @@ break;		// FIXME: there is at least one EEG1100C file that breaks this
 			hdr->SampleRate = strtod(ptr,&ptr);
 			if (ptr[0]=='/') {
 				double CounterFrequency = strtod(ptr+1,&ptr);
+				if (fabs(CounterFrequency-hdr->SampleRate) > 1e-5) {
+					B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+					B4C_ERRMSG = "MIT format: Sampling rate and counter frequency differ - this is currently not supported !";	
+				} 		
 			}
 			if (ptr[0]=='(') {
 				double BaseCounterValue = strtod(ptr+1,&ptr);
+				if (BaseCounterValue) {
+					B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+					B4C_ERRMSG = "MIT format: BaseCounterValue is not zero - this is currently not supported !";	
+				} 		
 				ptr++; // skip ")"
 			}
 	    	}
@@ -8545,9 +8550,6 @@ break;		// FIXME: there is at least one EEG1100C file that breaks this
 			line = strtok(NULL,"\n\r");
 		}
 
-		uint16_t gdftyp = 3;
-
-
     		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
     		B4C_ERRMSG = "Format Persyst not supported,yet.";
 	}
@@ -8605,8 +8607,9 @@ break;		// FIXME: there is at least one EEG1100C file that breaks this
 			hdr->AS.Header[hdr->HeadLen]=0;
 		}
 
-		hdr->NS = *(uint16_t*)(hdr->AS.Header+2);
-		uint32_t T0 = *(uint32_t*)(hdr->AS.Header+32);	// seconds since 1970
+		hdr->NS   = *(uint16_t*)(hdr->AS.Header+2);
+		time_t T0 = (time_t)*(uint32_t*)(hdr->AS.Header+32);	// seconds since 1970
+		hdr->T0   = t_time2gdf_time(T0);
 		hdr->SampleRate = 1e6 / (*(uint32_t*)(hdr->AS.Header+36));
 		strncpy(hdr->Patient.Id, (const char*)hdr->AS.Header+32+24+256*9, min(64,MAX_LENGTH_PID));
 		hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS,sizeof(CHANNEL_TYPE));
@@ -9050,20 +9053,21 @@ break;		// FIXME: there is at least one EEG1100C file that breaks this
 			}
 			else {
 				int16_t h[3];
-				fread(h, 2, 3, fid);
+				size_t c = fread(h, 2, 3, fid);
 				if      (h[2]==16)  h[2] = 3;
 				else if (h[2]==32)  h[2] = 5;
 				else if (h[2]==288) h[2] = 16;
 				else                h[2] = 0xffff;  	// this triggers the error trap
 
-				if ((h[0] != hdr->NS) || (((double)h[1]) != hdr->SampleRate) || (h[2] != gdftyp) ) {
+				if ( (c<2) || (h[0] != hdr->NS) || (((double)h[1]) != hdr->SampleRate) || (h[2] != gdftyp) ) {
 					B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 					B4C_ERRMSG = "TMSiLOG: Binary file corrupted\n";
 				}
 				else {
 					size_t sz = hdr->NS*hdr->SPR*hdr->NRec*GDFTYP_BITS[gdftyp]>>3;
 					hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata,sz);
-					fread(hdr->AS.rawdata,sz,1,fid);
+					c = fread(hdr->AS.rawdata, hdr->NRec, hdr->SPR*hdr->NS*GDFTYP_BITS[gdftyp]>>3, fid);
+					if (c < sz) hdr->NRec = c;
 				}
 				fclose(fid);
 			}
@@ -9080,9 +9084,17 @@ break;		// FIXME: there is at least one EEG1100C file that breaks this
 			else {
 				size_t sz  = (hdr->NS+1)*24;
 				char *line = (char*) malloc(sz);
-				fgets(line,sz,fid);
-				fgets(line,sz,fid);
-				fgets(line,sz,fid);
+				// read and ignore (i.e. skip) 3 lines 	
+				int c = 3;  
+				while (c>0) {
+					if (fgetc(fid)=='\n') {
+						c--;
+						int ch = fgetc(fid);
+						// skip '\r'	
+						if (ch=='\r') ungetc(ch,fid);	
+					}	
+				}
+				
 				// TODO: sanity checks
 				if (0) {
 					B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
@@ -9098,7 +9110,7 @@ break;		// FIXME: there is at least one EEG1100C file that breaks this
 					for (k=0; k < (size_t)hdr->SPR*hdr->NRec; k++)
 					if (fgets(line,sz,fid)) {
 						char *next;
-						strtoul(line, &next, 10);	// skip index entry
+						unsigned long u = strtoul(line, &next, 10);	// skip index entry
 						for (k2=0;k2<hdr->NS;k2++)
 							*(double*)(hdr->AS.rawdata+(k*hdr->NS+k2)*sizeof(double)) = strtod(next,&next);
 					}

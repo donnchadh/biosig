@@ -270,7 +270,7 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 				    /* read data samples */	
 				hc->DigMax	= -1.0/0.0; 
 				hc->DigMin	=  1.0/0.0; 
-				int16_t* data = (int16_t*)(hdr->AS.rawdata)+SPR;
+				// int16_t* data = (int16_t*)(hdr->AS.rawdata)+SPR;
 
 				hc->bi	= hdr->AS.bpb; 
 				char *s = (char*)C->GetText();

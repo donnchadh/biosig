@@ -193,7 +193,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"<%6.2f> %i- %s | %s\n",hdr->VERSION, STATUS
 						}
 						if (ChanType[k] != NULL) flag = 1;	// not done yet 
 					}	
-					if (!flag) STATUS==99; 	// done with channel definition
+					if (!flag) STATUS = 99; 	// done with channel definition
 				}	
 			}	
 			t = strtok(NULL,"\xA\xD");
@@ -461,7 +461,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"<%6.2f> %i- %s | %s\n",hdr->VERSION, STATUS
 					T.tm_hour =12;
 					T.tm_min =0;
 					T.tm_sec =0;
-					hdr->Patient.Birthday = tm_time2gdf_time(&T);
+					if (c > 2) hdr->Patient.Birthday = tm_time2gdf_time(&T);
 				}	
 				t = strtok(NULL,"\xA\xD");
 			}	

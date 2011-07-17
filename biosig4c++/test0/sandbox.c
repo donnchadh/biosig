@@ -174,7 +174,7 @@ char *IgorChanLabel(char *inLabel, HDRTYPE *hdr, size_t *ngroup, size_t *nseries
 	*/
 
 	*ns = 0;
-	static char Label[ITX_MAXLINELENGTH+1];
+	// static char Label[ITX_MAXLINELENGTH+1];
 	int k, s = 0, pos4=0, pos1=0;
 	for (k = strlen(inLabel); inLabel[k] < ' '; k--);
 	inLabel[k+1] = 0;
@@ -247,7 +247,6 @@ void sopen_heka(HDRTYPE* hdr, FILE *itx) {
 	- event-table -> MMA
 */
 
-		char magic[4];
 		int32_t Levels=0;
 		uint16_t k;
 		//int32_t *Sizes=NULL;
@@ -417,7 +416,6 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 999 %p\n",hdr->EVENT.CodeDesc);
 
 		pos = StartOfPulse + Sizes.Rec.Root + 4;
 		size_t EventN=0;
-		uint16_t LenCodeDesc=0;
 
 		for (k1=0; k1<K1; k1++)	{
 		// read group
@@ -433,12 +431,12 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L1 @%i=\t%i/%i \n",(int)(pos+StartOfDa
 				// read series
 				union {
 					double   f64;
-					uint64_t u64
+					uint64_t u64;
 				} Delay;
 				char *SeLabel =  (char*)(hdr->AS.Header+pos+4);		// max 32 bytes
 				strncpy((char*)hdr->AS.auxBUF + 33*k2, (char*)hdr->AS.Header+pos+4, 32); hdr->AS.auxBUF[33*k2+32] = 0;
 				SeLabel = (char*)hdr->AS.auxBUF + 33*k2;
-				double t  = *(double*)(hdr->AS.Header+pos+136);		// time of series 
+				double t  = *(double*)(hdr->AS.Header+pos+136);		// time of series. TODO: this time should be taken into account 
 				Delay.u64 = bswap_64(*(uint64_t*)(hdr->AS.Header+pos+472+176));
 	
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L2 @%i=%s %f\t%i/%i %i/%i \n",(int)(pos+StartOfData),SeLabel,Delay.f64,k1,K1,k2,K2);
@@ -468,7 +466,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L2 @%i=%s %f\t%i/%i %i/%i \n",(int)(po
 					// read sweep
 					hdr->NRec++; 	// increase number of sweeps
 					uint32_t SPR = 0, spr = 0;
-					double t  = *(double*)(hdr->AS.Header+pos+48);		// time of sweep
+					double t  = *(double*)(hdr->AS.Header+pos+48);		// time of sweep. TODO: this should be taken into account 
 
 					char flagSweepSelected = (hdr->AS.SegSel[0]==0 || k1+1==hdr->AS.SegSel[0])
 						              && (hdr->AS.SegSel[1]==0 || k2+1==hdr->AS.SegSel[1])
@@ -795,13 +793,12 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L3 @%i=\t%i/%i %i/%i %i/%i sel=%i\n",(
 						}
 
 						// read trace
-						double DigMin, DigMax;
 						uint16_t gdftyp  = 0;	
 						uint32_t ns      = (*(uint32_t*)(hdr->AS.Header+pos+36));
 						uint32_t DataPos = (*(uint32_t*)(hdr->AS.Header+pos+40));
 						spr              = (*(uint32_t*)(hdr->AS.Header+pos+44));
 						double Toffset   = (*(double*)(hdr->AS.Header+pos+80));		// time offset of 
-						uint16_t pdc     = PhysDimCode((char*)(hdr->AS.Header + pos + 96));
+						// uint16_t pdc     = PhysDimCode((char*)(hdr->AS.Header + pos + 96));
 						char *physdim    = (char*)(hdr->AS.Header + pos + 96);
 						double dT        = (*(double*)(hdr->AS.Header+pos+104));
 						double YRange    = (*(double*)(hdr->AS.Header+pos+128));
@@ -880,8 +877,6 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L4 @%i= #%i,%i,%i/%i %s\t%i/%i %i/%i %
 							fprintf(itx, "X SetScale y,0,0,\"%s\", %s_%i_%i_%i_%i\n", physdim, WAVENAME, k1+1,k2+1,k3+1,k4+1);
 						}	
 
-
-						double *data = (double*)hdr->AS.rawdata;
 						// no need to check byte order because File.Endian is set and endian conversion is done in sread
 						if ((DIV==1) && (gdftyp == hc->GDFTYP))	{
 							uint16_t sz = GDFTYP_BITS[hc->GDFTYP]>>3;	
@@ -1003,7 +998,6 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L4 @%i= #%i,%i,%i/%i %s\t%i/%i %i/%i %
 }
 
 int sopen_zzztest(HDRTYPE* hdr) {
-	size_t count = hdr->HeadLen;
 
 	if (hdr->TYPE==ITX) {
 
@@ -1021,13 +1015,12 @@ int sopen_zzztest(HDRTYPE* hdr) {
     		char flag = 0;
 		double *data = NULL;
 
-	    	size_t ns=0, NS=0, spr = 0, SPR = 0, DIV = 1, k;
-		size_t ngroup=0, nseries=0, nsweep=0, NSWEEP=0;
-		double DUR[32];
+	    	size_t ns=0, NS=0, spr = 0, SPR = 0;
+		size_t ngroup=0, nseries=0, nsweep=0;
 		double deltaT = -1.0/0.0;
 		hdr->SPR = 0;
 
-		ifseek(hdr,0,SEEK_SET);
+		ifseek(hdr, 0, SEEK_SET);
 		while (!ifeof(hdr)) {
 		    	ifgets(line, ITX_MAXLINELENGTH, hdr);
 			if (!strlen(line))
