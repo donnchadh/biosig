@@ -7160,7 +7160,7 @@ break;		// FIXME: there is at least one EEG1100C file that breaks this
     		char flagSupported = 1;
 
 	        if (VERBOSE_LEVEL>7)
-                        fprintf(stdout,"[701] start reading %s,v%4.2f format \n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
+                        fprintf(stdout,"[701] start reading %s,v%4.2f format (%i)\n",GetFileTypeString(hdr->TYPE),hdr->VERSION,ifeof(hdr));
 
 		typeof(hdr->SPR) SPR = 0, spr = 0;
 		typeof(hdr->NS)  ns  = 0;
@@ -7173,8 +7173,17 @@ break;		// FIXME: there is at least one EEG1100C file that breaks this
 		*/
 
     		ifseek(hdr,0,SEEK_SET);
+		int c = ifgetc(hdr);  //  read first character
     		while (!ifeof(hdr)) {
-			ifgets(line, IGOR_MAXLENLINE, hdr);
+
+			int i = 0; 			
+			while ( (c != -1) &&  (c != 10) &&  (c != 13) && (i < IGOR_MAXLENLINE) ) {
+				// terminate when any line break occurs 
+				line[i++] = c;
+				c = ifgetc(hdr); 
+			}; 	
+			line[i] = 0;
+			while (isspace(c)) c = ifgetc(hdr); 	// keep first non-space character of next line in buffer 
 
 			if (!strncmp(line,"BEGIN",5)) {
 	    			flagData = 1;
@@ -7193,9 +7202,15 @@ break;		// FIXME: there is at least one EEG1100C file that breaks this
 				if (ns==0) hdr->SPR += SPR;
 	    		}
 
-	    		else if (!strncmp(line,"X SetScale/P x,",15)) {
-	    			strtok(line,",");
-	    			double TOffset = atof(strtok(NULL,","));
+	    		else if (!strncmp(line,"X SetScale/P x",14)) {
+				/*
+				This line seems to have inconsistant formating, some times an comma is following the first 14 bytes, some times no comma is found.
+				here are some examples
+				X SetScale/P x, 0.000000000E+00,  5.000000000E-05,"s", AP101222bp_1_63_1_2
+				X SetScale/P x 0,5e-05,"s", f0ch1w1_1_0to0_Co_TCh; SetScale y 0,1e-09,"A", f0ch1w1_1_0to0_Co_TCh
+				*/
+
+	    			double TOffset = atof(strtok(line+15,","));
 				if (isnan(hdr->CHANNEL[ns].TOffset)) 
 					hdr->CHANNEL[ns].TOffset = TOffset;
 				else if (fabs(hdr->CHANNEL[ns].TOffset - TOffset) > 1e-12)
@@ -7234,9 +7249,19 @@ break;		// FIXME: there is at least one EEG1100C file that breaks this
 	    			}
 	    		}
 	    		else if (!strncmp(line,"WAVES",5)) {
+
 				char *p;
-				p = strrchr(line,'_'); chanNo  = atoi(p+1); ns = chanNo - 1; p[0] = 0;
-				p = strrchr(line,'_'); sweepNo = atoi(p+1); if (sweepNo > hdr->NRec) hdr->NRec = sweepNo; p[0] = 0;
+				p = strrchr(line,'_'); 
+
+				chanNo  = atoi(p+1); 
+				ns = chanNo ? chanNo - 1 : 0; // if decoding fails, assume there is only a single channel 					
+				p[0] = 0;
+
+				p = strrchr(line,'_'); 
+				sweepNo = atoi(p+1); 
+				if (sweepNo == 0) hdr->NRec = 1; // if decoding fails, assume there is only a single sweep
+				else if (sweepNo > hdr->NRec) hdr->NRec = sweepNo; 
+				p[0] = 0;
 
 				flagSupported &= (ns==0) || (chanNo == PrevChanNo+1); 	// reset flag if channel number does not increment by one.
 				flagSupported &= (ns==0 && sweepNo==PrevSweepNo+1) || (sweepNo == PrevSweepNo); 	// reset flag if sweep number does not increment by one when chanNo==0.
@@ -7310,8 +7335,17 @@ break;		// FIXME: there is at least one EEG1100C file that breaks this
 
 	    	spr = 0;SPR = 0;
     		ifseek(hdr, 0, SEEK_SET);
+		c = ifgetc(hdr);	// read first character
     		while (!ifeof(hdr)) {
-	    		ifgets(line, IGOR_MAXLENLINE, hdr);
+			int i = 0; 			
+			while ( (c != -1) &&  (c != 10) &&  (c != 13) && (i < IGOR_MAXLENLINE) ) {
+				// terminate when any line break occurs 
+				line[i++] = c;
+				c = ifgetc(hdr); 
+			}; 	
+			line[i] = 0;
+			while (isspace(c)) c = ifgetc(hdr); 	// keep first non-space character of next line in buffer 
+
 	    		if (!strncmp(line,"BEGIN",5)) {
 	    			flagData = 1;
 				spr = 0;
@@ -7326,8 +7360,16 @@ break;		// FIXME: there is at least one EEG1100C file that breaks this
 	    		else if (!strncmp(line,"WAVES",5)) {
 				// decode channel number and sweep number
 				char *p;
-				p = strrchr(line,'_'); chanNo  = atoi(p+1)-1; p[0] = 0;
-				p = strrchr(line,'_'); sweepNo = atoi(p+1)-1; p[0] = 0;
+				p = strrchr(line,'_'); 
+				chanNo  = atoi(p+1); 
+				chanNo = chanNo ? chanNo-1 : 0; 	// if decoding fails, assume there is only a single channel. 
+				p[0] = 0;
+
+				p = strrchr(line,'_'); 
+				sweepNo = atoi(p+1); 
+				if (sweepNo) sweepNo--; 	// if decoding fails, assume there is only a single sweep 					
+				p[0] = 0;
+
 				spr = 0;
 				if (sweepNo > 0 && chanNo==0) {
 					hdr->EVENT.POS[sweepNo-1] = SPR;
