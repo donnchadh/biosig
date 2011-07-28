@@ -731,7 +731,7 @@ uint16_t PhysDimCode(char* PhysDim0)
 	char *s1;
 
 	if (PhysDim0==NULL) return(0);
-	if (strlen(PhysDim0)!=0) return(0);
+	if (strlen(PhysDim0)==0) return(0);
 
 	// greedy search - check all codes 0..65535
 	for (k1=0; k1<33; k1++)
