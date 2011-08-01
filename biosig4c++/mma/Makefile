@@ -9,8 +9,8 @@
 MLINKDIR = /usr/local/Wolfram/gridMathematicaServer/7.0/SystemFiles/Links/MathLink/DeveloperKit
 MLINKDIR = /usr/local/Wolfram/Mathematica/8.0/SystemFiles/Links/MathLink/DeveloperKit
 
-ifneq ($(shell which mathematica7), )
-  MLINKDIR  := $(dir $(shell readlink -f $(shell which mathematica7) ) )../SystemFiles/Links/MathLink/DeveloperKit
+ifneq ($(shell which mathematica), )
+  MLINKDIR  := $(dir $(shell readlink -f $(shell which mathematica) ) )../SystemFiles/Links/MathLink/DeveloperKit
 endif
 SYS       = Linux-x86-64# Set this value with the result of evaluating $SystemID
 MLLIB     = ML64i3 # ML32i3 # Set this to ML64i3 if using a 64-bit system
