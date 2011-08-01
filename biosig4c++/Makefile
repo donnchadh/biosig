@@ -46,7 +46,14 @@ LIBEXT        = a
 
 ### User-specified options: its likely you want to change this
 # settings for cross compiler: tested with mingw-cross-env and mce-w64 with make suitesparse zlib qt ; 
+CROSS   = /usr/local/src/mingw-cross-env/usr/bin/i686-pc-mingw32
+## local mingw-cross-env 
+ifeq "$(wildcard $(CROSS)-gcc)" ""
 CROSS         = $(shell pwd)/../mingw-cross-env/usr/bin/i686-pc-mingw32
+endif
+ifeq "$(wildcard $(CROSS)-gcc)" ""
+CROSS         = /usr/local/src/mingw-cross-env/usr/bin/i686-pc-mingw32
+endif
 CROSS64       = $(shell pwd)/../mce-w64/usr/bin/x86_64-w64-mingw32
 # settings for mex files
 MEX_OPTION    = -largeArrayDims # turn on for 64 bit Matlab, otherwise empty
