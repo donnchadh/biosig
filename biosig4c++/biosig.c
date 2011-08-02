@@ -5367,16 +5367,6 @@ if (VERBOSE_LEVEL>8)
 	}
 
 	else if (hdr->TYPE==CFS) {
-/*
-		hdr->HeadLen = count;
-
-    		sopen_zzztest(hdr);
-
-	}
-
-	else if (0) {
-*/
-		fprintf(stdout,"Warning: support for CFS is very experimental\n");
 
 #define H1LEN (8+14+4+8+8+2+2+2+2+2+4+2+2+74+4+40)
 
