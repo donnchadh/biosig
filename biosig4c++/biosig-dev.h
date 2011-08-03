@@ -72,12 +72,7 @@
 #define __BIG_ENDIAN  	 4321
 #define __LITTLE_ENDIAN  1234
 #define __BYTE_ORDER 	__LITTLE_ENDIAN
-#endif 
-
-#ifdef __linux__
-/* use byteswap macros from the host system, hopefully optimized ones ;-) */
-#include <byteswap.h>
-#endif 
+#endif
 
 #ifdef	__WIN32__
 #define FILESEP '\\'
@@ -85,24 +80,40 @@
 #define FILESEP '/'
 #endif
 
+#if defined(__MINGW32__) 
+   /* use local version because MINGW does not provide byteswap.h */
+#  include "win32/byteswap.h"
+#elif defined(__GNUC__) 
+   /* use byteswap macros from the host system, hopefully optimized ones ;-) */
+#  include <byteswap.h>
+#  define bswap_16(x) __bswap_16 (x)
+#  define bswap_32(x) __bswap_32 (x)
+#  define bswap_64(x) __bswap_64 (x)
+#endif 
 
-/* linux and bsd have these already defined, others might need these definitions */
-#ifndef bswap_16
-#define bswap_16(x)   \
-	((((x) & 0xff00) >> 8) | (((x) & 0x00ff) << 8))
+#if 0
+
+#if !defined bswap_16 || !defined bswap_32 || !defined bswap_64
+// used for cross-compilers like mingw-cross-env and mce-w64
+#include "byteswap.h"
 #endif
 
-#ifndef bswap_32
-#define bswap_32(x)   \
+# ifndef bswap_16
+#  define bswap_16(x)   \
+	((((x) & 0xff00) >> 8) | (((x) & 0x00ff) << 8))
+# endif
+
+# ifndef bswap_32
+#  define bswap_32(x)   \
 	 ((((x) & 0xff000000) >> 24) \
         | (((x) & 0x00ff0000) >> 8)  \
 	| (((x) & 0x0000ff00) << 8)  \
 	| (((x) & 0x000000ff) << 24))
 
-#endif
+# endif
 
-#ifndef bswap_64
-#define bswap_64(x) \
+# ifndef bswap_64
+#  define bswap_64(x) \
       	 ((((x) & 0xff00000000000000ull) >> 56)	\
       	| (((x) & 0x00ff000000000000ull) >> 40)	\
       	| (((x) & 0x0000ff0000000000ull) >> 24)	\
@@ -111,6 +122,8 @@
       	| (((x) & 0x0000000000ff0000ull) << 24)	\
       	| (((x) & 0x000000000000ff00ull) << 40)	\
       	| (((x) & 0x00000000000000ffull) << 56))
+# endif
+
 #endif
 
 
