@@ -91,12 +91,8 @@
 #  define bswap_64(x) __bswap_64 (x)
 #endif 
 
-#if 0
 
-#if !defined bswap_16 || !defined bswap_32 || !defined bswap_64
-// used for cross-compilers like mingw-cross-env and mce-w64
-#include "byteswap.h"
-#endif
+#if 1
 
 # ifndef bswap_16
 #  define bswap_16(x)   \
