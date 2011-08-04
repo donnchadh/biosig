@@ -50,7 +50,8 @@ Index: src/file_handling/channel_manager.h
 +    virtual float64 getDurationInSec () const = 0;
  
      //-------------------------------------------------------------------------
-     virtual uint32 getNumberSamples () const = 0;
+-    virtual uint32 getNumberSamples () const = 0;
++    virtual size_t getNumberSamples () const = 0;
  
      //-------------------------------------------------------------------------
 -    virtual float32 getSampleRate () const = 0;
@@ -442,3 +443,177 @@ Index: src/file_handling_impl/event_table_file_reader.h
  };
  
  } // namespace SigViewer_
+Index: src/file_handling_impl/channel_manager_impl.cpp
+===================================================================
+--- src/file_handling_impl/channel_manager_impl.cpp	(revision 556)
++++ src/file_handling_impl/channel_manager_impl.cpp	(working copy)
+@@ -66,7 +66,7 @@
+ }
+ 
+ //-----------------------------------------------------------------------------
+-float32 ChannelManagerImpl::getDurationInSec () const
++float64 ChannelManagerImpl::getDurationInSec () const
+ {
+     return reader_->getBasicHeader()->getNumberOfSamples() /
+            reader_->getBasicHeader()->getSampleRate();
+@@ -74,13 +74,13 @@
+ 
+ 
+ //-----------------------------------------------------------------------------
+-uint32 ChannelManagerImpl::getNumberSamples () const
++size_t ChannelManagerImpl::getNumberSamples () const
+ {
+     return reader_->getBasicHeader()->getNumberOfSamples();
+ }
+ 
+ //-----------------------------------------------------------------------------
+-float32 ChannelManagerImpl::getSampleRate () const
++float64 ChannelManagerImpl::getSampleRate () const
+ {
+     return reader_->getBasicHeader()->getSampleRate();
+ }
+Index: src/file_handling_impl/biosig_basic_header.cpp
+===================================================================
+--- src/file_handling_impl/biosig_basic_header.cpp	(revision 556)
++++ src/file_handling_impl/biosig_basic_header.cpp	(working copy)
+@@ -23,7 +23,7 @@
+ 
+     setFileTypeString (QString (GetFileTypeString(raw_header->TYPE)).append(" v").append(QString::number(raw_header->VERSION)));
+ 
+-    float sampling_rate = raw_header->SampleRate;
++    float64 sampling_rate = raw_header->SampleRate;
+ 
+     setSampleRate (sampling_rate);
+     readChannelsInfo (raw_header);
+@@ -32,7 +32,7 @@
+ }
+ 
+ //-----------------------------------------------------------------------------
+-uint32 BiosigBasicHeader::getNumberOfSamples () const
++size_t BiosigBasicHeader::getNumberOfSamples () const
+ {
+     return ceil(static_cast<double>(number_samples_));
+ }
+Index: src/file_handling_impl/channel_manager_impl.h
+===================================================================
+--- src/file_handling_impl/channel_manager_impl.h	(revision 556)
++++ src/file_handling_impl/channel_manager_impl.h	(working copy)
+@@ -41,13 +41,13 @@
+                                                      unsigned length) const;
+ 
+     //-------------------------------------------------------------------------
+-    virtual float32 getDurationInSec () const;
++    virtual float64 getDurationInSec () const;
+ 
+     //-------------------------------------------------------------------------
+-    virtual uint32 getNumberSamples () const;
++    virtual size_t getNumberSamples () const;
+ 
+     //-------------------------------------------------------------------------
+-    virtual float32 getSampleRate () const;
++    virtual float64 getSampleRate () const;
+ 
+ private:
+     FileSignalReader* reader_;
+Index: src/file_handling_impl/biosig_basic_header.h
+===================================================================
+--- src/file_handling_impl/biosig_basic_header.h	(revision 556)
++++ src/file_handling_impl/biosig_basic_header.h	(working copy)
+@@ -14,7 +14,7 @@
+     BiosigBasicHeader (HDRTYPE* raw_header, QString const& file_path);
+ 
+     //-------------------------------------------------------------------------
+-    virtual uint32 getNumberOfSamples () const;
++    virtual size_t getNumberOfSamples () const;
+ 
+     //-------------------------------------------------------------------------
+     virtual QMap<unsigned, QString> getNamesOfUserSpecificEvents () const;
+Index: src/gui_impl/dialogs/about_dialog.ui
+===================================================================
+--- src/gui_impl/dialogs/about_dialog.ui	(revision 556)
++++ src/gui_impl/dialogs/about_dialog.ui	(working copy)
+@@ -47,17 +47,11 @@
+ &lt;tr&gt;
+ &lt;td style=&quot;border: none;&quot;&gt;
+ &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'Sans Serif'; font-size:11pt; font-weight:600;&quot;&gt;SigViewer [VERSION-NUMBER]&lt;/span&gt;&lt;/p&gt;
+-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;a href=&quot;http://sigviewer.sf.net&quot;&gt;&lt;span style=&quot; font-family:'Sans Serif'; font-size:8pt; text-decoration: underline; color:#0000ff;&quot;&gt;http://sigviewer.sourceforge.net/&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;
++&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;a href=&quot;http://sigviewer.sf.net&quot;&gt;&lt;span style=&quot; font-family:'Sans Serif'; font-size:8pt; text-decoration: underline; color:#0000ff;&quot;&gt;http://biosig.sourceforge.net/&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;
+ &lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:'Sans Serif'; font-size:8pt; text-decoration: underline; color:#0000ff;&quot;&gt;&lt;/p&gt;
+ &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'Sans Serif'; font-size:8pt;&quot;&gt;Clemens Brunner (Coordinator)&lt;/span&gt;&lt;/p&gt;
+ &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'Sans Serif'; font-size:8pt;&quot;&gt;Christoph Eibel&lt;/span&gt;&lt;/p&gt;
+ &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'Sans Serif'; font-size:8pt;&quot;&gt;Thomas Brunner&lt;/span&gt;&lt;/p&gt;
+-&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt;&quot;&gt;&lt;/p&gt;
+-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'Sans Serif'; font-size:8pt;&quot;&gt;Laboratory of Brain-Computer Interfaces&lt;/span&gt;&lt;/p&gt;
+-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'Sans Serif'; font-size:8pt;&quot;&gt;Graz University of Technology&lt;/span&gt;&lt;/p&gt;
+-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;a href=&quot;http://bci.tugraz.at&quot;&gt;&lt;span style=&quot; font-family:'Sans Serif'; font-size:8pt; text-decoration: underline; color:#0000ff;&quot;&gt;http://bci.tugraz.at/&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;
+-&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt;&quot;&gt;&lt;/p&gt;
+-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'Sans Serif'; font-size:8pt;&quot;&gt;Thanks to:&lt;/span&gt;&lt;/p&gt;
+ &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'Sans Serif'; font-size:8pt;&quot;&gt;Alois Schlögl (&lt;/span&gt;&lt;a href=&quot;http://biosig.sourceforge.net/&quot;&gt;&lt;span style=&quot; font-size:8pt; text-decoration: underline; color:#0000ff;&quot;&gt;BioSig&lt;/span&gt;&lt;/a&gt;&lt;span style=&quot; font-family:'Sans Serif'; font-size:8pt;&quot;&gt;)&lt;/span&gt;&lt;/p&gt;
+ &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'Sans Serif'; font-size:8pt;&quot;&gt;Laurent de Soras (&lt;/span&gt;&lt;a href=&quot;http://ldesoras.free.fr/prod.html&quot;&gt;&lt;span style=&quot; font-size:8pt; text-decoration: underline; color:#0000ff;&quot;&gt;FFTReal&lt;/span&gt;&lt;/a&gt;&lt;span style=&quot; font-family:'Sans Serif'; font-size:8pt;&quot;&gt;)&lt;/span&gt;&lt;/p&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+Index: src/gui_impl/processed_signal_channel_manager.cpp
+===================================================================
+--- src/gui_impl/processed_signal_channel_manager.cpp	(revision 556)
++++ src/gui_impl/processed_signal_channel_manager.cpp	(working copy)
+@@ -4,7 +4,7 @@
+ {
+ 
+ //-------------------------------------------------------------------------
+-ProcessedSignalChannelManager::ProcessedSignalChannelManager (float32 sample_rate, unsigned length, QObject* parent)
++ProcessedSignalChannelManager::ProcessedSignalChannelManager (float64 sample_rate, unsigned length, QObject* parent)
+     : QObject (parent),
+       sample_rate_ (sample_rate),
+       length_ (length)
+@@ -69,19 +69,19 @@
+ }
+ 
+ //-------------------------------------------------------------------------
+-float32 ProcessedSignalChannelManager::getDurationInSec () const
++float64 ProcessedSignalChannelManager::getDurationInSec () const
+ {
+     return static_cast<float32>(length_) / sample_rate_;
+ }
+ 
+ //-------------------------------------------------------------------------
+-uint32 ProcessedSignalChannelManager::getNumberSamples () const
++size_t ProcessedSignalChannelManager::getNumberSamples () const
+ {
+     return length_;
+ }
+ 
+ //-------------------------------------------------------------------------
+-float32 ProcessedSignalChannelManager::getSampleRate () const
++float64 ProcessedSignalChannelManager::getSampleRate () const
+ {
+     return sample_rate_;
+ }
+Index: src/gui_impl/processed_signal_channel_manager.h
+===================================================================
+--- src/gui_impl/processed_signal_channel_manager.h	(revision 556)
++++ src/gui_impl/processed_signal_channel_manager.h	(working copy)
+@@ -13,7 +13,7 @@
+ {
+ public:
+     //-------------------------------------------------------------------------
+-    ProcessedSignalChannelManager (float32 sample_rate, unsigned length, QObject* parent);
++    ProcessedSignalChannelManager (float64 sample_rate, unsigned length, QObject* parent);
+ 
+     //-------------------------------------------------------------------------
+     void addChannel (ChannelID id, QSharedPointer<DataBlock const> data_block,
+@@ -44,13 +44,13 @@
+                                                      unsigned length) const;
+ 
+     //-------------------------------------------------------------------------
+-    virtual float32 getDurationInSec () const;
++    virtual float64 getDurationInSec () const;
+ 
+     //-------------------------------------------------------------------------
+-    virtual uint32 getNumberSamples () const;
++    virtual size_t getNumberSamples () const;
+ 
+     //-------------------------------------------------------------------------
+-    virtual float32 getSampleRate () const;
++    virtual float64 getSampleRate () const;
+ 
+ private:
+     float32 sample_rate_;
