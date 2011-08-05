@@ -102,24 +102,6 @@ Index: src/version.txt
 -0.5.1
 +0.5.1-as.5
  
-Index: src/file_handling_impl/sinus_dummy_reader.cpp
-===================================================================
---- src/file_handling_impl/sinus_dummy_reader.cpp	(revision 556)
-+++ src/file_handling_impl/sinus_dummy_reader.cpp	(working copy)
-@@ -29,11 +29,11 @@
-             data->push_back (sin(sample_index / ((i*i+1))));
-         QSharedPointer<DataBlock const> data_block (new FixedDataBlock (data, 100));
-         data_.insert(i, data_block);
--
-+/*
-         QSharedPointer<SignalChannel> channel (new SignalChannel(i,
-                                                    QString::number(i)));
-         header->addDummyChannel(i, channel);
--        header_ = header;
-+*/        header_ = header;
-     }
- 
-     for (int i = 0; i < 40; i++)
 Index: src/file_handling_impl/biosig_reader.cpp
 ===================================================================
 --- src/file_handling_impl/biosig_reader.cpp	(revision 556)
@@ -193,6 +175,24 @@ Index: src/file_handling_impl/biosig_reader.cpp
          events_.append (event);
      }
  
+Index: src/file_handling_impl/sinus_dummy_reader.cpp
+===================================================================
+--- src/file_handling_impl/sinus_dummy_reader.cpp	(revision 556)
++++ src/file_handling_impl/sinus_dummy_reader.cpp	(working copy)
+@@ -29,11 +29,11 @@
+             data->push_back (sin(sample_index / ((i*i+1))));
+         QSharedPointer<DataBlock const> data_block (new FixedDataBlock (data, 100));
+         data_.insert(i, data_block);
+-
++/*
+         QSharedPointer<SignalChannel> channel (new SignalChannel(i,
+                                                    QString::number(i)));
+         header->addDummyChannel(i, channel);
+-        header_ = header;
++*/        header_ = header;
+     }
+ 
+     for (int i = 0; i < 40; i++)
 Index: src/file_handling_impl/biosig_writer.cpp
 ===================================================================
 --- src/file_handling_impl/biosig_writer.cpp	(revision 556)
@@ -476,7 +476,34 @@ Index: src/file_handling_impl/biosig_basic_header.cpp
 ===================================================================
 --- src/file_handling_impl/biosig_basic_header.cpp	(revision 556)
 +++ src/file_handling_impl/biosig_basic_header.cpp	(working copy)
-@@ -23,7 +23,7 @@
+@@ -1,3 +1,26 @@
++/*
++
++    $Id$
++    Copyright (C) Christoph Eibel 2010, 2011
++    Copyright (C) Alois Schloegl 2011
++    This file is part of the "SigViewer" repository
++    at http://biosig.sf.net/
++
++    This program is free software; you can redistribute it and/or
++    modify it under the terms of the GNU General Public License
++    as published by the Free Software Foundation; either version 3
++    of the License, or (at your option) any later version.
++
++    This program is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++    GNU General Public License for more details.
++
++    You should have received a copy of the GNU General Public License
++    along with this program.  If not, see <http://www.gnu.org/licenses/>.
++
++*/
++
+ #include "biosig_basic_header.h"
+ 
+ #include <ctime>
+@@ -23,7 +46,7 @@
  
      setFileTypeString (QString (GetFileTypeString(raw_header->TYPE)).append(" v").append(QString::number(raw_header->VERSION)));
  
@@ -485,7 +512,7 @@ Index: src/file_handling_impl/biosig_basic_header.cpp
  
      setSampleRate (sampling_rate);
      readChannelsInfo (raw_header);
-@@ -32,7 +32,7 @@
+@@ -32,7 +55,7 @@
  }
  
  //-----------------------------------------------------------------------------
@@ -493,6 +520,25 @@ Index: src/file_handling_impl/biosig_basic_header.cpp
 +size_t BiosigBasicHeader::getNumberOfSamples () const
  {
      return ceil(static_cast<double>(number_samples_));
+ }
+@@ -48,6 +71,7 @@
+ {
+     for (unsigned channel_index = 0; channel_index < raw_header->NS; channel_index++)
+     {
++/*
+         QString label = QString (QByteArray(raw_header->CHANNEL[channel_index].Label, MAX_LENGTH_LABEL)).trimmed();
+ 
+         char p[MAX_LENGTH_PHYSDIM+1];
+@@ -56,8 +80,8 @@
+         QString phys_y_dim_label = QString (p).trimmed();
+         if (phys_y_dim_label.compare("uV") == 0)
+             phys_y_dim_label = QString (QChar((ushort)0xb5)).append("V");
+-        QSharedPointer<SignalChannel> channel (new SignalChannel(channel_index, label,
+-                                                                 phys_y_dim_label));
++*/
++        QSharedPointer<SignalChannel> channel (new SignalChannel(channel_index, raw_header));
+         addChannel (channel_index, channel);
+     }
  }
 Index: src/file_handling_impl/channel_manager_impl.h
 ===================================================================
@@ -515,6 +561,19 @@ Index: src/file_handling_impl/channel_manager_impl.h
  
  private:
      FileSignalReader* reader_;
+Index: src/file_handling_impl/sinus_dummy_header.h
+===================================================================
+--- src/file_handling_impl/sinus_dummy_header.h	(revision 556)
++++ src/file_handling_impl/sinus_dummy_header.h	(working copy)
+@@ -13,7 +13,7 @@
+     SinusDummyHeader ();
+ 
+     //-------------------------------------------------------------------------
+-    virtual uint32 getNumberOfSamples () const {return 10000;}
++    virtual size_t getNumberOfSamples () const {return 10000;}
+ 
+     //-------------------------------------------------------------------------
+     void addDummyChannel (ChannelID id, QSharedPointer<SignalChannel const> channel)
 Index: src/file_handling_impl/biosig_basic_header.h
 ===================================================================
 --- src/file_handling_impl/biosig_basic_header.h	(revision 556)
@@ -528,6 +587,61 @@ Index: src/file_handling_impl/biosig_basic_header.h
  
      //-------------------------------------------------------------------------
      virtual QMap<unsigned, QString> getNamesOfUserSpecificEvents () const;
+Index: src/gui_impl/signal_browser/signal_browser_model_4.cpp
+===================================================================
+--- src/gui_impl/signal_browser/signal_browser_model_4.cpp	(revision 556)
++++ src/gui_impl/signal_browser/signal_browser_model_4.cpp	(working copy)
+@@ -358,7 +358,7 @@
+ //-------------------------------------------------------------------------
+ void SignalBrowserModel::goToSample (unsigned sample)
+ {
+-    float32 position = 0;
++    float64 position = 0;
+     while (position < getSignalViewSettings()->getPixelsPerSample() * sample)
+         position += getSignalViewSettings()->getPixelsPerSample();
+     position -= getSignalViewSettings()->getPixelsPerSample();
+Index: src/gui_impl/dialogs/basic_header_info_dialog.cpp
+===================================================================
+--- src/gui_impl/dialogs/basic_header_info_dialog.cpp	(revision 556)
++++ src/gui_impl/dialogs/basic_header_info_dialog.cpp	(working copy)
+@@ -1,3 +1,26 @@
++/*
++
++    $Id: biosig_reader.cpp,v 1.36 2009/03/03 11:57:07 cle1109 Exp $
++    Copyright (C) Christoph Eibel 2010, 2011
++    Copyright (C) Alois Schloegl  2011
++    This file is part of the "SigViewer" repository
++    at http://biosig.sf.net/
++
++    This program is free software; you can redistribute it and/or
++    modify it under the terms of the GNU General Public License
++    as published by the Free Software Foundation; either version 3
++    of the License, or (at your option) any later version.
++
++    This program is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++    GNU General Public License for more details.
++
++    You should have received a copy of the GNU General Public License
++    along with this program.  If not, see <http://www.gnu.org/licenses/>.
++
++*/
++
+ // basic_header_info_dialog.cpp
+ 
+ #include "basic_header_info_dialog.h"
+@@ -176,7 +199,9 @@
+         tmp_item = new QTreeWidgetItem(channel_item);
+ 
+         tmp_item->setText(0, tr("Sample Rate"));
+-        tmp_item->setText(1, QString::number(basic_header_->getSampleRate()));
++        float64 fs = channel->getSampleRate();
++        if (fs < 0.0) fs = basic_header_->getSampleRate();
++        tmp_item->setText(1, QString::number(fs));
+         tmp_item->setText(2, tr("Hz"));
+ 
+         tmp_item = new QTreeWidgetItem(channel_item);
 Index: src/gui_impl/dialogs/about_dialog.ui
 ===================================================================
 --- src/gui_impl/dialogs/about_dialog.ui	(revision 556)
@@ -617,3 +731,340 @@ Index: src/gui_impl/processed_signal_channel_manager.h
  
  private:
      float32 sample_rate_;
+Index: src/gui_impl/commands/adapt_event_view_gui_command.cpp
+===================================================================
+--- src/gui_impl/commands/adapt_event_view_gui_command.cpp	(revision 556)
++++ src/gui_impl/commands/adapt_event_view_gui_command.cpp	(working copy)
+@@ -128,8 +128,8 @@
+ 
+     QSharedPointer<SignalEvent const> event = events.first();
+ 
+-    float32 width = currentVisModel()->view()->getViewportWidth();
+-    float32 desired_pixel_per_sample = width / event->getDuration ();
++    float64 width = currentVisModel()->view()->getViewportWidth();
++    float64 desired_pixel_per_sample = width / event->getDuration ();
+ 
+     currentSignalViewSettings()->setPixelsPerSample (desired_pixel_per_sample);
+     currentVisModel()->goToSample (event->getPosition ());
+Index: src/base/fixed_data_block.cpp
+===================================================================
+--- src/base/fixed_data_block.cpp	(revision 556)
++++ src/base/fixed_data_block.cpp	(working copy)
+@@ -10,7 +10,7 @@
+ 
+ //-------------------------------------------------------------------------------------------------
+ FixedDataBlock::FixedDataBlock (QSharedPointer<QVector<float32> > data,
+-                                float32 sample_rate_per_unit)
++                                float64 sample_rate_per_unit)
+     : DataBlock (data->size(), sample_rate_per_unit),
+       data_ (data),
+       start_index_ (0)
+@@ -135,7 +135,7 @@
+ 
+     std::list<QSharedPointer<DataBlock const> >::const_iterator it = data_blocks.begin();
+     QSharedPointer<QVector<float32> > mean (new QVector<float32>);
+-    float32 sample_rate = (*it)->getSampleRatePerUnit ();
++    float64 sample_rate = (*it)->getSampleRatePerUnit ();
+     float32 tmp_mean = 0;
+     for (unsigned index = 0; index < (*(data_blocks.begin()))->size(); index++)
+     {
+@@ -174,7 +174,7 @@
+         return QSharedPointer<DataBlock>(0);
+ 
+     std::list<QSharedPointer<DataBlock const> >::const_iterator it = data_blocks.begin();
+-    float32 sample_rate = (*it)->getSampleRatePerUnit ();
++    float64 sample_rate = (*it)->getSampleRatePerUnit ();
+     float32 tmp_stddev = 0;
+     for (unsigned index = 0; index < (*(data_blocks.begin()))->size(); index++)
+     {
+Index: src/base/signal_channel.cpp
+===================================================================
+--- src/base/signal_channel.cpp	(revision 556)
++++ src/base/signal_channel.cpp	(working copy)
+@@ -4,7 +4,7 @@
+     Copyright (C) Thomas Brunner  2006,2007 
+     Copyright (C) Christoph Eibel 2007,2008, 
+     Copyright (C) Clemens Brunner 2006,2007,2008  
+-    Copyright (C) Alois Schloegl  2008,2009
++    Copyright (C) Alois Schloegl  2008,2009,2011
+     This file is part of the "SigViewer" repository 
+     at http://biosig.sf.net/ 
+ 
+@@ -31,14 +31,60 @@
+ {
+ 
+ //-----------------------------------------------------------------------------
++SignalChannel::SignalChannel (unsigned ch,
++                              const HDRTYPE* hdr) :
++    number_ (ch),
++    label_ (QString(hdr->CHANNEL[ch].Label).trimmed()),
++    physical_maximum_(hdr->CHANNEL[ch].PhysMax), 	 
++    digital_maximum_(hdr->CHANNEL[ch].DigMax), 	 
++    physical_minimum_(hdr->CHANNEL[ch].PhysMin), 	 
++    digital_minimum_(hdr->CHANNEL[ch].DigMin), 	 
++    data_type_(hdr->CHANNEL[ch].GDFTYP), 	 
++    lowpass_(hdr->CHANNEL[ch].LowPass), 	 
++    highpass_(hdr->CHANNEL[ch].HighPass), 	 
++    notch_(hdr->CHANNEL[ch].Notch) 	 
++
++{
++/*
++     scale_ = (C.PhysMax - C.PhysMin) / (C.DigMax - C.DigMin); 	 
++     offset_ = C.PhysMin - C.DigMin * scale_; 	 
++*/
++     char p[MAX_LENGTH_PHYSDIM+1]; 	 
++     PhysDim(hdr->CHANNEL[ch].PhysDimCode,p); 	 
++     phys_y_dimension_label_ = QString(p);
++     samplerate_ = hdr->SampleRate * hdr->CHANNEL[ch].SPR / hdr->SPR; 
++}
++
+ SignalChannel::SignalChannel (unsigned number,
+-                              QString const& label,
+-                              QString const& phys_y_dimension_label) :
++                              CHANNEL_STRUCT C) :
++
++    /* obsolete */                              
+     number_ (number),
+-    label_ (label),
+-    phys_y_dimension_label_ (phys_y_dimension_label)
++    label_ (QString(C.Label).trimmed()),
++    physical_maximum_(C.PhysMax), 	 
++    digital_maximum_(C.DigMax), 	 
++    physical_minimum_(C.PhysMin), 	 
++    digital_minimum_(C.DigMin), 	 
++    data_type_(C.GDFTYP), 	 
++    lowpass_(C.LowPass), 	 
++    highpass_(C.HighPass), 	 
++    notch_(C.Notch) 	 
++
+ {
++/*
++     scale_ = (C.PhysMax - C.PhysMin) / (C.DigMax - C.DigMin); 	 
++     offset_ = C.PhysMin - C.DigMin * scale_; 	 
++*/
++     char p[MAX_LENGTH_PHYSDIM+1]; 	 
++     PhysDim(C.PhysDimCode,p); 	 
++     phys_y_dimension_label_ = QString(p);
++     samplerate_ = -1.0; 
++}
+ 
++//-----------------------------------------------------------------------------
++float64 SignalChannel::getSampleRate() const
++{
++    return samplerate_;
+ }
+ 
+ //-----------------------------------------------------------------------------
+Index: src/base/fixed_data_block.h
+===================================================================
+--- src/base/fixed_data_block.h	(revision 556)
++++ src/base/fixed_data_block.h	(working copy)
+@@ -22,7 +22,7 @@
+     /// @param sample_rate_per_unit as a data_block must not represent data which
+     ///                             is associated to time, the sample_rate is given
+     ///                             in "per unit" (e.g. "s" or "hz", etc.)
+-    FixedDataBlock (QSharedPointer<QVector<float32> > data, float32 sample_rate_per_unit);
++    FixedDataBlock (QSharedPointer<QVector<float32> > data, float64 sample_rate_per_unit);
+ 
+     //-------------------------------------------------------------------------
+     virtual ~FixedDataBlock () {}
+Index: src/base/math_utils.cpp
+===================================================================
+--- src/base/math_utils.cpp	(revision 556)
++++ src/base/math_utils.cpp	(working copy)
+@@ -55,7 +55,7 @@
+ }
+ 
+ //-----------------------------------------------------------------------------
+-int sampleRateToDecimalPrecision (float sample_rate)
++int sampleRateToDecimalPrecision (float64 sample_rate)
+ {
+     int precision = 0;
+     for (; sample_rate > 10; sample_rate /= 10)
+Index: src/base/signal_channel.h
+===================================================================
+--- src/base/signal_channel.h	(revision 556)
++++ src/base/signal_channel.h	(working copy)
+@@ -4,7 +4,7 @@
+     Copyright (C) Thomas Brunner  2006,2007 
+     Copyright (C) Christoph Eibel 2007,2008, 
+     Copyright (C) Clemens Brunner 2006,2007,2008  
+-    Copyright (C) Alois Schloegl  2008,2009
++    Copyright (C) Alois Schloegl  2008,2009,2011
+     This file is part of the "SigViewer" repository 
+     at http://biosig.sf.net/ 
+ 
+@@ -29,6 +29,7 @@
+ #define SIGNAL_CHANNEL_H
+ 
+ #include "sigviewer_user_types.h"
++#include "biosig.h"
+ 
+ #include <QString>
+ #include <QMutex>
+@@ -43,9 +44,8 @@
+ {
+ public:
+     //-------------------------------------------------------------------------
+-    SignalChannel (unsigned number,
+-                   QString const& label,
+-                   QString const& phys_y_dimension_label = "");
++SignalChannel (unsigned ch, const HDRTYPE* hdr);
++SignalChannel (unsigned number, CHANNEL_STRUCT C);  /* obsolete, deprecated */
+ 
+     //-------------------------------------------------------------------------
+     QString typeString() const;
+@@ -59,6 +59,7 @@
+     float64 getDigitalMaximum() const;
+     float64 getPhysicalMinimum() const;
+     float64 getDigitalMinimum() const;
++    float64 getSampleRate() const; 
+ 
+ private:
+     // from GDF format
+@@ -95,6 +96,7 @@
+     uint16_t data_type_;
+     float64 lowpass_;
+     float64 highpass_;
++    float64 samplerate_;
+     bool notch_;
+ };
+ 
+Index: src/base/signal_event.cpp
+===================================================================
+--- src/base/signal_event.cpp	(revision 556)
++++ src/base/signal_event.cpp	(working copy)
+@@ -79,9 +79,9 @@
+ }
+ 
+ //-----------------------------------------------------------------------------
+-float32 SignalEvent::getPositionInSec() const
++float64 SignalEvent::getPositionInSec() const
+ {
+-    return static_cast<float32>(position_) / sample_rate_;
++    return static_cast<float64>(position_) / sample_rate_;
+ }
+ 
+ 
+@@ -104,15 +104,15 @@
+ }
+ 
+ //-----------------------------------------------------------------------------
+-float32 SignalEvent::getDurationInSec() const
++float64 SignalEvent::getDurationInSec() const
+ {
+-    return static_cast<float32>(duration_) / sample_rate_;
++    return static_cast<float64>(duration_) / sample_rate_;
+ }
+ 
+ //-----------------------------------------------------------------------------
+-float32 SignalEvent::getEndInSec () const
++float64 SignalEvent::getEndInSec () const
+ {
+-    return (static_cast<float32>(duration_ + position_)) / sample_rate_;
++    return (static_cast<float64>(duration_ + position_)) / sample_rate_;
+ }
+ 
+ //-----------------------------------------------------------------------------
+Index: src/base/math_utils.h
+===================================================================
+--- src/base/math_utils.h	(revision 556)
++++ src/base/math_utils.h	(working copy)
+@@ -42,7 +42,7 @@
+ 
+ //-----------------------------------------------------------------------------
+ /// @return number of decimals needed to display time intervals correctly
+-int sampleRateToDecimalPrecision (float sample_rate);
++int sampleRateToDecimalPrecision (float64 sample_rate);
+ 
+ }
+ 
+Index: src/base/signal_event.h
+===================================================================
+--- src/base/signal_event.h	(revision 556)
++++ src/base/signal_event.h	(working copy)
+@@ -24,12 +24,12 @@
+ 
+     int32 getId() const;
+     uint32 getPosition() const;
+-    float32 getPositionInSec() const;
++    float64 getPositionInSec() const;
+     uint16 getType() const;
+     ChannelID getChannel() const;
+     uint32 getDuration() const;
+-    float32 getDurationInSec() const;
+-    float32 getEndInSec () const;
++    float64 getDurationInSec() const;
++    float64 getEndInSec () const;
+     float64 getSampleRate () const;
+ 
+     void setId (EventID id);
+Index: src/base/data_block.cpp
+===================================================================
+--- src/base/data_block.cpp	(revision 556)
++++ src/base/data_block.cpp	(working copy)
+@@ -12,7 +12,7 @@
+ unsigned DataBlock::instance_count_ = 0;
+ 
+ //-----------------------------------------------------------------------------
+-DataBlock::DataBlock (unsigned length, float32 sample_rate_per_unit)
++DataBlock::DataBlock (unsigned length, float64 sample_rate_per_unit)
+     : length_ (length),
+       sample_rate_per_unit_ (sample_rate_per_unit)
+ {
+@@ -79,7 +79,7 @@
+ }
+ 
+ //-------------------------------------------------------------------------
+-float32 DataBlock::getSampleRatePerUnit () const
++float64 DataBlock::getSampleRatePerUnit () const
+ {
+     return sample_rate_per_unit_;
+ }
+Index: src/base/data_block.h
+===================================================================
+--- src/base/data_block.h	(revision 556)
++++ src/base/data_block.h	(working copy)
+@@ -59,16 +59,16 @@
+     std::string getYUnitLabel () const;
+ 
+     //-------------------------------------------------------------------------
+-    float32 getSampleRatePerUnit () const;
++    float64 getSampleRatePerUnit () const;
+ 
+ protected:
+     // protected constructors here:
+-    DataBlock (unsigned length, float32 sample_rate_per_unit);
++    DataBlock (unsigned length, float64 sample_rate_per_unit);
+     DataBlock (DataBlock const& src, unsigned new_length);
+ 
+ private:
+     uint32 length_;
+-    float32 sample_rate_per_unit_;
++    float64 sample_rate_per_unit_;
+ 
+     std::string label_;
+     std::string x_unit_label_;
+Index: src/src.qrc
+===================================================================
+--- src/src.qrc	(revision 556)
++++ src/src.qrc	(working copy)
+@@ -27,7 +27,6 @@
+         <file>images/file_16x16.png</file>
+         <file>images/info_16x16.png</file>
+         <file>images/patient_16x16.png</file>
+-        <file>eventcodes.txt</file>
+         <file>images/zoom_in_vertical_22x22.png</file>
+         <file>images/icons/fileclose.png</file>
+         <file>images/icons/fileopen.png</file>
+Index: deb_building_stuff/deb_control_template
+===================================================================
+--- deb_building_stuff/deb_control_template	(revision 556)
++++ deb_building_stuff/deb_control_template	(working copy)
+@@ -7,5 +7,5 @@
+ Replaces: sigviewer (<< <version>)
+ Installed-Size: <bin-size-via-script>
+ Maintainer: Christoph Eibel <christoph.eibel@tugraz.at>
+-Homepage: http://sigviewer.sourceforge.net
++Homepage: http://biosig.sourceforge.net
+ Description: SigViewer is a powerful viewing application for biosignals, originally designed to display electroencephalographic (EEG) data.
