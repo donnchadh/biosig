@@ -1,30 +1,18 @@
-function [HDR, s] = detect_spikes_bursts(fn, chan, slopeThreshold, dT, dT_Burst, dT_Exclude)
-% DETECT_SPIKES_BURSTS detects spikes and bursts of spikes in 
-% neural recordings. 
-% Spikes are detected when voltages increase is larger than 20 V/s
-% within a 0.2 ms window. Spikes with an interspike interval smaller  
-% than 75 ms are considered a burst. The results are stored as an 
+function [HDR, s] = spikes2bursts(fn, dT_Burst)
+% spikes2bursts convert spike trains into bursts. 
+%  Spikes with an interspike interval smaller  
+%  than 75 ms are considered a burst. The results are stored as an 
 % event table. 
 %
-% HDR = detect_spikes_bursts(filename, chan)
-% ... = detect_spikes_bursts(HDR, data)
-% ... = detect_spikes_bursts(... ,[slopeThreshold [, winlen [, dT_Burst [,dT_Exclude ]]] ])
-% [HDR, data] = detect_spikes_bursts(...)
+% HDR = spikes2bursts(filename)
+% ... = spikes2bursts(HDR)
+% ... = spikes2bursts(... [, dT_Burst ])
 %   
 % Input: 
-%     filename  
-%     chan	list of channels that should be analyzed (default is 0: all channels)
+%     filename  name of file containing spikes in the event table
 %     HDR	header structure obtained by SOPEN, SLOAD, or meXSLOAD
-%     data	signal data that should be analyized
-%     slopeThreshold	[default: 5V/s] Spike is detected when 
-%		slope (over time winlen) exceeds this value	
-%     winlen	[default: .2e-3 s] windowlength in seconds for computing slope	
 %     dT_Burst	[default: 50e-3 s] am inter-spike-interval (ISI) exceeding this value, 
 %		marks the beginning of a new burst  
-%     dT_Exclude an interspike interval smaller than this value, indicates a
-%		double detection, and the second detection is deleted. 
-%		in case of several consecutive ISI's smaller than this value, 
-%		all except the first spikes are deleted. 
 %
 % Output:  
 %     HDR	header structure as defined in biosig
@@ -38,7 +26,7 @@ function [HDR, s] = detect_spikes_bursts(fn, chan, slopeThreshold, dT, dT_Burst,
 % References: 
 %
 
-%	$Id$
+%	$Id: detect_spikes_bursts.m 2739 2011-07-13 15:42:05Z schloegl $
 %	Copyright (C) 2011 by Alois Schloegl <alois.schloegl@gmail.com>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -56,45 +44,21 @@ function [HDR, s] = detect_spikes_bursts(fn, chan, slopeThreshold, dT, dT_Burst,
 %    along with BioSig.  If not, see <http://www.gnu.org/licenses/>.
 
 if nargin < 1, 
-	help detect_spikes_bursts;
+	help spikes2bursts;
 end;
 
 if nargin < 2, 
-	chan = 0; 
-end;
-
-if nargin < 3, 
-	slopeThreshold = 5; %% [V/s]
-end;
-
-if nargin < 4 
-	dT = .2e-3;	%%% smoothing window length [s]	
-end;
-
-if nargin < 5, 
 	dT_Burst = 50e-3;	%%% smaller ISI is a burst [s]
 end;
 
-if (nargin < 6),
-	dT_Exclude = [];	%%% smaller ISI is a burst [s]
-end;
-
-Fs = 20000; 	% assumed samplerate 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 %	load data 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-	if ischar(fn) && exist(fn,'file') && any(size(chan)==1)	
-		winlen = Fs*.1;
-		[s, HDR] = sload(fn, 0, 'NUMBER_OF_NAN_IN_BREAK', winlen);
-		if Fs < HDR.SampleRate, 
-			winlen   = HDR.SampleRate * .1;	
-			[s, HDR] = sload(fn, 0, 'NUMBER_OF_NAN_IN_BREAK', winlen);
-		end; 
-		if chan==0, chan = 1:HDR.NS; end; 
+
+	if ischar(fn) && exist(fn,'file')	
+		[s, HDR] = sload(fn);
 	elseif isstruct(fn)
 		HDR = fn; 
-		s = chan; 
-		chan = 1:size(s,2);		
 	else 
 		help(mfilename); 
 	end
@@ -108,34 +72,37 @@ Fs = 20000; 	% assumed samplerate
 		EVENT.CHN = zeros(size(EVENT.TYP));
 	end; 
 
+	Fs = HDR.SampleRate; 
+	chan = unique(EVENT.CHN);
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
-%	Set Parameters for Spike and Burst Detection 
+%	Set Parameters for Burst Detection 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-	B  = [.5; zeros(HDR.SampleRate*dT - 1, 1); -.5];
 	HDR.BurstTable = [];
 
 	for ch = chan(:)';	% look for each channel 	
-
-		%%%%%%%	Spike Detection %%%%%%%%%%%%%%%%%%%
-		tmp = filter(B, dT, s(:,ch));
-		OnsetSpike = find( diff (tmp > slopeThreshold) > 0); 	%% spike onset time [samples]
-		% --- remove double detections < 1 ms
-		if ~isempty(dT_Exclude)
+		OnsetSpike = EVENT.POS((EVENT.CHN==ch) & (EVENT.TYP==hex2dec('0201'))); 	%% spike onset time [samples]
+		if 0, %~isempty(dT_Exclude)
+			% --- remove double detections < 1 ms
 			OnsetSpike = OnsetSpike([1; 1+find(diff(OnsetSpike) > Fs * dT_Exclude)]); 
 		end; 
+		
+		if isempty(OnsetSpike)
+			continue;
+		end;
 
 		%%%%%%% Burst Detection %%%%%%%%%%%%%%%%%%%
-		OnsetBurst = OnsetSpike ( [1; 1 + find( diff(OnsetSpike) > Fs * dT_Burst ) ] );
+		OnsetBurst = OnsetSpike ( [1; 1 + find( diff(OnsetSpike) > Fs * dT_Burst ) ] )
 
 		OnsetBurst(end+1) = size(s,1) + 1;
 		DUR        = repmat(NaN, size(OnsetBurst));
 		BurstTable = repmat(NaN, length(OnsetBurst), 6);
 
-		m2  = 0;	
-		t0  = [1; HDR.EVENT.POS(HDR.EVENT.TYP==hex2dec('7ffe'))];
+		m2    = 0;	
+		t0    = [1; EVENT.POS(EVENT.TYP==hex2dec('7ffe'))];
 		for m = 1:length(OnsetBurst)-1,	% loop for each burst candidate 
 			tmp = OnsetSpike( OnsetBurst(m) <= OnsetSpike & OnsetSpike < OnsetBurst(m+1) );
-			d = diff(tmp);
+			d   = diff(tmp);
 			if length(tmp) > 1, 
 				m2 = m2 + 1;	
 				DUR(m) = length(tmp)*mean(d); 
@@ -148,7 +115,7 @@ Fs = 20000; 	% assumed samplerate
 		end; 
 
 		% remove single spike bursts 
-		ix = find(~isnan(DUR));
+		ix             = find(~isnan(DUR));
 		HDR.BurstTable = [HDR.BurstTable; BurstTable(ix,:)];
 		OnsetBurst     = OnsetBurst(ix);
 		DUR            = DUR(ix);
@@ -158,6 +125,7 @@ Fs = 20000; 	% assumed samplerate
 		EVENT.DUR = [EVENT.DUR; repmat(1,  size(OnsetSpike)); DUR]; 
 		EVENT.CHN = [EVENT.CHN; repmat(ch, size(OnsetSpike,1) + size(DUR,1), 1) ]; 
 	end; 
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 %	Output 
