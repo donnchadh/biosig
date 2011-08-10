@@ -1,25 +1,30 @@
-function [SEN,SPEC,d,ACC,AREA,YI,c]=roc(d,c,color);
+function [SEN,SPEC,d,ACC,AREA,YI,c]=roc(d,c,varargin);
 % ROC receiver operator curve and derived statistics.
+%
 % [...] = roc(d,c);
-% d     DATA
-% c     CLASS, vector with 0 and 1 
-% 
 % [...]=roc(d1,d0);
-% d1    DATA of class 1 
-% d2    DATA of class 0
-% % [SEN, SPEC, TH, ACC, AUC,Yi,idx]=roc(...);
+% [...] = roc(...,s);
+% d	DATA
+% c	CLASS, vector with 0 and 1
+% d1	DATA of class 1
+% d2	DATA of class 0
+% s	line style (as used in plot)
+%
+% [SEN, SPEC, TH, ACC, AUC,Yi,idx]=roc(...);
 % OUTPUT:
 % SEN     sensitivity
 % SPEC    specificity
 % TH      Threshold
 % ACC     accuracy
 % AUC     area under ROC curve
-% Yi 	  max(SEN+SPEC-1), Youden index 
-% c	  TH(c) is the threshold that maximizes Yi 
+% Yi	  max(SEN+SPEC-1), Youden index
+% c	  TH(c) is the threshold that maximizes Yi
+%
+% see also: AUC, PLOT
 
 %	$Id$
-%	Copyright (c) 1997-2003,2005,2007,2010 by  Alois Schloegl <a.schloegl@ieee.org>	
-%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+%	Copyright (c) 1997-2003,2005,2007,2010,2011 by  Alois Schloegl <alois.schloegl@gmail.com>
+%	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
@@ -43,15 +48,15 @@ function [SEN,SPEC,d,ACC,AREA,YI,c]=roc(d,c,color);
 MODE = all(size(d)==size(c)) & all(all((c==1) | (c==0)));
 d=d(:);
 c=c(:);
-        
+
 if ~MODE
         d2=c;
         c=[ones(size(d));zeros(size(d2))];
         d=[d;d2];
-        fprintf(2,'Warning ROC: XXX\n')        
-end;        
+        fprintf(2,'Warning ROC: XXX\n')
+end;
 
-% handle (ignore) NaN's  
+% handle (ignore) NaN's
 c = c(~isnan(d));
 d = d(~isnan(d));
 
@@ -61,14 +66,6 @@ end;
 
 [D,I] = sort(d);
 x = c(I);
-
-% identify unique elements
-if 0,
-        fprintf(2,'Warning ROC: please take care\n');
-        tmp= find(diff(D)>0);
-        tmp=sort([1; tmp; tmp+1; length(d)]);%]',2*length(tmp+2),1);
-        %D=d(tmp);
-end;
 
 FNR = cumsum(x==1)/sum(x==1);
 TPR = 1-FNR;
@@ -88,15 +85,9 @@ ACC = (TP+TN)./(TP+TN+FP+FN);
 
 % SEN = [FN TP TN FP SEN SPEC ACC D];
 
-%fill(TN/sum(x==0),FN/sum(x==1),'b');
-%SEN=SEN(tmp,:);
-%ACC=ACC(tmp);
-%d=D(tmp);
 d=D;
 
-%plot(SEN(:,1)*100,SPEC*100,color);
-plot(FPR*100,TPR*100,color);
-%plot(FP*100,TP*100,color);
+plot(FPR*100,TPR*100, varargin{:});
 % fill([1; FP],[0;TP],'c');
 
 %ylabel('Sensitivity (true positive ratio) [%]');
@@ -107,3 +98,4 @@ AREA = -diff(FPR)' * (TPR(1:end-1)+TPR(2:end))/2;
 
 % Youden index
 [YI,c] = max(SEN+SPEC-1);
+
