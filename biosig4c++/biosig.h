@@ -163,12 +163,12 @@ extern int B4C_ERRNUM;
 extern const char *B4C_ERRMSG;
 
 #define BIOSIG_VERSION_MAJOR 0
-#define BIOSIG_VERSION_MINOR 97
-#define BIOSIG_VERSION_STEPPING 2
+#define BIOSIG_VERSION_MINOR 98
+#define BIOSIG_VERSION_STEPPING 0
 #define BIOSIG_VERSION (BIOSIG_VERSION_MAJOR+0.01*BIOSIG_VERSION_MINOR)
 
-extern int VERBOSE_LEVEL; 	// used for debugging
-//#define VERBOSE_LEVEL 0	// turn off debugging information
+//extern int VERBOSE_LEVEL; 	// used for debugging
+#define VERBOSE_LEVEL 7	// turn off debugging information
 
 
 /****************************************************************************/
@@ -441,10 +441,14 @@ struct event_groups_t {
         uint16_t groupid;	
         char*   GroupDescription;
 };  
+struct FileFormatStringTable_t {
+	enum FileFormat	fmt;
+	const char*	FileTypeString;
+};
 
 extern const struct etd_t ETD [];
 extern const struct event_groups_t EventCodeGroups [];
-
+extern const struct FileFormatStringTable_t FileFormatStringTable [];
 
 
 /****************************************************************************/
@@ -616,6 +620,10 @@ int RerefCHANNEL(HDRTYPE *hdr, void *ReRef, char rrtype);
 
 const char* GetFileTypeString(enum FileFormat FMT);
 /*	returns a string with file format
+ --------------------------------------------------------------- */
+
+enum FileFormat GetFileTypeFromString(const char *);
+/*	returns file format from string
  --------------------------------------------------------------- */
 
 

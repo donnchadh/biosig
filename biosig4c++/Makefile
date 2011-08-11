@@ -536,7 +536,7 @@ mexw64 %.mexw64: win64/libbiosig.a
 sigviewer: $(PathToSigViewer)/bin/sigviewer 
 	$(COPY) $(PathToSigViewer)/bin/release/sigviewer bin/sigviewer-$(TODAY)
 	$(COPY) $(PathToSigViewer)/bin/release/sigviewer bin/sigviewer-$(shell cat $(PathToSigViewer)/src/version.txt)
-	ln -sf bin/sigviewer-$(TODAY) bin/sigviewer 
+	ln -sf sigviewer-$(TODAY) bin/sigviewer 
 
 $(PathToSigViewer)/bin/sigviewer: libbiosig.$(LIBEXT) biosig.h
 	-$(DELETE) $(PathToSigViewer)/extern/include/*

@@ -2044,126 +2044,130 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 }
 
 
+const struct FileFormatStringTable_t FileFormatStringTable[] = {
+	{ unknown,    	"unknown" },
+	{ alpha,    	"alpha" },
+	{ ABF,    	"ABF" },
+	{ ACQ,    	"ACQ" },
+	{ ACR_NEMA,    	"ACR_NEMA" },
+	{ AINF,    	"AINF" },
+	{ AIFC,    	"AIFC" },
+	{ AIFF,    	"AIFF" },
+	{ ARFF,    	"ARFF" },
+	{ ASCII,    	"ASCII" },
+	{ ATES,    	"ATES" },
+	{ ATF,    	"ATF" },
+	{ AU,    	"AU" },
+	{ BCI2000,    	"BCI2000" },
+	{ BDF,    	"BDF" },
+	{ BKR,    	"BKR" },
+	{ BLSC,    	"BLSC" },
+	{ BMP,    	"BMP" },
+	{ BNI,    	"BNI-1-Baltimore/Nicolet" },
+	{ BrainVision,  "BrainVision" },
+	{ BrainVisionVAmp, "BrainVision" },
+	{ BZ2,    	"BZ2" },
+	{ CDF,    	"CDF" },
+	{ CFS,    	"CFS" },
+	{ CFWB,    	"CFWB" },
+	{ CNT,    	"CNT" },
+	{ CTF,    	"CTF" },
+	{ DEMG,    	"DEMG" },
+	{ DICOM,    	"DICOM" },
+	{ EBS,    	"EBS" },
+	{ EDF,    	"EDF" },
+	{ EEG1100,    	"EEG1100" },
+	{ EEProbe,    	"EEProbe" },
+	{ EGI,    	"EGI" },
+	{ EGIS,    	"EGIS" },
+	{ ELF,    	"ELF" },
+	{ EMBLA,    	"EMBLA" },
+	{ ET_MEG,    	"ET-MEG" },
+	{ ETG4000,    	"ETG4000" },
+	{ EVENT,    	"EVENT" },
+	{ EXIF,    	"EXIF" },
+	{ FAMOS,    	"FAMOS" },
+	{ FEF,    	"FEF" },
+	{ FITS,    	"FITS" },
+	{ FLAC,    	"FLAC" },
+	{ GDF,    	"GDF" },
+	{ GIF,    	"GIF" },
+	{ GTF,    	"GTF" },
+	{ GZIP,    	"GZIP" },
+	{ HDF,    	"HDF" },
+	{ HEKA,    	"HEKA" },
+	{ HL7aECG,    	"HL7aECG" },
+	{ ITX,    	"ITX" },
+	{ ISHNE,    	"ISHNE" },
+	{ JPEG,    	"JPEG" },
+	{ Matlab,    	"MAT" },
+	{ MFER,    	"MFER" },
+	{ MIDI,    	"MIDI" },
+	{ MIT,    	"MIT" },
+	{ MM,    	"MatrixMarket" },
+	{ MSI,    	"MSI" },
+	{ MS_LNK,    	".LNK" },
+	{ MSVCLIB,    	"MS VC++ Library" },
+	{ native,    	"native" },
+	{ NetCDF,    	"NetCDF" },
+	{ NEX1,    	"NEX1" },
+	{ NIFTI,    	"NIFTI" },
+	{ NEURON,    	"NEURON" },
+	{ OGG,    	"OGG" },
+	{ PDP,    	"PDP" },
+	{ RDF,    	"RDF" },
+	{ RIFF,    	"RIFF" },
+	{ SASXPT,    	"SAS_XPORT" },
+	{ SCP_ECG,    	"SCP" },
+	{ SIGIF,    	"SIGIF" },
+	{ Sigma,    	"Sigma" },
+	{ SMA,    	"SMA" },
+	{ SND,    	"SND" },
+	{ SPSS,    	"SPSS" },
+	{ SQLite,    	"SQLite" },
+	{ STATA,    	"STATA" },
+	{ SVG,    	"SVG" },
+	{ TIFF,    	"TIFF" },
+	{ TMS32,    	"TMS32" },
+	{ TMSiLOG,    	"TMSiLOG" },
+	{ TRC,    	"TRC" },
+	{ UNIPRO,    	"UNIPRO" },
+	{ VRML,    	"VRML" },
+	{ VTK,    	"VTK" },
+	{ WAV,    	"WAV" },
+	{ WMF,    	"WMF" },
+	{ XML,    	"XML" },
+	{ ZIP,    	"ZIP" },
+	{ ZIP2,    	"ZIP2" },
+	{ Z,    	"Z" },
+	{ noFile,    	NULL }
+} ;
+
 
 /* ------------------------------------------
  *   	returns string of file type
  * ------------------------------------------- */
 const char* GetFileTypeString(enum FileFormat FMT) {
-	const char *FileType;
-
-	switch (FMT) {
-	case noFile: 	{ FileType = NULL; break; }
-	case unknown: 	{ FileType = "unknown"; break; }
-
-	case alpha: 	{ FileType = "alpha"; break; }
-	case ABF: 	{ FileType = "ABF"; break; }
-	case ACQ: 	{ FileType = "ACQ"; break; }
-	case ACR_NEMA: 	{ FileType = "ACR_NEMA"; break; }
-	case AINF: 	{ FileType = "AINF"; break; }
-	case AIFC: 	{ FileType = "AIFC"; break; }
-	case AIFF: 	{ FileType = "AIFF"; break; }
-	case ARFF: 	{ FileType = "ARFF"; break; }
-	case ASCII: 	{ FileType = "ASCII"; break; }
-	case ATES: 	{ FileType = "ATES"; break; }
-	case ATF: 	{ FileType = "ATF"; break; }
-	case AU: 	{ FileType = "AU"; break; }
-
-	case BCI2000: 	{ FileType = "BCI2000"; break; }
-	case BDF: 	{ FileType = "BDF"; break; }
-	case BKR: 	{ FileType = "BKR"; break; }
-	case BLSC: 	{ FileType = "BLSC"; break; }
-	case BMP: 	{ FileType = "BMP"; break; }
-	case BNI: 	{ FileType = "BNI-1-Baltimore/Nicolet"; break; }
-	case BrainVision:
-	case BrainVisionVAmp:
-		 	{ FileType = "BrainVision"; break; }
-	case BZ2: 	{ FileType = "BZ2"; break; }
-
-	case CDF: 	{ FileType = "CDF"; break; }
-	case CFS: 	{ FileType = "CFS"; break; }
-	case CFWB: 	{ FileType = "CFWB"; break; }
-	case CNT: 	{ FileType = "CNT"; break; }
-	case CTF: 	{ FileType = "CTF"; break; }
-	case DEMG: 	{ FileType = "DEMG"; break; }
-	case DICOM: 	{ FileType = "DICOM"; break; }
-
-	case EBS: 	{ FileType = "EBS"; break; }
-	case EDF: 	{ FileType = "EDF"; break; }
-	case EEG1100: 	{ FileType = "EEG1100"; break; }
-	case EEProbe: 	{ FileType = "EEProbe"; break; }
-	case EGI: 	{ FileType = "EGI"; break; }
-	case EGIS: 	{ FileType = "EGIS"; break; }
-	case ELF: 	{ FileType = "ELF"; break; }
-	case EMBLA: 	{ FileType = "EMBLA"; break; }
-	case ET_MEG: 	{ FileType = "ET-MEG"; break; }
-	case ETG4000: 	{ FileType = "ETG4000"; break; }
-	case EVENT: 	{ FileType = "EVENT"; break; }
-	case EXIF: 	{ FileType = "EXIF"; break; }
-
-	case FAMOS: 	{ FileType = "FAMOS"; break; }
-	case FEF: 	{ FileType = "FEF"; break; }
-	case FITS: 	{ FileType = "FITS"; break; }
-	case FLAC: 	{ FileType = "FLAC"; break; }
-
-	case GDF: 	{ FileType = "GDF"; break; }
-	case GIF: 	{ FileType = "GIF"; break; }
-	case GTF: 	{ FileType = "GTF"; break; }
-	case GZIP: 	{ FileType = "GZIP"; break; }
-	case HDF: 	{ FileType = "HDF"; break; }
-	case HEKA: 	{ FileType = "HEKA"; break; }
-	case HL7aECG: 	{ FileType = "HL7aECG"; break; }
-	case ITX: 	{ FileType = "ITX"; break; }
-	case ISHNE: 	{ FileType = "ISHNE"; break; }
-	case JPEG: 	{ FileType = "JPEG"; break; }
-
-	case Matlab: 	{ FileType = "MAT"; break; }
-	case MFER: 	{ FileType = "MFER"; break; }
-	case MIDI: 	{ FileType = "MIDI"; break; }
-	case MIT: 	{ FileType = "MIT"; break; }
-	case MM: 	{ FileType = "MatrixMarket"; break; }
-	case MSI: 	{ FileType = "MSI"; break; }
-	case MS_LNK:    { FileType = ".LNK"; break; }
- 	case MSVCLIB: 	{ FileType = "MS VC++ Library"; break; }
-
-	case native: 	{ FileType = "native"; break; }
-	case NetCDF: 	{ FileType = "NetCDF"; break; }
-	case NEX1: 	{ FileType = "NEX1"; break; }
-	case NIFTI: 	{ FileType = "NIFTI"; break; }
-	case NEURON: 	{ FileType = "NEURON"; break; }
-	case OGG: 	{ FileType = "OGG"; break; }
-	case PDP: 	{ FileType = "PDP"; break; }
-
-	case RDF: 	{ FileType = "RDF"; break; }		// UCSD ERPSS aquisition system
-	case RIFF: 	{ FileType = "RIFF"; break; }
-
-	case SASXPT: 	{ FileType = "SAS_XPORT"; break; }
-	case SCP_ECG: 	{ FileType = "SCP"; break; }
-	case SIGIF: 	{ FileType = "SIGIF"; break; }
-	case Sigma: 	{ FileType = "Sigma"; break; }		// Sigma PLpro
-	case SMA: 	{ FileType = "SMA"; break; }
-	case SND: 	{ FileType = "SND"; break; }
-	case SPSS: 	{ FileType = "SPSS"; break; }
-	case SQLite: 	{ FileType = "SQLite"; break; }
-	case STATA: 	{ FileType = "STATA"; break; }
-	case SVG: 	{ FileType = "SVG"; break; }
-
-	case TIFF: 	{ FileType = "TIFF"; break; }
-	case TMS32: 	{ FileType = "TMS32"; break; }		// Poly5+TMS32
-	case TMSiLOG: 	{ FileType = "TMSiLOG"; break; }
-	case TRC: 	{ FileType = "TRC"; break; }
-	case UNIPRO: 	{ FileType = "UNIPRO"; break; }
-	case VRML: 	{ FileType = "VRML"; break; }
-	case VTK: 	{ FileType = "VTK"; break; }
-
-	case WAV: 	{ FileType = "WAV"; break; }
-	case WMF: 	{ FileType = "WMF"; break; }
-	case XML: 	{ FileType = "XML"; break; }
-	case ZIP: 	{ FileType = "ZIP"; break; }
-	case ZIP2: 	{ FileType = "ZIP2"; break; }
-	case Z: 	{ FileType = "Z"; break; }
-	default: 	  FileType = "unknown";
+	uint16_t k;
+	for (k=0; ; k++) {
+		if (FMT==FileFormatStringTable[k].fmt) 
+			return (FileFormatStringTable[k].FileTypeString);   
+		if (noFile==FileFormatStringTable[k].fmt)  	// stopping criteria: last element in FileFormatStringTable 
+			return (NULL);   
 	}
-	return(FileType);
+}
+
+/* ------------------------------------------
+ *   	returns file type from type string
+ * ------------------------------------------- */
+enum FileFormat GetFileTypeFromString(const char *FileTypeString) {
+	uint16_t k;
+	for (k=0; ; k++) {
+		if (FileFormatStringTable[k].FileTypeString == NULL) 	// stopping criteria: last element in FileFormatStringTable 
+			return (noFile);   
+		if (FileFormatStringTable[k].FileTypeString == FileTypeString) 
+			return (FileFormatStringTable[k].fmt);   
+	}
 }
 
 
@@ -3196,6 +3200,10 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	uint16_t	BCI2000_StatusVectorLength=0;	// specific for BCI2000 format
 
 
+	if (VERBOSE_LEVEL>7)
+		fprintf(stdout,"SOPEN( %s, %s) \n",FileName, MODE);
+
+
 	if (FileName == NULL) {
 		B4C_ERRNUM = B4C_CANNOT_OPEN_FILE;
 		B4C_ERRMSG = "no filename specified";
@@ -3207,6 +3215,9 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 
 	hdr->FileName = FileName;
 
+	if (VERBOSE_LEVEL>6)
+		fprintf(stdout,"SOPEN( %s, %s) open=%i\n",FileName, MODE, hdr->FILE.OPEN);
+
 
 	setlocale(LC_NUMERIC,"C");
 
@@ -3215,9 +3226,6 @@ hdr->FILE.LittleEndian = 1;
 
 if (!strncmp(MODE,"r",1))
 {
-	if (VERBOSE_LEVEL>8)
-		fprintf(stdout,"[201] %s\n",hdr->FileName);
-
 	size_t k,name=0,ext=0;
 	for (k=0; hdr->FileName[k]; k++) {
 		if (hdr->FileName[k]==FILESEP) name = k+1;
@@ -6646,7 +6654,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",(int)SPR,hdr-
 					uint32_t lba = atoi(LOG+146+k*20);
 
 				if (VERBOSE_LEVEL>7) fprintf(stdout,"EEG1100 [253]: <%d> %d 0x%x\n",(int)k,lba,lba);
-break;		// FIXME: there is at least one EEG1100C file that breaks this 
+//break;		// FIXME: there is at least one EEG1100C file that breaks this 
 					uint32_t N = LOG[lba+18];
 
 				if (VERBOSE_LEVEL>7) fprintf(stdout,"EEG1100 [254]: <%d> %d %d\n",(int)k,(int)lba,N);
@@ -6663,18 +6671,44 @@ break;		// FIXME: there is at least one EEG1100C file that breaks this
 						if (VERBOSE_LEVEL>8) fprintf(stdout,"EEG1100 [258]: [%d,%d] N=%d, <%s>\n",(int)k,(int)k1,hdr->EVENT.N,(char*)(LOG+lba+20+k1*45));
 
 //						FreeTextEvent(hdr,hdr->EVENT.N,(char*)(LOG+lba+20+k1*45));
-						// fprintf(stdout,"%s %s\n",(char*)(LOG+lba+20+k1*45),(char*)(LOG+lba+40+k1*45));
-						sscanf((char*)(LOG+lba+46+k1*45),"(%02u%02u%02u%02u%02u%02u)",&tm_time.tm_year,&tm_time.tm_mon,&tm_time.tm_mday,&tm_time.tm_hour,&tm_time.tm_min,&tm_time.tm_sec);
+					if (VERBOSE_LEVEL>7) {
+						  fprintf(stdout,"   <%s>\n   <%s>\n",(char*)(LOG+lba+9+k1*45),(char*)(LOG+lba+29+k1*45));
+						int kk; for (kk=0; kk<45; kk++) putchar(LOG[lba+9+k1*45+kk]);
+						putchar('\n');
+					}
+
+						char *desc = (char*)(LOG+lba+9+k1*45);
+
+						if (desc[0] == 0) continue;
+/*
+						char secstr[7]; 
+						memcpy(secstr, LOG+lba+29+k1*45, 6);
+						secstr[6] = 0;
+*/
+						if (VERBOSE_LEVEL>7) fprintf(stdout,"EEG1100 [259]: <%s> <%s>",desc,(char*)LOG+lba+29+k1*45);
+
+/*
+						int c = sscanf((char*)(LOG+lba+46+k1*45),"(%02u%02u%02u%02u%02u%02u)",&tm_time.tm_year,&tm_time.tm_mon,&tm_time.tm_mday,&tm_time.tm_hour,&tm_time.tm_min,&tm_time.tm_sec);
+
+						if (c<6) continue; 
+
 						tm_time.tm_year += tm_time.tm_year<20 ? 100:0;
 						tm_time.tm_mon--;	// Jan=0, Feb=1, ...
 						gdf_time t0 = tm_time2gdf_time(&tm_time);
 
-						if (t0 >= hdr->T0)
+						char tmpstr[80];
+						strftime(tmpstr,80,"%Y-%m-%d %H:%M:%S", &tm_time);				
+						if (VERBOSE_LEVEL>7) fprintf(stdout,"EEG1100 [261]: %s\n",tmpstr);
+*/
+						if (1) //(t0 >= hdr->T0)
 						{
-							hdr->EVENT.POS[hdr->EVENT.N] = (uint32_t)(ldexp((t0 - hdr->T0)*86400*hdr->SampleRate,-32));        // 0-based indexing
-							//hdr->EVENT.POS[hdr->EVENT.N] = (uint32_t)(atoi(strtok((char*)(LOG+lba+40+k1*45),"("))*hdr->SampleRate);
+							hdr->EVENT.TYP[hdr->EVENT.N] = 1;
+							//hdr->EVENT.POS[hdr->EVENT.N] = (uint32_t)(ldexp(t0 - hdr->T0,-32)*86400*hdr->SampleRate);        // 0-based indexing
+							//hdr->EVENT.POS[hdr->EVENT.N] = (uint32_t)(atoi(strtok((char*)(LOG+lba+29+k1*45),"("))*hdr->SampleRate);
+							hdr->EVENT.POS[hdr->EVENT.N] = (uint32_t)(atoi(strtok((char*)(LOG+lba+29+k1*45),"("))*hdr->SampleRate);
 							hdr->EVENT.DUR[hdr->EVENT.N] = 0;
 							hdr->EVENT.CHN[hdr->EVENT.N] = 0;
+							FreeTextEvent(hdr,hdr->EVENT.N,desc);
 							hdr->EVENT.N++;
 						}
 					}
@@ -10629,6 +10663,12 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	size_t			toffset;	// time offset for rawdata
 	biosig_data_type	*data1=NULL;
 
+
+	if (VERBOSE_LEVEL>6)
+		fprintf(stdout,"SREAD( %p, %i, %i, %s ) MODE=%i\n",data,start, length, hdr->FileName, hdr->FILE.OPEN);
+
+
+
 	if (start >= (size_t)hdr->NRec) return(0);
 
 int V = VERBOSE_LEVEL;
@@ -11126,7 +11166,7 @@ int V = VERBOSE_LEVEL;
 	if (VERBOSE_LEVEL>7)
 		fprintf(stdout,"sread - end \n");
 
-VERBOSE_LEVEL = V;
+//VERBOSE_LEVEL = V;
 
 	return(count);
 
@@ -11183,6 +11223,11 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 		int64_t i64;
 		uint64_t u64;
 	} val;
+
+
+	if (VERBOSE_LEVEL>6)
+		fprintf(stdout,"SWRITE( %p, %i, %s ) MODE=%i\n",data, nelem, hdr->FileName, hdr->FILE.OPEN);
+
 
 #if (__BYTE_ORDER == __BIG_ENDIAN)
 	char SWAP = hdr->FILE.LittleEndian;
@@ -11603,7 +11648,10 @@ int sclose(HDRTYPE* hdr)
 {
 	int32_t 	pos, len;
 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"sclose(121)\n");
+	if (VERBOSE_LEVEL>6)
+		fprintf(stdout,"SCLOSE( %s ) MODE=%i\n",hdr->FileName, hdr->FILE.OPEN);
+
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"sclose(121)\n");
 
         if (hdr==NULL) return(0);
 

@@ -737,12 +737,12 @@ EXTERN_C void sopen_HL7aECG_write(HDRTYPE* hdr) {
 
 EXTERN_C int sclose_HL7aECG_write(HDRTYPE* hdr){
 /*
-	this function is a stub or placeholder and need to be defined in order to be useful. 
+	this function is a stub or placeholder and need to be defined in order to be useful.
 	It will be called by the function SOPEN in "biosig.c"
 
 	Input: HDR structure
-		
-	Output: 
+
+	Output:
 		char* HDR.AS.Header 	// contains the content which will be written to the file in SOPEN
 */	
 
