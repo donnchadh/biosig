@@ -13,6 +13,7 @@
  */
 
 #include "mex.h"
+#include <ctype.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,130 +28,48 @@
 typedef mwSize Int;
 #define TRUE (1)
 
-#ifdef CHOLMOD_H
-//#include "cholmod/matlab/cholmod_matlab.h"
-/*
-The function sputil_get_sparse and its license was downloaded on Oct 16, 2009 from 
-http://www.cise.ufl.edu/research/sparse/cholmod/CHOLMOD/MATLAB/cholmod_matlab.c
-http://www.cise.ufl.edu/research/sparse/cholmod/CHOLMOD/MATLAB/License.txt
-*/
-/*
-CHOLMOD/MATLAB Module.
-Copyright (C) 2005-2006, Timothy A. Davis
-CHOLMOD is also available under other licenses; contact authors for details.
-MATLAB(tm) is a Registered Trademark of The MathWorks, Inc.
-http://www.cise.ufl.edu/research/sparse
-
-Note that this license is for the CHOLMOD/MATLAB module only.
-All CHOLMOD modules are licensed separately.
-
-
---------------------------------------------------------------------------------
-
-
-This Module is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-as published by the Free Software Foundation; either version 2
-of the License, or (at your option) any later version.
-
-This Module is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this Module; if not, write to the Free Software
-Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-*/
-
-/* ========================================================================== */
-/* === sputil_get_sparse ==================================================== */
-/* ========================================================================== */
-
-/* Create a shallow CHOLMOD copy of a MATLAB sparse matrix.  No memory is
- * allocated.  The resulting matrix A must not be modified.
- */
-
-cholmod_sparse *sputil_get_sparse
-(
-    const mxArray *Amatlab, /* MATLAB version of the matrix */
-    cholmod_sparse *A,	    /* CHOLMOD version of the matrix */
-    double *dummy,	    /* a pointer to a valid scalar double */
-    Int stype		    /* -1: lower, 0: unsymmetric, 1: upper */
-)
-{
-    Int *Ap ;
-    A->nrow = mxGetM (Amatlab) ;
-    A->ncol = mxGetN (Amatlab) ;
-    A->p = (Int *) mxGetJc (Amatlab) ;
-    A->i = (Int *) mxGetIr (Amatlab) ;
-    Ap = (Int*)A->p ;
-    A->nzmax = Ap [A->ncol] ;
-    A->packed = TRUE ;
-    A->sorted = TRUE ;
-    A->nz = NULL ;
-    A->itype = CHOLMOD_LONG ;       /* was CHOLMOD_INT in v1.6 and earlier */
-    A->dtype = CHOLMOD_DOUBLE ;
-    A->stype = stype ;
-
-#ifndef MATLAB6p1_OR_EARLIER
-
-    if (mxIsLogical (Amatlab))
-    {
-	A->x = NULL ;
-	A->z = NULL ;
-	A->xtype = CHOLMOD_PATTERN ;
-    }
-    else if (mxIsEmpty (Amatlab))
-    {
-	/* this is not dereferenced, but the existence (non-NULL) of these
-	 * pointers is checked in CHOLMOD */
-	A->x = dummy ;
-	A->z = dummy ;
-	A->xtype = mxIsComplex (Amatlab) ? CHOLMOD_ZOMPLEX : CHOLMOD_REAL ;
-    }
-    else if (mxIsDouble (Amatlab))
-    {
-	A->x = mxGetPr (Amatlab) ;
-	A->z = mxGetPi (Amatlab) ;
-	A->xtype = mxIsComplex (Amatlab) ? CHOLMOD_ZOMPLEX : CHOLMOD_REAL ;
-    }
-    else
-    {
-	/* only logical and complex/real double matrices supported */
-	//sputil_error (ERROR_INVALID_TYPE, 0) ;        // modified by AS, Oct 2009 
-    }
-
-#else
-
-    if (mxIsEmpty (Amatlab))
-    {
-	/* this is not dereferenced, but the existence (non-NULL) of these
-	 * pointers is checked in CHOLMOD */
-	A->x = dummy ;
-	A->z = dummy ;
-	A->xtype = mxIsComplex (Amatlab) ? CHOLMOD_ZOMPLEX : CHOLMOD_REAL ;
-    }
-    else
-    {
-	/* in MATLAB 6.1, the matrix is sparse, so it must be double */
-	A->x = mxGetPr (Amatlab) ;
-	A->z = mxGetPi (Amatlab) ;
-	A->xtype = mxIsComplex (Amatlab) ? CHOLMOD_ZOMPLEX : CHOLMOD_REAL ;
-    }
-
-#endif 
-
-    return (A) ;
-}
-/* ========================================================================== */
-/* === end of sputil_get_sparse ============================================= */
-/* ========================================================================== */
-#endif 
-
 //#define VERBOSE_LEVEL  9 
 //EXTERN_C int VERBOSE_LEVEL;
 //#define DEBUG
+
+double getDouble(const mxArray *pm, size_t idx) {
+	size_t n = mxGetNumberOfElements(pm);
+	if (n == 0)   return(0.0/0.0);
+	if (n <= idx) idx = n-1;
+
+	switch (mxGetClassID(pm)) {
+	case mxCHAR_CLASS:
+	case mxLOGICAL_CLASS:
+	case mxINT8_CLASS:
+		return(*((int8_t*)mxGetData(pm) + idx));
+	case mxUINT8_CLASS:
+		return(*((uint8_t*)mxGetData(pm) + idx));
+	case mxDOUBLE_CLASS:
+		return(*((double*)mxGetData(pm) + idx));
+	case mxSINGLE_CLASS:
+		return(*((float*)mxGetData(pm) + idx));
+	case mxINT16_CLASS:
+		return(*((int16_t*)mxGetData(pm) + idx));
+	case mxUINT16_CLASS:
+		return(*((uint16_t*)mxGetData(pm) + idx));
+	case mxINT32_CLASS:
+		return(*((int32_t*)mxGetData(pm) + idx));
+	case mxUINT32_CLASS:
+		return(*((uint32_t*)mxGetData(pm) + idx));
+	case mxINT64_CLASS:
+		return(*((int64_t*)mxGetData(pm) + idx));
+	case mxUINT64_CLASS:
+		return(*((uint64_t*)mxGetData(pm) + idx));
+/*
+	case mxFUNCTION_CLASS:
+	case mxUNKNOWN_CLASS:
+	case mxCELL_CLASS:
+	case mxSTRUCT_CLASS:
+	default: 
+*/
+	}
+	return(0.0/0.0);
+}
 
 void mexFunction(
     int           nlhs,           /* number of expected outputs */
@@ -176,7 +95,9 @@ void mexFunction(
 	char		FlagOverflowDetection = 1, FlagUCAL = 0;
 	char		FLAG_CNT32 = 0;
 	int		argSweepSel = -1;
-	
+	void 		*data = NULL;
+	void *p = NULL, *p1 = NULL, *p2 = NULL;
+
 #ifdef CHOLMOD_H
 	cholmod_sparse RR,*rr=NULL;
 	double dummy;
@@ -207,11 +128,25 @@ void mexFunction(
 */
 	/* process input arguments */
 	if (mxIsNumeric(prhs[1]) &&
-	    mxIsStruct( prhs[0)) {
+	    mxIsStruct( prhs[0])) {
 		data      = (void*) mxGetData(prhs[1]);
+		// get number of channels
 		size_t NS = mxGetN (prhs[1]);
-		hdr       = constructHDR (NS, 0);
-		data      = (void*) mxGetData (prhs[1]);
+		// get number of events
+		size_t NEvt=0;
+		if ( (p = mxGetField(prhs[0], 0, "EVENT") ) != NULL ) {
+			if ( (p1 = mxGetField(p, 0, "POS") ) != NULL ) {
+				NEvt = mxGetNumberOfElements(p1);
+			}
+			if ( (p1 = mxGetField(p, 0, "TYP") ) != NULL ) {
+				size_t n = mxGetNumberOfElements(p1);
+				if (n>NEvt) NEvt = n; 
+			}
+		}
+		
+		// allocate memory for header structure
+		hdr       = constructHDR (NS, NEvt);
+		data      = (biosig_data_type*) mxGetData (prhs[1]);
 		hdr->NRec = mxGetM (prhs[1]);
 		hdr->SPR  = 1;
 	}
@@ -264,24 +199,25 @@ void mexFunction(
 	/***** CHECK INPUT HDR STUCTURE CONVERT TO libbiosig hdr *****/
 	if (VERBOSE_LEVEL>7) mexPrintf("110: input arguments checked\n");
 
-	void *p = NULL, *p1 = NULL, *p2 = NULL;
-	if ( (p = mxGetField(prhs[0],0,"TYPE") ) != NULL ) 		hdr->TYPE 	= GetFileTypeFromString(mxArrayToString(p));
-	if ( (p = mxGetField(prhs[0],0,"FileName") ) != NULL ) 		hdr->FileName 	= mxArrayToString(p);
-	if ( (p = mxGetField(prhs[0],0,"SampleRate") ) != NULL ) 	hdr->SampleRate = (double)mxGetData(p);
+	if ( (p = mxGetField(prhs[0], 0, "TYPE") ) != NULL ) 		hdr->TYPE 	= GetFileTypeFromString(mxArrayToString(p));
+	if ( (p = mxGetField(prhs[0], 0, "T0") ) != NULL ) 		hdr->T0 	= (gdf_time)getDouble(p, 0);
+	if ( (p = mxGetField(prhs[0], 0, "FileName") ) != NULL ) 	hdr->FileName 	= mxGetChars(p);
+	if ( (p = mxGetField(prhs[0], 0, "SampleRate") ) != NULL ) 	hdr->SampleRate = getDouble(p, 0);
+	if ( (p = mxGetField(prhs[0], 0, "NS") ) != NULL )	 	hdr->NS         = getDouble(p, 0);
 
 	p1 = mxGetField(prhs[0], 0, "SPR");
 	p2 = mxGetField(prhs[0], 0, "NRec");
 	if      ( p1 && p2) {
-		hdr->SPR  = (size_t)(double)mxGetData(p1);
-		hdr->NRec = (size_t)(double)mxGetData(p2);
+		hdr->SPR  = (size_t)getDouble(p1, 0);
+		hdr->NRec = (size_t)getDouble(p2, 0);
 	}
 	else if (!p1 && p2) {
 		hdr->SPR  = hdr->NRec;
-		hdr->NRec = (size_t)(double)mxGetData(p2);
+		hdr->NRec = (size_t)getDouble(p2, 0);
 		hdr->SPR  /= hdr->NRec;
 	}
 	else if ( p1 && !p2) {
-		hdr->SPR  = (size_t)(double)mxGetData(p1);
+		hdr->SPR  = (size_t)getDouble(p1, 0);
 		hdr->NRec /= hdr->SPR;
 	}
 	else if (!p1 && !p2) {
@@ -291,459 +227,190 @@ void mexFunction(
 	if (hdr->NRec * hdr->SPR != mxGetM (prhs[1]) )	
 		mexPrintf("mexSSAVE: warning HDR.NRec * HDR.SPR (%i*%i = %i) does not match number of rows (%i) in data.", hdr->NRec, hdr->SPR, hdr->NRec*hdr->SPR, mxGetM(prhs[1]) );	
 
-		// TODO
-	if ( (p = mxGetField(prhs[0],0,"Patient") ) != NULL ) {
+
+	if ( (p = mxGetField(prhs[0], 0, "Label") ) != NULL ) {
+		if ( mxIsCell(p) ) {
+			for (k = 0; k < hdr->NS; k++) 
+				mxGetString(mxGetCell(p,k), hdr->CHANNEL[k].Label, MAX_LENGTH_LABEL+1);
+		}
 	}
-	if ( (p = mxGetField(prhs[0],0,"FLAG") ) != NULL ) {
-	}
-	if ( (p = mxGetField(prhs[0],0,"EVENT") ) != NULL ) {
-	}
-	if ( (p = mxGetField(prhs[0],0,"Label") ) != NULL ) {
-	}
-	if ( (p = mxGetField(prhs[0],0,"LowPass") ) != NULL ) {
-	}
-	if ( (p = mxGetField(prhs[0],0,"HighPass") ) != NULL ) {
-	}
-	if ( (p = mxGetField(prhs[0],0,"Notch") ) != NULL ) {
+	if ( (p = mxGetField(prhs[0], 0, "Transducer") ) != NULL ) {
+		if ( mxIsCell(p) ) {
+			for (k = 0; k < hdr->NS; k++) 
+				mxGetString(mxGetCell(p,k), hdr->CHANNEL[k].Transducer, MAX_LENGTH_LABEL+1);
+		}
 	}
 
-		// TODO
 
-	if (!p) {
-		mexPrintf("mexSSAVE: argument #%i is invalid.",k+1);	
-		mexErrMsgTxt("mexSSAVE failes because of unknown parameter\n");	
-		destruct(hdr);
-	} 
+	if ( (p = mxGetField(prhs[0], 0, "LowPass") ) != NULL ) {
+		for (k = 0; k < hdr->NS; k++) 
+			hdr->CHANNEL[k].LowPass = (float)getDouble(p,k);
+	}
+	if ( (p = mxGetField(prhs[0], 0, "HighPass") ) != NULL ) {
+		for (k = 0; k < hdr->NS; k++) 
+			hdr->CHANNEL[k].HighPass = (float)getDouble(p,k);
+	}
+	if ( (p = mxGetField(prhs[0], 0, "Notch") ) != NULL ) {
+		for (k = 0; k < hdr->NS; k++) 
+			hdr->CHANNEL[k].Notch = (float)getDouble(p,k);
+	}
+	if ( (p = mxGetField(prhs[0], 0, "PhysMax") ) != NULL ) {
+		for (k = 0; k < hdr->NS; k++) 
+			hdr->CHANNEL[k].PhysMax = (double)getDouble(p,k);
+	}
+	if ( (p = mxGetField(prhs[0], 0, "PhysMin") ) != NULL ) {
+		for (k = 0; k < hdr->NS; k++) 
+			hdr->CHANNEL[k].PhysMin = (double)getDouble(p,k);
+	}
+	if ( (p = mxGetField(prhs[0], 0, "DigMax") ) != NULL ) {
+		for (k = 0; k < hdr->NS; k++) 
+			hdr->CHANNEL[k].DigMax = (double)getDouble(p,k);
+	}
+	if ( (p = mxGetField(prhs[0], 0, "DigMin") ) != NULL ) {
+		for (k = 0; k < hdr->NS; k++) 
+			hdr->CHANNEL[k].DigMin = (double)getDouble(p,k);
+	}
 
+	if ( (p = mxGetField(prhs[0], 0, "PhysDimCode") ) != NULL ) {
+		for (k = 0; k < hdr->NS; k++) 
+			hdr->CHANNEL[k].PhysDimCode = (uint16_t)getDouble(p,k);
+	}
+	else if ( (p = mxGetField(prhs[0], 0, "PhysDim") ) != NULL ) {
+		if ( mxIsCell(p) ) {
+			for (k = 0; k < hdr->NS; k++) 
+				hdr->CHANNEL[k].PhysDimCode = PhysDimCode(mxGetChars(mxGetCell(p,k)));
+		}
+	}
 
+	if ( (p = mxGetField(prhs[0], 0, "GDFTYP") ) != NULL ) {
+		for (k = 0; k < hdr->NS; k++) 
+			hdr->CHANNEL[k].GDFTYP = (uint16_t)getDouble(p,k);
+	}
+	if ( (p = mxGetField(prhs[0], 0, "TOffset") ) != NULL ) {
+		for (k = 0; k < hdr->NS; k++) 
+			hdr->CHANNEL[k].TOffset = (float)getDouble(p,k);
+	}
+	if ( (p = mxGetField(prhs[0], 0, "Impedance") ) != NULL ) {
+		for (k = 0; k < hdr->NS; k++) 
+			hdr->CHANNEL[k].Impedance = (float)getDouble(p,k);
+	}
+	if ( (p = mxGetField(prhs[0], 0, "fZ") ) != NULL ) {
+		for (k = 0; k < hdr->NS; k++) 
+			hdr->CHANNEL[k].fZ = (float)getDouble(p,k);
+	}
+	if ( (p = mxGetField(prhs[0], 0, "AS") ) != NULL ) {
+		if ( (p1 = mxGetField(p, 0, "SPR") ) != NULL ) {
+			// define channel-based samplingRate, HDR.SampleRate*HDR.AS.SPR(channel)/HDR.SPR; 
+			for (k = 0; k < hdr->NS; k++) 
+				hdr->CHANNEL[k].SPR = (double)getDouble(p1,k);
+		}
+	}
 
+	if ( (p = mxGetField(prhs[0], 0, "Patient") ) != NULL ) {
+		if ( (p1 = mxGetField(p, 0, "Id") ) != NULL ) 
+			if (mxIsChar(p1)) strncpy(hdr->Patient.Id, mxGetChars(p1), MAX_LENGTH_PID);
+		if ( (p1 = mxGetField(p, 0, "Name") ) != NULL ) 
+			if (mxIsChar(p1)) strncpy(hdr->Patient.Name, mxGetChars(p1), MAX_LENGTH_PID);
+		if ( (p1 = mxGetField(p, 0, "Sex") ) != NULL ) {
+			if (mxIsChar(p1)) {
+				char sex = toupper(*mxGetChars(p1));
+				hdr->Patient.Sex = (sex=='M') + 2*(sex=='F');
+			} 
+			else 
+				hdr->Patient.Sex = (int8_t)getDouble(p1,0);
+		}
 
-	if (VERBOSE_LEVEL>7) 
-		mexPrintf("120: going to sopen\n");
+		if ( (p1 = mxGetField(p, 0, "Handedness") ) != NULL ) 
+			hdr->Patient.Handedness = (int8_t)getDouble(p1,0);
+		if ( (p1 = mxGetField(p, 0, "Smoking") ) != NULL ) 
+			hdr->Patient.Smoking = (int8_t)getDouble(p1,0);
+		if ( (p1 = mxGetField(p, 0, "AlcoholAbuse") ) != NULL ) 
+			hdr->Patient.AlcoholAbuse = (int8_t)getDouble(p1,0);
+		if ( (p1 = mxGetField(p, 0, "DrugAbuse") ) != NULL ) 
+			hdr->Patient.DrugAbuse = (int8_t)getDouble(p1,0);
+		if ( (p1 = mxGetField(p, 0, "Medication") ) != NULL ) 
+			hdr->Patient.Medication = (int8_t)getDouble(p1,0);
+		if ( (p1 = mxGetField(p, 0, "Impairment") ) != NULL ) {
+			if ( (p2 = mxGetField(p1, 0, "Visual") ) != NULL ) 
+				hdr->Patient.Impairment.Visual = (int8_t)getDouble(p2,0);
+			if ( (p2 = mxGetField(p1, 0, "Heart") ) != NULL ) 
+				hdr->Patient.Impairment.Heart = (int8_t)getDouble(p2,0);
+		}
 
+		if ( (p1 = mxGetField(p, 0, "Weight") ) != NULL ) 
+			hdr->Patient.Weight = (uint8_t)getDouble(p1,0);
+		if ( (p1 = mxGetField(p, 0, "Height") ) != NULL ) 
+			hdr->Patient.Height = (uint8_t)getDouble(p1,0);
+		if ( (p1 = mxGetField(p, 0, "Birthday") ) != NULL ) 
+			hdr->Patient.Birthday = (gdf_time)getDouble(p1,0);
+	}
+
+	if ( (p = mxGetField(prhs[0], 0, "ID") ) != NULL ) {
+		if ( (p1 = mxGetField(p, 0, "Recording") ) != NULL ) 
+			if (mxIsChar(p1)) strncpy(hdr->ID.Recording, mxGetChars(p1), MAX_LENGTH_RID);
+		if ( (p1 = mxGetField(p, 0, "Technician") ) != NULL ) 
+			if (mxIsChar(p1)) strncpy(hdr->ID.Technician, mxGetChars(p1), MAX_LENGTH_TECHNICIAN);
+		if ( (p1 = mxGetField(p, 0, "Hospital") ) != NULL ) 
+			if (mxIsChar(p1)) hdr->ID.Hospital=mxGetChars(p1);
+		if ( (p1 = mxGetField(p, 0, "Equipment") ) != NULL ) 
+			memcpy(&(hdr->ID.Equipment), mxGetData(p1), 8);
+		if ( (p1 = mxGetField(p, 0, "Manufacturer") ) != NULL ) {
+			if ( (p2 = mxGetField(p1, 0, "Name") ) != NULL ) 
+				if (mxIsChar(p2)) hdr->ID.Manufacturer.Name=mxGetChars(p2);
+			if ( (p2 = mxGetField(p1, 0, "Model") ) != NULL ) 
+				if (mxIsChar(p2)) hdr->ID.Manufacturer.Model=mxGetChars(p2);
+			if ( (p2 = mxGetField(p1, 0, "Version") ) != NULL ) 
+				if (mxIsChar(p2)) hdr->ID.Manufacturer.Version=mxGetChars(p2);
+			if ( (p2 = mxGetField(p1, 0, "SerialNumber") ) != NULL ) 
+				if (mxIsChar(p2)) hdr->ID.Manufacturer.SerialNumber=mxGetChars(p2);
+		}
+	}
+
+	if ( (p = mxGetField(prhs[0], 0, "FLAG") ) != NULL ) {
+		if ( (p1 = mxGetField(p, 0, "OVERFLOWDETECTION") ) != NULL ) 
+			hdr->FLAG.OVERFLOWDETECTION = (char)getDouble(p1,0);
+		if ( (p1 = mxGetField(p, 0, "UCAL") ) != NULL ) 
+			hdr->FLAG.UCAL = (char)getDouble(p1,0);
+		if ( (p1 = mxGetField(p, 0, "ANONYMOUS") ) != NULL ) 
+			hdr->FLAG.ANONYMOUS = (char)getDouble(p1,0);
+		if ( (p1 = mxGetField(p, 0, "ROW_BASED_CHANNELS") ) != NULL ) 
+			hdr->FLAG.ROW_BASED_CHANNELS = (char)getDouble(p1,0);
+		if ( (p1 = mxGetField(p, 0, "CNT32") ) != NULL ) 
+			hdr->FLAG.CNT32 = (char)getDouble(p1,0);
+	}
+
+	if ( (p = mxGetField(prhs[0], 0, "EVENT") ) != NULL ) {
+		if ( (p1 = mxGetField(p, 0, "SampleRate") ) != NULL ) {
+			hdr->EVENT.SampleRate = (double)getDouble(p1,0);
+		}
+		if ( (p1 = mxGetField(p, 0, "POS") ) != NULL ) {
+			size_t n = mxGetNumberOfElements(p1);
+			for (k = 0; k < n; k++) 
+				hdr->EVENT.POS[k] = (uint32_t)getDouble(p1,k);
+		}
+		if ( (p1 = mxGetField(p, 0, "TYP") ) != NULL ) {
+			size_t n = mxGetNumberOfElements(p1);
+			for (k = 0; k < n; k++) 
+				hdr->EVENT.TYP[k] = (uint16_t)getDouble(p1,k);
+		}
+		if ( (p1 = mxGetField(p, 0, "DUR") ) != NULL ) {
+			size_t n = mxGetNumberOfElements(p1);
+			for (k = 0; k < n; k++) 
+				hdr->EVENT.DUR[k] = (uint32_t)getDouble(p1,k);
+		}
+		if ( (p1 = mxGetField(p, 0, "CHN") ) != NULL ) {
+			size_t n = mxGetNumberOfElements(p1);
+			for (k = 0; k < n; k++) 
+				hdr->EVENT.CHN[k] = (uint16_t)getDouble(p1,k);
+		}
+	}
+
+	
 	hdr = sopen(hdr->FileName, "w", hdr);
-/*
-#ifdef WITH_PDP 
-	if (B4C_ERRNUM) {
-		B4C_ERRNUM = 0;
-		sopen_pdp_read(hdr);
-	}	
-#endif
-*/
-	if (VERBOSE_LEVEL>7) 
-		mexPrintf("121: sopen done\n");
 
-	if ((status=serror())) {
+	swrite((biosig_data_type*)data, hdr->NRec, hdr);
 
-		const char* fields[]={"TYPE","VERSION","FileName","FLAG","ErrNum","ErrMsg"};
-		HDR = mxCreateStructMatrix(1, 1, 6, fields);
-		mxSetField(HDR,0,"FileName",mxCreateString(hdr->FileName));
-		mxArray *errnum = mxCreateNumericMatrix(1,1,mxUINT8_CLASS,mxREAL);
-		*(uint8_t*)mxGetData(errnum) = (uint8_t)status;
-		mxSetField(HDR,0,"ErrNum",errnum);
-		
-#ifdef HAVE_OCTAVE
-		// handle bug in octave: mxCreateString(NULL) causes segmentation fault
-		// Octave 3.2.3 causes a seg-fault in mxCreateString(NULL)
-		 
-		{
-		const char *p = GetFileTypeString(hdr->TYPE);
-		if (p) mxSetField(HDR,0,"TYPE",mxCreateString(p));
-		}
-#else
-		mxSetField(HDR,0,"TYPE",mxCreateString(GetFileTypeString(hdr->TYPE)));
-#endif
-		mxSetField(HDR,0,"VERSION",mxCreateDoubleScalar(hdr->VERSION));
-
-		char msg[1024]; 
-		if (status==B4C_CANNOT_OPEN_FILE)
-			sprintf(msg,"Error mexSSAVE: file %s not found.\n",FileName);
-		else if (status==B4C_FORMAT_UNKNOWN)
-			sprintf(msg,"Error mexSSAVE: Cannot open file %s - format %s not known.\n",FileName,GetFileTypeString(hdr->TYPE));
-		else if (status==B4C_FORMAT_UNSUPPORTED)
-			sprintf(msg,"Error mexSSAVE: Cannot open file %s - format %s not supported [%s].\n", FileName, GetFileTypeString(hdr->TYPE), B4C_ERRMSG);
-		else 	
-			sprintf(msg,"Error %i mexSSAVE: Cannot open file %s - format %s not supported [%s].\n", status, FileName, GetFileTypeString(hdr->TYPE), B4C_ERRMSG);
-			
-		mxSetField(HDR,0,"ErrMsg",mxCreateString(msg));
-
-	if (VERBOSE_LEVEL>7) 
-		mexPrintf("737: abort mexSSAVE - sopen failed\n");
-
-
-		destructHDR(hdr);
-
-	if (VERBOSE_LEVEL>7) 
-		mexPrintf("757: abort mexSSAVE - sopen failed\n");
-
-#ifdef mexSOPEN
-		plhs[0] = HDR; 
-#else
-		plhs[0] = mxCreateDoubleMatrix(0,0, mxREAL);
-		plhs[1] = HDR; 
-#endif 		 
-	if (VERBOSE_LEVEL>7) 
-		mexPrintf("777: abort mexSSAVE - sopen failed\n");
-
-		return; 
-	}
-
-#ifdef CHOLMOD_H
-	RerefCHANNEL(hdr,rr,2);
-#endif
-
-	if (hdr->FLAG.OVERFLOWDETECTION != FlagOverflowDetection)
-		mexPrintf("Warning mexSSAVE: Overflowdetection not supported in file %s\n",hdr->FileName);
-	if (hdr->FLAG.UCAL != FlagUCAL)
-		mexPrintf("Warning mexSSAVE: Flag UCAL is %i instead of %i (%s)\n",hdr->FLAG.UCAL,FlagUCAL,hdr->FileName);
-
-
-	if (VERBOSE_LEVEL>7) 
-		fprintf(stderr,"[112] SOPEN-R finished NS=%i %i\n",hdr->NS,NS);
-
-//	convert2to4_eventtable(hdr); 
-		
-#ifdef CHOLMOD_H
-	if (hdr->Calib != NULL) {
-		NS = hdr->Calib->ncol;
-	}
-	else 
-#endif
-	if ((NS<0) || ((NS==1) && (ChanList[0] == 0.0))) { 	// all channels
-		for (k=0, NS=0; k<hdr->NS; ++k) {
-			if (hdr->CHANNEL[k].OnOff) NS++; 
-		}	
-	}		
-	else {		
-		for (k=0; k<hdr->NS; ++k)
-			hdr->CHANNEL[k].OnOff = 0; 	// reset
-		for (k=0; k<NS; ++k) {
-			int ch = (int)ChanList[k];
-			if ((ch < 1) || (ch > hdr->NS)) 
-				mexPrintf("Invalid channel number CHAN(%i) = %i!\n",k+1,ch); 
-			else 	
-				hdr->CHANNEL[ch-1].OnOff = 1;  // set
-		}		
-	}
-	
-	if (VERBOSE_LEVEL>7) 
-		fprintf(stderr,"[113] NS=%i %i\n",hdr->NS,NS);
-
-#ifndef mexSOPEN
-	if (hdr->FLAG.ROW_BASED_CHANNELS)
-		plhs[0] = mxCreateDoubleMatrix(NS, hdr->NRec*hdr->SPR, mxREAL);
-	else
-		plhs[0] = mxCreateDoubleMatrix(hdr->NRec*hdr->SPR, NS, mxREAL);
-
-	count = sread(mxGetPr(plhs[0]), 0, hdr->NRec, hdr);
-	hdr->NRec = count; 
-#endif
-	sclose(hdr);
-#ifdef CHOLMOD_H
-        if (hdr->Calib && hdr->rerefCHANNEL) {
-		hdr->NS = hdr->Calib->ncol; 
-                free(hdr->CHANNEL);
-                hdr->CHANNEL = hdr->rerefCHANNEL;
-                hdr->rerefCHANNEL = NULL; 
-                hdr->Calib = NULL; 
-        }                
-#endif 
-	if ((status=serror())) return;  
-
-	if (VERBOSE_LEVEL>7) 
-		fprintf(stderr,"\n[129] SREAD/SCLOSE on %s successful [%i,%i] [%Li,%i] %i.\n",hdr->FileName,hdr->data.size[0],hdr->data.size[1],hdr->NRec,count,NS);
-
-
-//	hdr2ascii(hdr,stderr,4);	
-
-#ifndef mexSOPEN 
-
-	if (nlhs>1) { 
-#endif
-
-		char* mexFileName = (char*)mxMalloc(strlen(hdr->FileName)+1); 
-
-		mxArray *tmp, *tmp2, *Patient, *Manufacturer, *ID, *EVENT, *Filter, *Flag, *FileType;
-		uint16_t numfields;
-		const char *fnames[] = {"TYPE","VERSION","FileName","T0","FILE","Patient",\
-		"HeadLen","NS","SPR","NRec","SampleRate", "FLAG", \
-		"EVENT","Label","LeadIdCode","PhysDimCode","PhysDim","Filter",\
-		"PhysMax","PhysMin","DigMax","DigMin","Transducer","Cal","Off","GDFTYP","TOffset",\
-		"LowPass","HighPass","Notch","ELEC","Impedance","fZ","AS","Dur","REC","Manufacturer",NULL};
-
-		for (numfields=0; fnames[numfields++] != NULL; );
-		HDR = mxCreateStructMatrix(1, 1, --numfields, fnames);
-
-		mxSetField(HDR,0,"TYPE",mxCreateString(GetFileTypeString(hdr->TYPE)));
-		mxSetField(HDR,0,"HeadLen",mxCreateDoubleScalar(hdr->HeadLen));
-		mxSetField(HDR,0,"VERSION",mxCreateDoubleScalar(hdr->VERSION));
-		mxSetField(HDR,0,"NS",mxCreateDoubleScalar(hdr->NS));
-		mxSetField(HDR,0,"SPR",mxCreateDoubleScalar(hdr->SPR));
-		mxSetField(HDR,0,"NRec",mxCreateDoubleScalar(hdr->NRec));
-		mxSetField(HDR,0,"SampleRate",mxCreateDoubleScalar(hdr->SampleRate));
-		mxSetField(HDR,0,"Dur",mxCreateDoubleScalar(hdr->SPR/hdr->SampleRate));
-		mxSetField(HDR,0,"FileName",mxCreateCharMatrixFromStrings(1,&hdr->FileName));
-                
-		mxSetField(HDR,0,"T0",mxCreateDoubleScalar(ldexp(hdr->T0,-32)));
-
-		/* Channel information */ 
-#ifdef CHOLMOD_H
-/*
-        	if (hdr->Calib == NULL) { // is refering to &RR, do not destroy
-		        mxArray *Calib = mxCreateDoubleMatrix(hdr->Calib->nrow, hdr->Calib->ncol, mxREAL);
-
-        	}
-*/
-#endif
-		mxArray *LeadIdCode  = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
-		mxArray *PhysDimCode = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
-		mxArray *GDFTYP      = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
-		mxArray *PhysMax     = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
-		mxArray *PhysMin     = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
-		mxArray *DigMax      = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
-		mxArray *DigMin      = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
-		mxArray *Cal         = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
-		mxArray *Off         = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
-		mxArray *Toffset     = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
-		mxArray *ELEC_POS    = mxCreateDoubleMatrix(hdr->NS,3, mxREAL);
-		mxArray *ELEC_Orient = mxCreateDoubleMatrix(hdr->NS,3, mxREAL);
-		mxArray *ELEC_Area   = mxCreateDoubleMatrix(hdr->NS,1, mxREAL);
-		mxArray *LowPass     = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
-		mxArray *HighPass    = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
-		mxArray *Notch       = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
-		mxArray *Impedance   = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
-		mxArray *fZ          = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
-		mxArray *SPR         = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
-		mxArray *Label       = mxCreateCellMatrix(hdr->NS,1);
-		mxArray *Transducer  = mxCreateCellMatrix(hdr->NS,1);
-		mxArray *PhysDim1    = mxCreateCellMatrix(hdr->NS,1);
-
-		for (size_t k=0; k<hdr->NS; ++k) {
-
-			*(mxGetPr(LeadIdCode)+k)  = (double)hdr->CHANNEL[k].LeadIdCode;
-			*(mxGetPr(PhysDimCode)+k) = (double)hdr->CHANNEL[k].PhysDimCode;
-			*(mxGetPr(GDFTYP)+k) 	  = (double)hdr->CHANNEL[k].GDFTYP;
-			*(mxGetPr(PhysMax)+k) 	  = (double)hdr->CHANNEL[k].PhysMax;
-			*(mxGetPr(PhysMin)+k) 	  = (double)hdr->CHANNEL[k].PhysMin;
-			*(mxGetPr(DigMax)+k) 	  = (double)hdr->CHANNEL[k].DigMax;
-			*(mxGetPr(DigMin)+k) 	  = (double)hdr->CHANNEL[k].DigMin;
-			*(mxGetPr(Toffset)+k) 	  = (double)hdr->CHANNEL[k].TOffset;
-			*(mxGetPr(Cal)+k) 	  = (double)hdr->CHANNEL[k].Cal;
-			*(mxGetPr(Off)+k) 	  = (double)hdr->CHANNEL[k].Off;
-			*(mxGetPr(SPR)+k) 	  = (double)hdr->CHANNEL[k].SPR;
-			*(mxGetPr(LowPass)+k) 	  = (double)hdr->CHANNEL[k].LowPass;
-			*(mxGetPr(HighPass)+k) 	  = (double)hdr->CHANNEL[k].HighPass;
-			*(mxGetPr(Notch)+k) 	  = (double)hdr->CHANNEL[k].Notch;
-			*(mxGetPr(Impedance)+k)	  = (double)hdr->CHANNEL[k].Impedance;
-			*(mxGetPr(fZ)+k)	  = (double)hdr->CHANNEL[k].fZ;
-			*(mxGetPr(ELEC_POS)+k) 	  = (double)hdr->CHANNEL[k].XYZ[0];
-			*(mxGetPr(ELEC_POS)+k+hdr->NS) 	  = (double)hdr->CHANNEL[k].XYZ[1];
-			*(mxGetPr(ELEC_POS)+k+hdr->NS*2)  = (double)hdr->CHANNEL[k].XYZ[2];
-/*
-			*(mxGetPr(ELEC_Orient)+k) 	  = (double)hdr->CHANNEL[k].Orientation[0];
-			*(mxGetPr(ELEC_Orient)+k+hdr->NS) 	  = (double)hdr->CHANNEL[k].Orientation[1];
-			*(mxGetPr(ELEC_Orient)+k+hdr->NS*2)  = (double)hdr->CHANNEL[k].Orientation[2];
-			*(mxGetPr(ELEC_Area)+k) 	  = (double)hdr->CHANNEL[k].Area;
-*/
-			mxSetCell(Label,k,mxCreateString(hdr->CHANNEL[k].Label));
-			mxSetCell(Transducer,k,mxCreateString(hdr->CHANNEL[k].Transducer));
-			
-			char p[MAX_LENGTH_PHYSDIM+1];
-			PhysDim(hdr->CHANNEL[k].PhysDimCode,p);			
-			mxSetCell(PhysDim1,k,mxCreateString(p));
-		} 
-
-		mxSetField(HDR,0,"LeadIdCode",LeadIdCode);
-		mxSetField(HDR,0,"PhysDimCode",PhysDimCode);
-		mxSetField(HDR,0,"GDFTYP",GDFTYP);
-		mxSetField(HDR,0,"PhysMax",PhysMax);
-		mxSetField(HDR,0,"PhysMin",PhysMin);
-		mxSetField(HDR,0,"DigMax",DigMax);
-		mxSetField(HDR,0,"DigMin",DigMin);
-		mxSetField(HDR,0,"TOffset",Toffset);
-		mxSetField(HDR,0,"Cal",Cal);
-		mxSetField(HDR,0,"Off",Off);
-		mxSetField(HDR,0,"Impedance",Impedance);
-		mxSetField(HDR,0,"fZ",fZ);
-		mxSetField(HDR,0,"Off",Off);
-		mxSetField(HDR,0,"PhysDim",PhysDim1);
-		mxSetField(HDR,0,"Transducer",Transducer);
-		mxSetField(HDR,0,"Label",Label);
-
-		const char* field[] = {"XYZ","Orientation","Area","GND","REF",NULL};
-		for (numfields=0; field[numfields++] != 0; );
-		tmp = mxCreateStructMatrix(1, 1, --numfields, field);
-		mxSetField(tmp,0,"XYZ",ELEC_POS);
-		mxSetField(tmp,0,"Orientation",ELEC_Orient);
-		mxSetField(tmp,0,"Area",ELEC_Area);
-		mxSetField(HDR,0,"ELEC",tmp);
-
-		const char* field2[] = {"SPR",NULL};
-		for (numfields=0; field2[numfields++] != 0; );
-		tmp2 = mxCreateStructMatrix(1, 1, --numfields, field2);
-		mxSetField(tmp2,0,"SPR",SPR);
-		if (hdr->AS.bci2000!=NULL) {
-			mxAddField(tmp2, "BCI2000");
-			mxSetField(tmp2,0,"BCI2000",mxCreateString(hdr->AS.bci2000));
-		}
-		if (hdr->TYPE==Sigma) {	
-			mxAddField(tmp2, "H1");
-			mxSetField(tmp2,0,"H1",mxCreateString((char*)hdr->AS.Header));
-		}	
-		mxSetField(HDR,0,"AS",tmp2);
-				
-		/* FLAG */
-		const char* field3[] = {"UCAL","OVERFLOWDETECTION","ROW_BASED_CHANNELS",NULL};
-		for (numfields=0; field3[numfields++] != 0; );
-		Flag = mxCreateStructMatrix(1, 1, --numfields, field3);
-#ifdef MX_API_VER
-                // Matlab 
-       		mxSetField(Flag,0,"UCAL",mxCreateLogicalScalar(hdr->FLAG.UCAL));
-        	mxSetField(Flag,0,"OVERFLOWDETECTION",mxCreateLogicalScalar(hdr->FLAG.OVERFLOWDETECTION));
-        	mxSetField(Flag,0,"ROW_BASED_CHANNELS",mxCreateLogicalScalar(hdr->FLAG.ROW_BASED_CHANNELS));
-#else 
-                // mxCreateLogicalScalar are not included in Octave 3.0 
-	        mxSetField(Flag,0,"UCAL",mxCreateDoubleScalar(hdr->FLAG.UCAL));
-       		mxSetField(Flag,0,"OVERFLOWDETECTION",mxCreateDoubleScalar(hdr->FLAG.OVERFLOWDETECTION));
-       		mxSetField(Flag,0,"ROW_BASED_CHANNELS",mxCreateDoubleScalar(hdr->FLAG.ROW_BASED_CHANNELS));
-#endif
-		mxSetField(HDR,0,"FLAG",Flag);
-
-		/* Filter */ 
-		const char *filter_fields[] = {"HighPass","LowPass","Notch",NULL};
-		for (numfields=0; filter_fields[numfields++] != 0; );
-		Filter = mxCreateStructMatrix(1, 1, --numfields, filter_fields);
-		mxSetField(Filter,0,"LowPass",LowPass);
-		mxSetField(Filter,0,"HighPass",HighPass);
-		mxSetField(Filter,0,"Notch",Notch);
-		mxSetField(HDR,0,"Filter",Filter);
-
-		/* annotation, marker, event table */
-		const char *event_fields[] = {"SampleRate","TYP","POS","DUR","CHN","Desc",NULL};
-		
-		if (hdr->EVENT.DUR == NULL)
-			EVENT = mxCreateStructMatrix(1, 1, 3, event_fields);
-		else {	
-			EVENT = mxCreateStructMatrix(1, 1, 5, event_fields);
-			mxArray *DUR = mxCreateDoubleMatrix(hdr->EVENT.N,1, mxREAL);
-			mxArray *CHN = mxCreateDoubleMatrix(hdr->EVENT.N,1, mxREAL);
-			for (size_t k=0; k<hdr->EVENT.N; ++k) {
-				*(mxGetPr(DUR)+k) = (double)hdr->EVENT.DUR[k];
-				*(mxGetPr(CHN)+k) = (double)hdr->EVENT.CHN[k];  // channels use a 1-based index, 0 indicates all channels
-			} 
-			mxSetField(EVENT,0,"DUR",DUR);
-			mxSetField(EVENT,0,"CHN",CHN);
-		}
-
-		if (hdr->EVENT.CodeDesc != NULL) {
-			mxAddField(EVENT, "CodeDesc");
-			mxArray *CodeDesc = mxCreateCellMatrix(hdr->EVENT.LenCodeDesc-1,1);
-			for (size_t k=1; k < hdr->EVENT.LenCodeDesc; ++k) {
-				mxSetCell(CodeDesc,k-1,mxCreateString(hdr->EVENT.CodeDesc[k]));
-			} 
-			mxSetField(EVENT,0,"CodeDesc",CodeDesc);
-		}	
-
-		mxArray *TYP = mxCreateDoubleMatrix(hdr->EVENT.N,1, mxREAL);
-		mxArray *POS = mxCreateDoubleMatrix(hdr->EVENT.N,1, mxREAL);
-		for (size_t k=0; k<hdr->EVENT.N; ++k) {
-			*(mxGetPr(TYP)+k) = (double)hdr->EVENT.TYP[k];
-			*(mxGetPr(POS)+k) = (double)hdr->EVENT.POS[k]+1;   // conversion from 0-based to 1-based indexing 
-		} 
-		mxSetField(EVENT,0,"TYP",TYP);
-		mxSetField(EVENT,0,"POS",POS);
-		mxSetField(EVENT,0,"SampleRate",mxCreateDoubleScalar(hdr->EVENT.SampleRate));
-		mxSetField(HDR,0,"EVENT",EVENT);
-
-		/* Record identification */ 
-		const char *ID_fields[] = {"Recording","Technician","Hospital","Equipment","IPaddr",NULL};
-		for (numfields=0; ID_fields[numfields++] != 0; );
-		ID = mxCreateStructMatrix(1, 1, --numfields, ID_fields);
-		mxSetField(ID,0,"Recording",mxCreateString(hdr->ID.Recording));
-		mxSetField(ID,0,"Technician",mxCreateString(hdr->ID.Technician));
-		mxSetField(ID,0,"Hospital",mxCreateString(hdr->ID.Hospital));
-		mxSetField(ID,0,"Equipment",mxCreateString((char*)&hdr->ID.Equipment));
-		int len = 4; 
-		uint8_t IPv6=0;
-		for (uint8_t k=4; k<16; k++) IPv6 |= hdr->IPaddr[k];
-		if (IPv6) len=16; 
-		mxArray *IPaddr = mxCreateNumericMatrix(1,len,mxUINT8_CLASS,mxREAL);
-		memcpy(mxGetData(IPaddr),hdr->IPaddr,len);
-		mxSetField(ID,0,"IPaddr",IPaddr); 
-		mxSetField(HDR,0,"REC",ID);
-
-		/* Patient Information */ 
-		const char *patient_fields[] = {"Sex","Handedness","Id","Name","Weight","Height","Birthday",NULL};
-		for (numfields=0; patient_fields[numfields++] != 0; );
-		Patient = mxCreateStructMatrix(1, 1, --numfields, patient_fields);
-		const char *strarray[1];
-		if (hdr->Patient.Name) {
-			strarray[0] = hdr->Patient.Name; 
-			mxSetField(Patient,0,"Name",mxCreateCharMatrixFromStrings(1,strarray));
-		}	
-		if (hdr->Patient.Id) {
-			strarray[0] = hdr->Patient.Id; 
-			mxSetField(Patient,0,"Id",mxCreateCharMatrixFromStrings(1,strarray));
-		}	
-		mxSetField(Patient,0,"Handedness",mxCreateDoubleScalar(hdr->Patient.Handedness));
-
-		mxSetField(Patient,0,"Sex",mxCreateDoubleScalar(hdr->Patient.Sex));
-		mxSetField(Patient,0,"Weight",mxCreateDoubleScalar((double)hdr->Patient.Weight));
-		mxSetField(Patient,0,"Height",mxCreateDoubleScalar((double)hdr->Patient.Height));
-		mxSetField(Patient,0,"Birthday",mxCreateDoubleScalar(ldexp(hdr->Patient.Birthday,-32)));
-
-		double d;
-		if (hdr->Patient.Weight==0)		d = 0.0/0.0;	// not-a-number		
-		else if (hdr->Patient.Weight==255)	d = 1.0/0.0;	// Overflow
-		else					d = (double)hdr->Patient.Weight;
-		mxSetField(Patient,0,"Weight",mxCreateDoubleScalar(d));
-			
-		if (hdr->Patient.Height==0)		d = 0.0/0.0;	// not-a-number		
-		else if (hdr->Patient.Height==255)	d = 1.0/0.0;	// Overflow
-		else					d = (double)hdr->Patient.Height;
-		mxSetField(Patient,0,"Height",mxCreateDoubleScalar(d));
-	
-		/* Manufacturer Information */ 
-		const char *manufacturer_fields[] = {"Name","Model","Version","SerialNumber",NULL};
-		for (numfields=0; manufacturer_fields[numfields++] != 0; );
-		Manufacturer = mxCreateStructMatrix(1, 1, --numfields, manufacturer_fields);
-		if (hdr->ID.Manufacturer.Name) {
-			strarray[0] = hdr->ID.Manufacturer.Name;
-			mxSetField(Manufacturer,0,"Name",mxCreateCharMatrixFromStrings(1,strarray));
-		}	
-		if (hdr->ID.Manufacturer.Model) {
-			strarray[0] = hdr->ID.Manufacturer.Model;
-			mxSetField(Manufacturer,0,"Model",mxCreateCharMatrixFromStrings(1,strarray));
-		}	
-		if (hdr->ID.Manufacturer.Version) {
-			strarray[0] = hdr->ID.Manufacturer.Version;
-			mxSetField(Manufacturer,0,"Version",mxCreateCharMatrixFromStrings(1,strarray));
-		}	
-		if (hdr->ID.Manufacturer.SerialNumber) {
-			strarray[0] = hdr->ID.Manufacturer.SerialNumber;
-			mxSetField(Manufacturer,0,"SerialNumber",mxCreateCharMatrixFromStrings(1,strarray));
-		}
-		mxSetField(HDR,0,"Manufacturer",Manufacturer);
-
-	if (VERBOSE_LEVEL>8) 
-		fprintf(stdout,"[148] going for SCLOSE\n");
-
-		mxSetField(HDR,0,"Patient",Patient);
-
-#ifndef mexSOPEN
-		plhs[1] = HDR; 
-	}
-#else
-	plhs[0] = HDR; 
-#endif
-
-	if (VERBOSE_LEVEL>7) fprintf(stdout,"[151] going for SCLOSE\n");
-#ifdef CHOLMOD_H
-	hdr->Calib = NULL; // is refering to &RR, do not destroy
-#endif
-	if (VERBOSE_LEVEL>7) fprintf(stdout,"[156] SCLOSE finished\n");
 	destructHDR(hdr);
-	hdr = NULL; 
-	if (VERBOSE_LEVEL>7) fprintf(stdout,"[157] SCLOSE finished\n");
+
 };
 

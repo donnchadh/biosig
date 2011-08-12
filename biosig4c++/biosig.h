@@ -627,7 +627,7 @@ enum FileFormat GetFileTypeFromString(const char *);
  --------------------------------------------------------------- */
 
 
-uint16_t PhysDimCode(char* PhysDim0);
+uint16_t PhysDimCode(const char* PhysDim0);
 /* Encodes  Physical Dimension as 16bit integer according to
    ISO/IEEE 11073-10101:2004 Vital Signs Units of Measurement
  --------------------------------------------------------------- */
@@ -637,6 +637,7 @@ char* PhysDim(uint16_t PhysDimCode, char *PhysDimText);
    the memory for PhysDim must be preallocated, its maximum length is
    defined by (MAX_LENGTH_PHYSDIM+1)
  --------------------------------------------------------------- */
+
 double PhysDimScale(uint16_t PhysDimCode);
 /* returns scaling factor of physical dimension
 	e.g. 0.001 for milli, 1000 for kilo etc.

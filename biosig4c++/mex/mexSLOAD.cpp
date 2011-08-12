@@ -519,7 +519,6 @@ void mexFunction(
 		mxArray *PhysDim1    = mxCreateCellMatrix(hdr->NS,1);
 
 		for (size_t k=0; k<hdr->NS; ++k) {
-
 			*(mxGetPr(LeadIdCode)+k)  = (double)hdr->CHANNEL[k].LeadIdCode;
 			*(mxGetPr(PhysDimCode)+k) = (double)hdr->CHANNEL[k].PhysDimCode;
 			*(mxGetPr(GDFTYP)+k) 	  = (double)hdr->CHANNEL[k].GDFTYP;

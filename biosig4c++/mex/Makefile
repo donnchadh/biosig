@@ -33,8 +33,8 @@ LFLAGS        = -L..
 COPY          = cp
 
 mex: mex4m mex4o 
-win32 win mexw32: mexSLOAD.mexw32 mexSOPEN.mexw32 
-win64 mexw64: mexSLOAD.mexw64 mexSOPEN.mexw64 
+win32 win mexw32: mexSLOAD.mexw32 mexSOPEN.mexw32 mexSSAVE.mexw32
+win64 mexw64: mexSLOAD.mexw64 mexSOPEN.mexw64 mexSSAVE.mexw64
 all: mex4m mex4o win32 win64
 
 clean:
@@ -66,7 +66,7 @@ OCT           	= mkoctfile$(OCTAVE_VERSION)
 #############################################################
 mex: mex4m mex4o
 ifneq ($(shell which matlab), )
-mex4m: mexSLOAD.$(MEX_EXT) mexSOPEN.$(MEX_EXT)
+mex4m: mexSLOAD.$(MEX_EXT) mexSOPEN.$(MEX_EXT) mexSSAVE.$(MEX_EXT)
 mexSLOAD: mexSLOAD.$(MEX_EXT) 
 mexSOPEN: mexSOPEN.$(MEX_EXT)
 mexSLOAD.$(MEX_EXT): mexSLOAD.cpp ../libbiosig.$(LIBEXT) Makefile
@@ -80,10 +80,10 @@ endif
 
 
 ### MEX-files for Octave
-mex4o:  mexSLOAD.mex mexSOPEN.mex
-mexSLOAD.mex:  mexSLOAD.cpp ../libbiosig.$(LIBEXT) Makefile
-	$(OCT)  $(DEFINES) -v -g --mex mexSLOAD.cpp $(LFLAGS) $(LIBS)
-	-$(COPY) mexSLOAD.mex ../../biosig/t200_FileAccess/
+mex4o:  mexSLOAD.mex mexSOPEN.mex mexSSAVE.mex
+%.mex:  %.cpp ../libbiosig.$(LIBEXT) Makefile
+	$(OCT)  $(DEFINES) -v -g --mex $< $(LFLAGS) $(LIBS)
+	-$(COPY) $@ ../../biosig/t200_FileAccess/
 mexSOPEN.mex:  mexSLOAD.cpp ../libbiosig.$(LIBEXT) Makefile
 	$(OCT) -D=mexSOPEN $(DEFINES) -v -g --mex mexSLOAD.cpp $(LFLAGS) $(LIBS) -o mexSOPEN.mex
 	-$(COPY) mexSOPEN.mex ../../biosig/t200_FileAccess/

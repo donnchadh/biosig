@@ -722,7 +722,7 @@ char* PhysDim(uint16_t PhysDimCode, char *PhysDim)
 	return(PhysDim);
 }
 
-uint16_t PhysDimCode(char* PhysDim0)
+uint16_t PhysDimCode(const char* PhysDim0)
 {
 // converting PhysDim -> PhysDimCode
 	/* converts Physical dimension into 16 bit code */
