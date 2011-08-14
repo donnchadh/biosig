@@ -40,7 +40,6 @@ function [QRStime_corr,dr,dr_corr,U,ANNOT] = QRScorr(QRSindex,Fs,Nmax);
 % This file is part of the BIOSIG-toolbox http://biosig.sf.net/
 % Last modified: 2003/09/16
 % Copyright (c) 2003 by Johannes Peham
-%	$Revision: 1.1 $
 %	$Id$
 %
 % This library is free software; you can redistribute it and/or

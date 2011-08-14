@@ -112,15 +112,9 @@ HDR.fZ = [NaN,NaN,NaN,400000,NaN,NaN];                % probe frequency in Hz fo
 t = [100:100:size(x,1)]';
 %HDR.NRec = 100;
 HDR.VERSION = 2.22;        % experimental  
-HDR = sopen(HDR,'w');
-%HDR.SIE.RAW = 0; % [default] channel data mode, one column is one channel 
-%HDR.SIE.RAW = 1; % switch to raw data mode, i.e. one column for one EDF-record
-
-HDR = swrite(HDR,x);
-
 HDR.EVENT.POS = t;
 HDR.EVENT.TYP = t/100;
-if 1, 
+if 0, 
 HDR.EVENT.CHN = repmat(0,size(t));
 HDR.EVENT.DUR = repmat(1,size(t));
 HDR.EVENT.VAL = repmat(NaN,size(t));
@@ -132,8 +126,13 @@ HDR.EVENT.CHN(ix) = 5; % not valid because #5 is not sparse sampleing
 HDR.EVENT.VAL(ix) = 374; 
 end; 
 
-HDR = sclose(HDR);
-
+try,
+	mexSSAVE(HDR,x);
+catch
+	HDR = sopen(HDR,'w');
+	HDR = swrite(HDR,x);
+	HDR = sclose(HDR);
+end;
 
 %
 [s0,HDR0] = sload(HDR.FileName);	% test file 
