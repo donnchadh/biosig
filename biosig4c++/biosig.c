@@ -2060,6 +2060,7 @@ const struct FileFormatStringTable_t FileFormatStringTable[] = {
 	{ AU,    	"AU" },
 	{ BCI2000,    	"BCI2000" },
 	{ BDF,    	"BDF" },
+	{ BIN,    	"BINARY" },
 	{ BKR,    	"BKR" },
 	{ BLSC,    	"BLSC" },
 	{ BMP,    	"BMP" },
@@ -2165,7 +2166,7 @@ enum FileFormat GetFileTypeFromString(const char *FileTypeString) {
 	for (k=0; ; k++) {
 		if (FileFormatStringTable[k].FileTypeString == NULL) 	// stopping criteria: last element in FileFormatStringTable 
 			return (noFile);   
-		if (FileFormatStringTable[k].FileTypeString == FileTypeString) 
+		if (!strcmp(FileFormatStringTable[k].FileTypeString, FileTypeString)) 
 			return (FileFormatStringTable[k].fmt);   
 	}
 }

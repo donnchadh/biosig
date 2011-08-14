@@ -153,7 +153,7 @@ void sopen_pdp_read(HDRTYPE *hdr);
 #endif
 
 //#define VERBOSE_LEVEL  9 
-//EXTERN_C int VERBOSE_LEVEL;
+//extern int VERBOSE_LEVEL;
 //#define DEBUG
 
 void mexFunction(

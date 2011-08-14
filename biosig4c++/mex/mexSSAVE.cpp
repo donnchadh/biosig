@@ -29,7 +29,7 @@ typedef mwSize Int;
 #define TRUE (1)
 
 //#define VERBOSE_LEVEL  9 
-//EXTERN_C int VERBOSE_LEVEL;
+//extern int VERBOSE_LEVEL;
 //#define DEBUG
 
 double getDouble(const mxArray *pm, size_t idx) {
@@ -79,22 +79,19 @@ void mexFunction(
 )
 
 {
-	int k,k1;
+	int k;
 	const mxArray	*arg;
-	mxArray		*HDR;
 	HDRTYPE		*hdr;
-	CHANNEL_TYPE*	cp; 
 	size_t 		count;
 	time_t 		T0;
-	char 		*FileName=NULL;  
+	char 		FileName[1024];  
+	char 		tmpstr[128];  
 	int 		status; 
 	int		CHAN = 0;
-	int		TARGETSEGMENT = 1; 
 	double		*ChanList=NULL;
 	int		NS = -1;
 	char		FlagOverflowDetection = 1, FlagUCAL = 0;
 	char		FLAG_CNT32 = 0;
-	int		argSweepSel = -1;
 	void 		*data = NULL;
 	void *p = NULL, *p1 = NULL, *p2 = NULL;
 
@@ -108,18 +105,13 @@ void mexFunction(
 	
 
 	if (nrhs<1) {
-#ifdef mexSOPEN
-		mexPrintf("   Usage of mexSOPEN:\n");
-		mexPrintf("\tHDR = mexSOPEN(f)\n");
-		mexPrintf("   Input:\n\tf\tfilename\n");
-		mexPrintf("   Output:\n\tHDR\theader structure\n\n");
-#else
 		mexPrintf("   Usage of mexSSAVE:\n");
-		mexPrintf("\t[HDR]=mexSSAVE(HDR,data)\n");
+		mexPrintf("\tstatus=mexSSAVE(HDR,data)\n");
 		mexPrintf("   Input:\n\tHDR\tHeader structure \n");
 		mexPrintf("\tdata\tdata matrix, one channel per column\n");
 		mexPrintf("\tHDR\theader structure\n\n");
-#endif
+		mexPrintf("\tstatus 0: file saves successfully\n\n");
+		mexPrintf("\tstatus <>0: file could not saved\n\n");
 		return; 
 	}
 
@@ -163,9 +155,7 @@ void mexFunction(
 #ifdef DEBUG		
 			mexPrintf("arg[%i]=%s \n",k,mxArrayToString(prhs[k]));
 #endif
-			if (k==0)			
-				FileName = mxArrayToString(prhs[k]);
-			else if (!strcmp(mxArrayToString(prhs[k]), "OVERFLOWDETECTION:ON"))
+			if (!strcmp(mxArrayToString(prhs[k]), "OVERFLOWDETECTION:ON"))
 				FlagOverflowDetection = 1;
 			else if (!strcmp(mxArrayToString(prhs[k]), "OVERFLOWDETECTION:OFF"))
 				FlagOverflowDetection = 0;
@@ -199,11 +189,22 @@ void mexFunction(
 	/***** CHECK INPUT HDR STUCTURE CONVERT TO libbiosig hdr *****/
 	if (VERBOSE_LEVEL>7) mexPrintf("110: input arguments checked\n");
 
-	if ( (p = mxGetField(prhs[0], 0, "TYPE") ) != NULL ) 		hdr->TYPE 	= GetFileTypeFromString(mxArrayToString(p));
+	if ( (p = mxGetField(prhs[0], 0, "TYPE") ) != NULL ) {
+		mxGetString(p,tmpstr,sizeof(tmpstr));
+		hdr->TYPE 	= GetFileTypeFromString(tmpstr);
+	}
+	if ( (p = mxGetField(prhs[0], 0, "VERSION") ) != NULL ) {
+		mxGetString(p, tmpstr, sizeof(tmpstr));
+		hdr->VERSION 	= atof(tmpstr);
+	}
 	if ( (p = mxGetField(prhs[0], 0, "T0") ) != NULL ) 		hdr->T0 	= (gdf_time)getDouble(p, 0);
-	if ( (p = mxGetField(prhs[0], 0, "FileName") ) != NULL ) 	hdr->FileName 	= mxGetChars(p);
+	if ( (p = mxGetField(prhs[0], 0, "FileName") ) != NULL ) 	if (~mxGetString(p,FileName,1024)) hdr->FileName = FileName;
 	if ( (p = mxGetField(prhs[0], 0, "SampleRate") ) != NULL ) 	hdr->SampleRate = getDouble(p, 0);
 	if ( (p = mxGetField(prhs[0], 0, "NS") ) != NULL )	 	hdr->NS         = getDouble(p, 0);
+
+#ifdef DEBUG		
+			mexPrintf("mexSSAVE [400] TYPE=<%s><%s> VERSION=%f\n",tmpstr,GetFileTypeString(hdr->TYPE),hdr->VERSION);
+#endif
 
 	p1 = mxGetField(prhs[0], 0, "SPR");
 	p2 = mxGetField(prhs[0], 0, "NRec");
@@ -278,7 +279,8 @@ void mexFunction(
 	else if ( (p = mxGetField(prhs[0], 0, "PhysDim") ) != NULL ) {
 		if ( mxIsCell(p) ) {
 			for (k = 0; k < hdr->NS; k++) 
-				hdr->CHANNEL[k].PhysDimCode = PhysDimCode(mxGetChars(mxGetCell(p,k)));
+				mxGetString(mxGetCell(p,k), tmpstr, sizeof(tmpstr));
+				hdr->CHANNEL[k].PhysDimCode = PhysDimCode(tmpstr);
 		}
 	}
 
@@ -308,9 +310,9 @@ void mexFunction(
 
 	if ( (p = mxGetField(prhs[0], 0, "Patient") ) != NULL ) {
 		if ( (p1 = mxGetField(p, 0, "Id") ) != NULL ) 
-			if (mxIsChar(p1)) strncpy(hdr->Patient.Id, mxGetChars(p1), MAX_LENGTH_PID);
+			if (mxIsChar(p1)) mxGetString(p1, hdr->Patient.Id, MAX_LENGTH_PID+1);
 		if ( (p1 = mxGetField(p, 0, "Name") ) != NULL ) 
-			if (mxIsChar(p1)) strncpy(hdr->Patient.Name, mxGetChars(p1), MAX_LENGTH_PID);
+			if (mxIsChar(p1)) mxGetString(p1, hdr->Patient.Name, MAX_LENGTH_PID+1);
 		if ( (p1 = mxGetField(p, 0, "Sex") ) != NULL ) {
 			if (mxIsChar(p1)) {
 				char sex = toupper(*mxGetChars(p1));
@@ -347,22 +349,53 @@ void mexFunction(
 
 	if ( (p = mxGetField(prhs[0], 0, "ID") ) != NULL ) {
 		if ( (p1 = mxGetField(p, 0, "Recording") ) != NULL ) 
-			if (mxIsChar(p1)) strncpy(hdr->ID.Recording, mxGetChars(p1), MAX_LENGTH_RID);
+			if (mxIsChar(p1)) mxGetString(p1, hdr->ID.Recording, MAX_LENGTH_RID+1);
 		if ( (p1 = mxGetField(p, 0, "Technician") ) != NULL ) 
-			if (mxIsChar(p1)) strncpy(hdr->ID.Technician, mxGetChars(p1), MAX_LENGTH_TECHNICIAN);
+			if (mxIsChar(p1)) mxGetString(p1, hdr->ID.Technician, MAX_LENGTH_TECHNICIAN+1);
 		if ( (p1 = mxGetField(p, 0, "Hospital") ) != NULL ) 
 			if (mxIsChar(p1)) hdr->ID.Hospital=mxGetChars(p1);
 		if ( (p1 = mxGetField(p, 0, "Equipment") ) != NULL ) 
 			memcpy(&(hdr->ID.Equipment), mxGetData(p1), 8);
 		if ( (p1 = mxGetField(p, 0, "Manufacturer") ) != NULL ) {
-			if ( (p2 = mxGetField(p1, 0, "Name") ) != NULL ) 
-				if (mxIsChar(p2)) hdr->ID.Manufacturer.Name=mxGetChars(p2);
-			if ( (p2 = mxGetField(p1, 0, "Model") ) != NULL ) 
-				if (mxIsChar(p2)) hdr->ID.Manufacturer.Model=mxGetChars(p2);
-			if ( (p2 = mxGetField(p1, 0, "Version") ) != NULL ) 
-				if (mxIsChar(p2)) hdr->ID.Manufacturer.Version=mxGetChars(p2);
-			if ( (p2 = mxGetField(p1, 0, "SerialNumber") ) != NULL ) 
-				if (mxIsChar(p2)) hdr->ID.Manufacturer.SerialNumber=mxGetChars(p2);
+			uint8_t pos = 0; 
+			if ( ( (p2 = mxGetField(p1, 0, "Name") ) != NULL ) &&  mxIsChar(p2)) {
+					//hdr->ID.Manufacturer.Name=mxGetChars(p2);
+					mxGetString(p1, hdr->ID.Manufacturer._field,MAX_LENGTH_MANUF);
+					pos = strlen(hdr->ID.Manufacturer._field)+1;
+				}
+			else {
+				hdr->ID.Manufacturer._field[pos++] = 0;
+			}
+
+			if ( ( (p2 = mxGetField(p1, 0, "Model") ) != NULL ) && mxIsChar(p2)) { 
+				hdr->ID.Manufacturer.Model=mxGetChars(p2);
+					//hdr->ID.Manufacturer.Name=mxGetChars(p2);
+					mxGetString(p1, hdr->ID.Manufacturer._field + pos, MAX_LENGTH_MANUF);
+					pos += strlen(hdr->ID.Manufacturer._field + pos)+1;
+				}
+			else {
+				hdr->ID.Manufacturer._field[pos++] = 0;
+			}
+
+			if ( ( (p2 = mxGetField(p1, 0, "Version") ) != NULL ) && mxIsChar(p2)) { 
+				hdr->ID.Manufacturer.Version=mxGetChars(p2);
+					//hdr->ID.Manufacturer.Name=mxGetChars(p2);
+					mxGetString(p1, hdr->ID.Manufacturer._field + pos, MAX_LENGTH_MANUF);
+					pos += strlen(hdr->ID.Manufacturer._field+pos)+1;
+				}
+			else {
+				hdr->ID.Manufacturer._field[pos++] = 0;
+			}
+
+			if ( ( (p2 = mxGetField(p1, 0, "SerialNumber") ) != NULL ) && mxIsChar(p2)) {
+				hdr->ID.Manufacturer.SerialNumber=mxGetChars(p2);
+					//hdr->ID.Manufacturer.Name=mxGetChars(p2);
+					mxGetString(p1, hdr->ID.Manufacturer._field + pos, MAX_LENGTH_MANUF);
+					pos += strlen(hdr->ID.Manufacturer._field+pos)+1;
+				}
+			else {
+				hdr->ID.Manufacturer._field[pos++] = 0;
+			}
 		}
 	}
 
@@ -405,12 +438,14 @@ void mexFunction(
 		}
 	}
 
-	
 	hdr = sopen(hdr->FileName, "w", hdr);
+	if (serror()) mexErrMsgTxt("mexSSAVE: sopen failed \n");	
 
 	swrite((biosig_data_type*)data, hdr->NRec, hdr);
+	if (serror()) mexErrMsgTxt("mexSSAVE: swrite failed \n");	
 
 	destructHDR(hdr);
+	if (serror()) mexErrMsgTxt("mexSSAVE: sclose failed \n");	
 
 };
 

@@ -168,7 +168,7 @@ extern const char *B4C_ERRMSG;
 #define BIOSIG_VERSION (BIOSIG_VERSION_MAJOR+0.01*BIOSIG_VERSION_MINOR)
 
 //extern int VERBOSE_LEVEL; 	// used for debugging
-#define VERBOSE_LEVEL 7	// turn off debugging information
+//#define VERBOSE_LEVEL 7	// turn on debugging information
 
 
 /****************************************************************************/
