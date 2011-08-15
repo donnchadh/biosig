@@ -93,7 +93,7 @@ void mexFunction(
 	char		FlagOverflowDetection = 1, FlagUCAL = 0;
 	char		FLAG_CNT32 = 0;
 	void 		*data = NULL;
-	void *p = NULL, *p1 = NULL, *p2 = NULL;
+	mxArray *p = NULL, *p1 = NULL, *p2 = NULL;
 
 #ifdef CHOLMOD_H
 	cholmod_sparse RR,*rr=NULL;
@@ -353,9 +353,9 @@ void mexFunction(
 		if ( (p1 = mxGetField(p, 0, "Technician") ) != NULL ) 
 			if (mxIsChar(p1)) mxGetString(p1, hdr->ID.Technician, MAX_LENGTH_TECHNICIAN+1);
 		if ( (p1 = mxGetField(p, 0, "Hospital") ) != NULL ) 
-			if (mxIsChar(p1)) hdr->ID.Hospital=mxGetChars(p1);
+			;//FIXME:// if (mxIsChar(p1)) hdr->ID.Hospital=mxGetChars(p1);
 		if ( (p1 = mxGetField(p, 0, "Equipment") ) != NULL ) 
-			memcpy(&(hdr->ID.Equipment), mxGetData(p1), 8);
+			memcpy(&hdr->ID.Equipment,mxGetData(p1), 8);
 		if ( (p1 = mxGetField(p, 0, "Manufacturer") ) != NULL ) {
 			uint8_t pos = 0; 
 			if ( ( (p2 = mxGetField(p1, 0, "Name") ) != NULL ) &&  mxIsChar(p2)) {
@@ -368,8 +368,7 @@ void mexFunction(
 			}
 
 			if ( ( (p2 = mxGetField(p1, 0, "Model") ) != NULL ) && mxIsChar(p2)) { 
-				hdr->ID.Manufacturer.Model=mxGetChars(p2);
-					//hdr->ID.Manufacturer.Name=mxGetChars(p2);
+					//hdr->ID.Manufacturer.Model=mxGetChars(p2);
 					mxGetString(p1, hdr->ID.Manufacturer._field + pos, MAX_LENGTH_MANUF);
 					pos += strlen(hdr->ID.Manufacturer._field + pos)+1;
 				}
@@ -378,8 +377,7 @@ void mexFunction(
 			}
 
 			if ( ( (p2 = mxGetField(p1, 0, "Version") ) != NULL ) && mxIsChar(p2)) { 
-				hdr->ID.Manufacturer.Version=mxGetChars(p2);
-					//hdr->ID.Manufacturer.Name=mxGetChars(p2);
+					//hdr->ID.Manufacturer.Version=mxGetChars(p2);
 					mxGetString(p1, hdr->ID.Manufacturer._field + pos, MAX_LENGTH_MANUF);
 					pos += strlen(hdr->ID.Manufacturer._field+pos)+1;
 				}
@@ -388,8 +386,7 @@ void mexFunction(
 			}
 
 			if ( ( (p2 = mxGetField(p1, 0, "SerialNumber") ) != NULL ) && mxIsChar(p2)) {
-				hdr->ID.Manufacturer.SerialNumber=mxGetChars(p2);
-					//hdr->ID.Manufacturer.Name=mxGetChars(p2);
+					//hdr->ID.Manufacturer.SerialNumber=mxGetChars(p2);
 					mxGetString(p1, hdr->ID.Manufacturer._field + pos, MAX_LENGTH_MANUF);
 					pos += strlen(hdr->ID.Manufacturer._field+pos)+1;
 				}
