@@ -69,9 +69,9 @@ ifneq ($(shell which matlab), )
 mex4m: mexSLOAD.$(MEX_EXT) mexSOPEN.$(MEX_EXT) mexSSAVE.$(MEX_EXT)
 mexSLOAD: mexSLOAD.$(MEX_EXT) 
 mexSOPEN: mexSOPEN.$(MEX_EXT)
-mexSLOAD.$(MEX_EXT): mexSLOAD.cpp ../libbiosig.$(LIBEXT) Makefile
-	$(MEX) $(MEX_OPTION) $(DEFINES) mexSLOAD.cpp $(LFLAGS) $(LIBS)
-	-$(COPY) mexSLOAD.$(MEX_EXT) ../../biosig/t200_FileAccess/
+%.$(MEX_EXT): %.cpp ../libbiosig.$(LIBEXT) Makefile
+	$(MEX) $(MEX_OPTION) $(DEFINES) $< $(LFLAGS) $(LIBS)
+	-$(COPY) $@ ../../biosig/t200_FileAccess/
 mexSOPEN.$(MEX_EXT): mexSLOAD.cpp ../libbiosig.$(LIBEXT) Makefile
 	$(MEX) $(MEX_OPTION) -DmexSOPEN $(DEFINES) mexSLOAD.cpp $(LFLAGS) $(LIBS) -output mexSOPEN
 	-$(COPY) mexSOPEN.$(MEX_EXT) ../../biosig/t200_FileAccess/
