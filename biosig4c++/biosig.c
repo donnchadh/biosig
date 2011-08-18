@@ -1860,6 +1860,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = NIFTI;
     	else if (!memcmp(Header1,"NEX1",4))
 	    	hdr->TYPE = NEX1;
+    	else if (!memcmp(Header1,"Logging Start\x0aLogger SW Version: ",31))
+	    	hdr->TYPE = NeuroLoggerHEX;
     	else if (!memcmp(Header1,"Neuron",6))
 	    	hdr->TYPE = NEURON;
     	else if (!memcmp(Header1,"SXDF",4))
@@ -2110,6 +2112,7 @@ const struct FileFormatStringTable_t FileFormatStringTable[] = {
 	{ MS_LNK,    	".LNK" },
 	{ MSVCLIB,    	"MS VC++ Library" },
 	{ native,    	"native" },
+	{ NeuroLoggerHEX, "NeuroLoggerHEX"},
 	{ NetCDF,    	"NetCDF" },
 	{ NEX1,    	"NEX1" },
 	{ NIFTI,    	"NIFTI" },
@@ -3600,6 +3603,15 @@ if (!strncmp(MODE,"r",1))
                         return(hdr);
                 }
 
+                /* identify buggy NeuroLoggerEDF  export with bytes 236-257
+                	EDF requires that the fields are left-justified, thus the first byte should be different than a space
+                	Therefore, the probability of a false positive detection is highly unlikely. 
+                */
+                char FLAG_BUGGY_NEUROLOGGER_EDF = !strncmp(Header1+236," 1       0       8   ",21) && Header1[0x180]==' ' 
+						&& Header1[0x7c0]==' ' && Header1[0x400]==' ' && Header1[0x440]==' ' 
+						&& Header1[0x480]==' ' && Header1[0x4c0]==' ' && Header1[0x500]==' ';
+                if (FLAG_BUGGY_NEUROLOGGER_EDF) for (k=236; k<9*256; k++) Header1[k-1]=Header1[k];
+
 		char p[9];
 		hdr->AS.bpb = 0;
 		size_t BitsPerBlock = 0;
@@ -3706,6 +3718,7 @@ if (!strncmp(MODE,"r",1))
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// EDF does not support automated overflow and saturation detection
 	    	double Dur	= atof(strncpy(tmp,Header1+244,8));
+	    	if (Dur==0.0 && FLAG_BUGGY_NEUROLOGGER_EDF) Dur = hdr->SPR/496.0;
 		hdr->SampleRate = hdr->SPR/Dur;
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 220] #=%li\n",iftell(hdr));
@@ -8536,6 +8549,15 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",(int)SPR,hdr-
 		hdr->AS.length = spr;
 	}
 
+        else if (hdr->TYPE == NeuroLoggerHEX) {
+        	hdr->NS = 8;
+        	uint16_t gdftyp = 2;
+
+		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+		B4C_ERRMSG = "NeuroLogger HEX format not supported, yet";
+		return(hdr);
+
+	}
 
 	else if (hdr->TYPE==NIFTI) {
 	    	count += ifread(hdr->AS.Header+count, 1, 352-count, hdr);
