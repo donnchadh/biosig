@@ -19,8 +19,6 @@ function [HDR, s] = detect_spikes_bursts(fn, chan, varargin)
 % ... = detect_spikes_bursts(... ,'dT_Exclude',dT_Exclude)
 % ... = detect_spikes_bursts(... ,[slopeThreshold [, winlen [, dT_Burst [,dT_Exclude ]]] ])
 % ... = detect_spikes_bursts(... ,'OptimumJK')
-% ... = detect_spikes_bursts(... ,'-o',outputFilename)
-% ... = detect_spikes_bursts(... ,'-b',burstFilename)
 % [HDR, data] = detect_spikes_bursts(...)
 %
 % Input:

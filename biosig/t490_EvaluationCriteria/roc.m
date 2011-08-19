@@ -1,6 +1,8 @@
 function [SEN,SPEC,d,ACC,AREA,YI,c]=roc(d,c,varargin);
-% ROC receiver operator curve and derived statistics.
-%
+% ROC plots receiver operator curve and computes derived statistics.
+%   In order to speed up the plotting, no more than 10000 data points are shown at most. 
+%   [if you need more, you can change the source code] 	 
+% 
 % [...] = roc(d,c);
 % [...]=roc(d1,d0);
 % [...] = roc(...,s);
@@ -45,7 +47,7 @@ function [SEN,SPEC,d,ACC,AREA,YI,c]=roc(d,c,varargin);
 
 % Problem : Wenn die Schwellwerte mehrfach vorkommen, kann es zu Ambiguiten kommen, welche sich auf die AUC auswirken.
 
-MODE = all(size(d)==size(c)) & all(all((c==1) | (c==0)));
+MODE = all(size(d)==size(c)) && all(all((c==1) | (c==0) | isnan(c)));
 d=d(:);
 c=c(:);
 
@@ -54,6 +56,10 @@ if ~MODE
         c=[ones(size(d));zeros(size(d2))];
         d=[d;d2];
         fprintf(2,'Warning ROC: XXX\n')
+else
+	ix = ~any(isnan([d,c]),2);
+	c = c(ix); 
+	d = d(ix); 
 end;
 
 % handle (ignore) NaN's
@@ -87,8 +93,13 @@ ACC = (TP+TN)./(TP+TN+FP+FN);
 
 d=D;
 
-plot(FPR*100,TPR*100, varargin{:});
-% fill([1; FP],[0;TP],'c');
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%  display only 10000 points at most. 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+len = length(FPR);
+delta = max(1,floor(len/5000));
+ix = [1:delta:len-1,len];
+plot(FPR(ix)*100,TPR(ix)*100, varargin{:});
 
 %ylabel('Sensitivity (true positive ratio) [%]');
 %xlabel('1-Specificity (false positive ratio) [%]');

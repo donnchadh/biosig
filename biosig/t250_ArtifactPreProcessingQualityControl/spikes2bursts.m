@@ -10,7 +10,8 @@ function [H, s] = spikes2bursts(fn, varargin)
 % ... = spikes2bursts(... [, dT_Burst [, dT_Exclude] ])
 % ... = spikes2bursts(... , 'dT_Burst', dT_Burst)
 % ... = spikes2bursts(... , 'dT_Exclude', dT_Exclude)
-% ... = spikes2bursts(... , '-o',eventFilename)
+% ... = spikes2bursts(... , '-o',outputFilename)
+% ... = spikes2bursts(... , '-e',eventFilename)
 % ... = spikes2bursts(... , '-b',burstFilename)
 %   
 % Input: 
@@ -22,6 +23,9 @@ function [H, s] = spikes2bursts(fn, varargin)
 %		double detection, and the second detection is deleted.
 %		in case of several consecutive ISI's smaller than this value,
 %		all except the first spikes are deleted.
+%	outputFilename
+%		filename to store the original data together with the newly compuated
+%		burst information
 %	eventFilename
 %		filename to store event inforamation in GDF format. this is similar to 
 %		the outputFile, except that the signal data is not included and is, therefore,
@@ -30,12 +34,13 @@ function [H, s] = spikes2bursts(fn, varargin)
 %		filename for the "burst table", containing basic properties of each burst,
 %		(it is an ASCII file in <tab>-delimited format)
 %
-% Output:  
+% Output:
 %     HDR	header structure as defined in biosig
 %     HDR.EVENT includes the detected spikes and bursts. 
 %     HDR.BurstTable contains for each burst (each in a row) the following 5 numbers:
 %	channel number, sweep number, OnsetTime within sweep [s], 
-%	number of spikes within burst, and average inter-spike interval (ISI) [ms]
+%	number of spikes within burst, average inter-spike interval (ISI) [ms], 
+%	and minimum ISI [ms]
 %     data	signal data, one channel per column
 %		between segments, NaN values for 0.1s are introduced
 %	
@@ -64,10 +69,11 @@ if nargin < 1,
 end;
 
 %%%%% default settings %%%%%
-dT_Burst = 50e-3;	%%% smaller ISI is a burst [s]
+dT_Burst   = 50e-3;	%%% smaller ISI is a burst [s]
 dT_Exclude = [];	%%% for identifying double detections, spikes with smaller ISI are excluded
-evtFile = [];
-burstFile = [];
+outFile    = [];
+evtFile    = [];
+burstFile  = [];
 
 
 %%%%% analyze input arguments %%%%%
@@ -81,6 +87,9 @@ while k <= length(varargin)
 		elseif (strcmp(varargin{k},'-b'))
 			k = k + 1;
 			burstFile = varargin{k};
+		elseif (strcmp(varargin{k},'-o'))
+			k = k + 1;
+			outFile = varargin{k};
 		elseif (strcmpi(varargin{k},'dT_Burst'))
 			k = k + 1;
 			dT_Burst = varargin{k};
@@ -117,21 +126,25 @@ end;
 		help(mfilename); 
 	end
 
-
 	EVENT = HDR.EVENT;
 	ix = (EVENT.TYP ~= hex2dec('0202'));
 	if ~all(ix) warning('previously defined bursts are overwritten'); end;
-	HDR.EVENT.POS = HDR.EVENT.POS(ix);
-	HDR.EVENT.TYP = HDR.EVENT.TYP(ix);
+	EVENT.POS = EVENT.POS(ix);
+	EVENT.TYP = EVENT.TYP(ix);
 	if ~isfield(EVENT,'DUR');
 		EVENT.DUR = zeros(size(EVENT.POS));
+	else
+		EVENT.DUR = HDR.EVENT.DUR(ix);
 	end; 
 	if ~isfield(EVENT,'CHN');
 		EVENT.CHN = zeros(size(EVENT.TYP));
+	else
+		EVENT.CHN = HDR.EVENT.CHN(ix);
 	end; 
 
 	Fs = HDR.SampleRate; 
 	chan = unique(EVENT.CHN);
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 %	Set Parameters for Burst Detection 
@@ -167,16 +180,14 @@ end;
 				ix = sum(t0 < OnsetBurst(m));
 				T0 = t0(ix);
 				BurstTable(m,:) = [ch, ix, (OnsetBurst(m) - T0)/HDR.SampleRate, length(tmp), 1000*mean(d)/HDR.SampleRate, 1000*min(d)/HDR.SampleRate];
-			% else 
+			elseif length(tmp)==1
 			% 	single spikes are not counted as bursts, DUR(m)==NaN marks them as invalid 
+				BurstTable(m,:) = [ch, ix, (OnsetBurst(m) - T0)/HDR.SampleRate, length(tmp), NaN,NaN];
 			end;
 		end;
 
 		% remove single spike bursts 
-		ix             = find(~isnan(DUR));
-		HDR.BurstTable = [HDR.BurstTable; BurstTable(ix,:)];
-		OnsetBurst     = OnsetBurst(ix);
-		DUR            = DUR(ix);
+		HDR.BurstTable = [HDR.BurstTable; BurstTable];
 		
 		EVENT.TYP = [EVENT.TYP; repmat(hex2dec('0202'), size(OnsetBurst))];
 		EVENT.POS = [EVENT.POS; OnsetBurst];
@@ -189,9 +200,38 @@ end;
 %	Output 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	HDR.EVENT = EVENT;
-	H = HDR;
+	if ~isempty(burstFile),
+		fid = fopen(burstFile, 'w');
+		if (fid<0) 
+			fprintf(2,'Warning can not open file <%s> - burst table not written\n',burstFile); 
+		else 
+			fprintf(fid,'#Burst\t#chan\t#sweep\tOnset [s] \t#spikes\tavgISI [ms] \tminISI [ms] \n');
+			for m = 1:size(HDR.BurstTable,1);
+				fprintf(fid,'%3d\t%d\t%d\t%9.5f\t%d\t%6.2f\t%6.2f\n', m, HDR.BurstTable(m,:) );
+			end;
+			if (fid>3) fclose(fid); end;
+		end;
+	end;
+
+	if ~isempty(outFile)
+		%%% write data to output
+		HDR.TYPE    = 'GDF';
+		HDR.VERSION = 3;
+		HDR.FILE    = [];
+		HDR.FileName  = outFile;
+		HDR.FILE.Path = '';
+		HDR.Dur     = 1/HDR.SampleRate;
+		HDR         = sopen(HDR, 'w');
+		if (HDR.FILE.FID < 0) 
+			fprintf(2,'Warning can not open file <%s> - GDF file can not be written\n',HDR.FileName); 
+		else
+			HDR = swrite(HDR,s);
+			HDR = sclose(HDR);
+ 		end;
+	end;
 
 	if ~isempty(evtFile)
+		H = HDR;
 		%%% write data to output
 		HDR.TYPE  = 'EVENT';
 		HDR.VERSION = 3;
@@ -203,20 +243,12 @@ end;
 		HDR.SPR = 0;
 		HDR.Dur = 1/HDR.SampleRate;
 		HDR = rmfield(HDR,'AS');
-		HDR = sopen(HDR,'w');
-	if (HDR.FILE.FID<0) fprintf(2,'Warning can not open file <%s> - GDF file can not be written\n',HDR.FileName); break; end;
-		%HDR = swrite(HDR,s);
-		HDR = sclose(HDR);
-	end;
-
-	if ~isempty(burstFile),
-		fid = fopen(burstFile,'w');
-	if (fid<0) fprintf(2,'Warning can not open file <%s> - burst table not written\n',burstFile); break; end;
-		fprintf(fid,'#Burst\t#chan\t#sweep\tOnset [s] \t#spikes\tavgISI [ms] \tminISI [ms] \n');
-		for m = 1:size(HDR.BurstTable,1);
-			fprintf(fid,'%3d\t%d\t%d\t%9.5f\t%d\t%6.2f\t%6.2f\n', m, HDR.BurstTable(m,:) );
-		end;
-		if (fid>3) fclose(fid); end;
+		HDR = sopen(HDR, 'w');
+		if (HDR.FILE.FID<0) 
+			fprintf(2,'Warning can not open file <%s> - EVT file can not be written\n',HDR.FileName); 
+		else
+			HDR = sclose(HDR);
+ 		end;
 	end;
 
 
