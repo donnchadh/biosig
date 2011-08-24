@@ -25,7 +25,7 @@ function [HDR, s] = detect_spikes_bursts(fn, chan, varargin)
 % 	filename: name of source file 
 %	chan	list of channels that should be analyzed (default is 0: all channels)
 %	HDR	header structure obtained by SOPEN, SLOAD, or meXSLOAD
-%	data	signal data that should be analyized
+%	data	signal data that should be analyzed
 %	slopeThreshold	[default: 5V/s] Spike is detected when
 %		slope (over time winlen) exceeds this value
 %	winlen	[default: .2e-3 s] windowlength in seconds for computing slope
@@ -168,7 +168,8 @@ Fs = 20000; 	% assumed samplerate
 	elseif isstruct(fn)
 		HDR = fn;
 		s = chan;
-		chan = 1:size(s,2);
+		HDR.NS = size(s,2);	
+		chan = 1:HDR.NS;
 	else
 		help(mfilename);
 	end
@@ -182,8 +183,9 @@ Fs = 20000; 	% assumed samplerate
 		EVENT.CHN = zeros(size(EVENT.TYP));
 	end;
 
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%	Set Parameters for Spike and Burst Detection
+%	Set Parameters for Spike Detection
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	B  = [.5; zeros(HDR.SampleRate*dT - 1, 1); -.5];
 	HDR.BurstTable = [];
@@ -197,48 +199,17 @@ Fs = 20000; 	% assumed samplerate
 		if ~isempty(dT_Exclude)
 			OnsetSpike = OnsetSpike([1; 1+find(diff(OnsetSpike) > Fs * dT_Exclude)]);
 		end;
-if 1, %% new
+
 		EVENT.TYP = [EVENT.TYP; repmat(hex2dec('0201'), size(OnsetSpike))];
 		EVENT.POS = [EVENT.POS; OnsetSpike];
 		EVENT.DUR = [EVENT.DUR; repmat(1,  size(OnsetSpike))];
 		EVENT.CHN = [EVENT.CHN; repmat(ch, size(OnsetSpike,1), 1) ];
-else
-		%%%%%%% Burst Detection %%%%%%%%%%%%%%%%%%%
-		OnsetBurst = OnsetSpike ( [1; 1 + find( diff(OnsetSpike) > Fs * dT_Burst ) ] );
-
-		OnsetBurst(end+1) = size(s,1) + 1;
-		DUR        = repmat(NaN, size(OnsetBurst));
-		BurstTable = repmat(NaN, length(OnsetBurst), 6);
-
-		m2  = 0;
-		t0  = [1; HDR.EVENT.POS(HDR.EVENT.TYP==hex2dec('7ffe'))];
-		for m = 1:length(OnsetBurst)-1,	% loop for each burst candidate
-			tmp = OnsetSpike( OnsetBurst(m) <= OnsetSpike & OnsetSpike < OnsetBurst(m+1) );
-			d = diff(tmp);
-			if length(tmp) > 1,
-				m2 = m2 + 1;
-				DUR(m) = length(tmp)*mean(d);
-				ix = sum(t0 < OnsetBurst(m));
-				T0 = t0(ix);
-				BurstTable(m,:) = [ch, ix, (OnsetBurst(m) - T0)/HDR.SampleRate, length(tmp), 1000*mean(d)/HDR.SampleRate, 1000*min(d)/HDR.SampleRate];
-			% else
-			% 	single spikes are not counted as bursts, DUR(m)==NaN marks them as invalid
-			end;
-		end;
-
-		% remove single spike bursts
-		ix = find(~isnan(DUR));
-		HDR.BurstTable = [HDR.BurstTable; BurstTable(ix,:)];
-		OnsetBurst     = OnsetBurst(ix);
-		DUR            = DUR(ix);
-
-		EVENT.TYP = [EVENT.TYP; repmat(hex2dec('0201'), size(OnsetSpike)); repmat(hex2dec('0202'), size(OnsetBurst))];
-		EVENT.POS = [EVENT.POS; OnsetSpike; OnsetBurst];
-		EVENT.DUR = [EVENT.DUR; repmat(1,  size(OnsetSpike)); DUR];
-		EVENT.CHN = [EVENT.CHN; repmat(ch, size(OnsetSpike,1) + size(DUR,1), 1) ];
-end
 	end;
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%	Set Parameters for Burst Detection
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	HDR.EVENT = EVENT;
 	vararg = {'dT_Burst', dT_Burst, 'dT_Exclude', dT_Exclude};
 	if ~isempty(evtFile) 
@@ -250,6 +221,7 @@ end
 		vararg{end+1}=burstFile;
 	end;
 	HDR = spikes2bursts(HDR,vararg{:});
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %	Output
@@ -271,24 +243,15 @@ end
 		HDR.FLAG.UCAL = 0;
 		HDR.NRec = size(s,1);
 		HDR.SPR = 1;
+		HDR.NS  = size(s,2);
 		HDR.Dur = 1/HDR.SampleRate;
 		HDR = rmfield(HDR,'AS');
 		HDR = sopen(HDR,'w');
-	if (HDR.FILE.FID<0) fprintf(2,'Warning can not open file <%s> - GDF file can not be written\n',HDR.FileName); break; end;
-		HDR = swrite(HDR,s);
-		HDR = sclose(HDR);
-	end;
-
-return;
-% the following part has moved into spikes2bursts
-
-	if ~isempty(burstFile),
-		fid = fopen(burstFile,'w');
-	if (fid<0) fprintf(2,'Warning can not open file <%s> - burst table not written\n',burstFile); break; end;
-		fprintf(fid,'#Burst\t#chan\t#sweep\tOnset [s] \t#spikes\tavgISI [ms] \tminISI [ms] \n');
-		for m = 1:size(HDR.BurstTable,1);
-			fprintf(fid,'%3d\t%d\t%d\t%9.5f\t%d\t%6.2f\t%6.2f\n', m, HDR.BurstTable(m,:) );
-		end;
-		if (fid>3) fclose(fid); end;
+		if (HDR.FILE.FID < 0) 
+			fprintf(2,'Warning can not open file <%s> - GDF file can not be written\n',HDR.FileName);
+		else
+			HDR = swrite(HDR,s);
+			HDR = sclose(HDR);
+		end; 
 	end;
 

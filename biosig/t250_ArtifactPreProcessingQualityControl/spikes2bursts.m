@@ -10,7 +10,7 @@ function [H, s] = spikes2bursts(fn, varargin)
 % ... = spikes2bursts(... [, dT_Burst [, dT_Exclude] ])
 % ... = spikes2bursts(... , 'dT_Burst', dT_Burst)
 % ... = spikes2bursts(... , 'dT_Exclude', dT_Exclude)
-% ... = spikes2bursts(... , '-o',outputFilename)
+% ... = spikes2bursts(filename, ... , '-o',outputFilename)
 % ... = spikes2bursts(... , '-e',eventFilename)
 % ... = spikes2bursts(... , '-b',burstFilename)
 %   
@@ -25,7 +25,8 @@ function [H, s] = spikes2bursts(fn, varargin)
 %		all except the first spikes are deleted.
 %	outputFilename
 %		filename to store the original data together with the newly compuated
-%		burst information
+%		burst information. (Remark: this option is only supported if
+% 		filename (not HDR) is given as first argument 
 %	eventFilename
 %		filename to store event inforamation in GDF format. this is similar to 
 %		the outputFile, except that the signal data is not included and is, therefore,
@@ -128,7 +129,7 @@ end;
 
 	EVENT = HDR.EVENT;
 	ix = (EVENT.TYP ~= hex2dec('0202'));
-	if ~all(ix) warning('previously defined bursts are overwritten'); end;
+	%if ~all(ix) warning('previously defined bursts are ignored'); end;
 	EVENT.POS = EVENT.POS(ix);
 	EVENT.TYP = EVENT.TYP(ix);
 	if ~isfield(EVENT,'DUR');
@@ -200,6 +201,7 @@ end;
 %	Output 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	HDR.EVENT = EVENT;
+	H = HDR;	%% return value
 	if ~isempty(burstFile),
 		fid = fopen(burstFile, 'w');
 		if (fid<0) 
@@ -213,7 +215,7 @@ end;
 		end;
 	end;
 
-	if ~isempty(outFile)
+	if ~isempty(outFile) && exist('s','var')
 		%%% write data to output
 		HDR.TYPE    = 'GDF';
 		HDR.VERSION = 3;
@@ -231,7 +233,6 @@ end;
 	end;
 
 	if ~isempty(evtFile)
-		H = HDR;
 		%%% write data to output
 		HDR.TYPE  = 'EVENT';
 		HDR.VERSION = 3;
