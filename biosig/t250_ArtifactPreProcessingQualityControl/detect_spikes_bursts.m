@@ -1,10 +1,9 @@
 function [HDR, s] = detect_spikes_bursts(fn, chan, varargin)
 % DETECT_SPIKES_BURSTS detects spikes and bursts of spikes in
 % neural recordings.
-% Spikes are detected when voltages increase is larger than 20 V/s
-% within a 0.2 ms window. Spikes with an interspike interval smaller
-% than 75 ms are considered a burst. The results are stored as an
-% event table.
+% Spikes are detected when voltages increase is larger than slopeThreshold
+% (default 20 V/s) within a window of length winlen (default 0.0002 s). An interspike interval
+% large than dT_Burst (default 75 ms) define the start of the next burst. 
 %
 %
 % HDR = detect_spikes_bursts(filename, chan)
@@ -190,10 +189,13 @@ Fs = 20000; 	% assumed samplerate
 	B  = [.5; zeros(HDR.SampleRate*dT - 1, 1); -.5];
 	HDR.BurstTable = [];
 
-	for ch = chan(:)';	% look for each channel
-
+	for ch = chan(:)';	% look for each channel	
+		% only voltage channels are considered
+	if (HDR.PhysDimCode(ch) & hex2dec('ffe0')) == 4256, %% physicalunits('V'),	
 		%%%%%%%	Spike Detection %%%%%%%%%%%%%%%%%%%
-		tmp = filter(B, dT, s(:,ch));
+
+		[unit, scale] = physicalunits(HDR.PhysDimCode(ch))
+		tmp = scale * filter(B, dT, s(:,ch));
 		OnsetSpike = find( diff (tmp > slopeThreshold) > 0); 	%% spike onset time [samples]
 		% --- remove double detections < 1 ms
 		if ~isempty(dT_Exclude)
@@ -204,6 +206,7 @@ Fs = 20000; 	% assumed samplerate
 		EVENT.POS = [EVENT.POS; OnsetSpike];
 		EVENT.DUR = [EVENT.DUR; repmat(1,  size(OnsetSpike))];
 		EVENT.CHN = [EVENT.CHN; repmat(ch, size(OnsetSpike,1), 1) ];
+	end;
 	end;
 
 
