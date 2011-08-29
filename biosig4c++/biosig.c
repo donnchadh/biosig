@@ -11324,6 +11324,9 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 		fprintf(stdout,"swrite 312=#%i gdftyp=%i %i %i %i %f %f %f %f %i\n",(int)k1,GDFTYP,(int)bi8,(int)SZ,(int)CHptr->SPR,CHptr->Cal,CHptr->Off,iCal,iOff,(int)bpb8);
 
 		for (k4 = 0; k4 < (size_t)hdr->NRec; k4++) {
+			if (VERBOSE_LEVEL>7)
+				fprintf(stdout,"swrite 313- #%i: [%i %i] %i %i %i %i %i\n",(int)k1,(int)hdr->data.size[0],(int)hdr->data.size[1],(int)k4,(int)k5,(int)hdr->SPR,(int)DIV,(int)nelem);
+
 		for (k5 = 0; k5 < CHptr->SPR; k5++) {
 
 			if (VERBOSE_LEVEL>8)
@@ -11499,11 +11502,14 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 		}        // end if SPR
 		k2++;
 		bi8 += SZ*CHptr->SPR;
+	if (VERBOSE_LEVEL>7)
+		fprintf(stdout,"swrite 314 %i\n",k2);
+
 	}       // end if OnOff
 	}	// end for k1
 
 	if (VERBOSE_LEVEL>7)
-		fprintf(stdout,"swrite 313\n");
+		fprintf(stdout,"swrite 315\n");
 
 #ifndef WITHOUT_NETWORK
 	if (hdr->FILE.Des>0) {
@@ -11926,7 +11932,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 	if (VERBOSE>2) {
 		/* channel settings */
 		fprintf(fid,"\n[CHANNEL HEADER] %p",hdr->CHANNEL);
-		fprintf(fid,"\n#No  LeadId Label\tFs[Hz]\tSPR\tGDFTYP\tCal\tOff\tPhysDim\tPhysMax \tPhysMin \tDigMax  \tDigMin  \tHighPass\tLowPass \tNotch   \tdelay [s]\tX\tY\tZ");
+		fprintf(fid,"\nNo  LeadId Label\tFs[Hz]\tSPR\tGDFTYP\tCal\tOff\tPhysDim\tPhysMax \tPhysMin \tDigMax  \tDigMin  \tHighPass\tLowPass \tNotch   \tdelay [s]\tX\tY\tZ");
 		size_t k;
 #ifdef CHOLMOD_H
                 typeof(hdr->NS) NS = hdr->NS;
@@ -11946,7 +11952,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 			if (label==NULL || strlen(label)==0) label = LEAD_ID_TABLE[cp->LeadIdCode];
 
 			if (cp->PhysDimCode) PhysDim(cp->PhysDimCode, p); else p[0] = 0;
-			fprintf(fid,"\n#%2i: %3i %i %-17s\t%5f %5i",
+			fprintf(fid,"\n#%02i: %3i %i %-17s\t%5f %5i",
 				(int)k+1,cp->LeadIdCode,cp->bi8,label,cp->SPR*hdr->SampleRate/hdr->SPR,cp->SPR);
 
 			if      (cp->GDFTYP<20)  fprintf(fid," %s  ",gdftyp_string[cp->GDFTYP]);
@@ -11964,7 +11970,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 	if (VERBOSE>3) {
 		/* channel settings */
 		fprintf(fid,"\n\n[EVENT TABLE] N=%i Fs=%f",hdr->EVENT.N,hdr->EVENT.SampleRate);
-		fprintf(fid,"\n#No\tTYP\tPOS\tDUR\tCHN\tVAL\tDesc");
+		fprintf(fid,"\nNo\tTYP\tPOS\tDUR\tCHN\tVAL\tDesc");
 
 		size_t k;
 		for (k=0; k<hdr->EVENT.N; k++) {

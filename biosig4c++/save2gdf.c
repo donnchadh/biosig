@@ -384,6 +384,8 @@ int main(int argc, char **argv){
 		if (TARGET_TYPE==EDF) {
 			double d = asGCD / hdr->SampleRate;
 			if (d==ceil(d)) asGCD = d; 	// make block duration 1 second	
+			// FIXME: asGCD != 1 is still buggy
+			asGCD = 1;
 		}
     		hdr->SPR  /= asGCD;
 	    	hdr->NRec *= asGCD;
