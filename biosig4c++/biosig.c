@@ -1606,6 +1606,7 @@ void destructHDR(HDRTYPE* hdr) {
 }
 
 
+const uint8_t MAGIC_NUMBER_GZIP[] = {31,139,8};
 
 /****************************************************************************/
 /**                     GETFILETYPE                                        **/
@@ -1628,7 +1629,6 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 
    	const uint8_t MAGIC_NUMBER_FEF1[] = {67,69,78,13,10,0x1a,4,0x84};
 	const uint8_t MAGIC_NUMBER_FEF2[] = {67,69,78,0x13,0x10,0x1a,4,0x84};
-	const uint8_t MAGIC_NUMBER_GZIP[] = {31,139,8};
 	const uint8_t MAGIC_NUMBER_Z[]    = {31,157,144};
 	// const uint8_t MAGIC_NUMBER_ZIP[]  = {80,75,3,4};
 	const uint8_t MAGIC_NUMBER_TIFF_l32[] = {73,73,42,0};
@@ -1713,11 +1713,11 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = BLSC;
     	else if (!memcmp(Header1,"FileFormat = BNI-1-BALTIMORE",28))
 	    	hdr->TYPE = BNI;
-        else if (!memcmp(Header1,MAGIC_NUMBER_BRAINVISION,38) || ((leu32p(hdr->AS.Header)==0x42bfbbef) && !memcmp(Header1+3, MAGIC_NUMBER_BRAINVISION,38)))
+        else if (!memcmp(Header1,MAGIC_NUMBER_BRAINVISION,sizeof(MAGIC_NUMBER_BRAINVISION)) || ((leu32p(hdr->AS.Header)==0x42bfbbef) && !memcmp(Header1+3, MAGIC_NUMBER_BRAINVISION,38)))
                 hdr->TYPE = BrainVision;
-        else if (!memcmp(Header1,MAGIC_NUMBER_BRAINVISION1,38))
+        else if (!memcmp(Header1,MAGIC_NUMBER_BRAINVISION1,sizeof(MAGIC_NUMBER_BRAINVISION1)))
                 hdr->TYPE = BrainVisionVAmp;
-        else if (!memcmp(Header1,MAGIC_NUMBER_BRAINVISIONMARKER,38))
+        else if (!memcmp(Header1,MAGIC_NUMBER_BRAINVISIONMARKER,sizeof(MAGIC_NUMBER_BRAINVISIONMARKER)))
                 hdr->TYPE = BrainVisionMarker;
     	else if (!memcmp(Header1,"BZh91",5))
 	    	hdr->TYPE = BZ2;
@@ -1741,9 +1741,9 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = DEMG;
     	else if (!memcmp(Header1+128,"DICM\x02\x00\x00\x00",8))
 	    	hdr->TYPE = DICOM;
-    	else if (!memcmp(Header1, MAGIC_NUMBER_DICOM,18))
+    	else if (!memcmp(Header1, MAGIC_NUMBER_DICOM,sizeof(MAGIC_NUMBER_DICOM)))
 	    	hdr->TYPE = DICOM;
-    	else if (!memcmp(Header1+12, MAGIC_NUMBER_DICOM,18))
+    	else if (!memcmp(Header1+12, MAGIC_NUMBER_DICOM,sizeof(MAGIC_NUMBER_DICOM)))
 	    	hdr->TYPE = DICOM;
     	else if (!memcmp(Header1+12, MAGIC_NUMBER_DICOM,8))
 	    	hdr->TYPE = DICOM;
@@ -1794,7 +1794,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
     	else if (!memcmp(Header1,"|CF,",4))
 	    	hdr->TYPE = FAMOS;
 
-    	else if (!memcmp(Header1,MAGIC_NUMBER_FEF1,8) || !memcmp(Header1,MAGIC_NUMBER_FEF2,8)) {
+    	else if (!memcmp(Header1,MAGIC_NUMBER_FEF1,sizeof(MAGIC_NUMBER_FEF1)) || !memcmp(Header1,MAGIC_NUMBER_FEF2,sizeof(MAGIC_NUMBER_FEF1))) {
 	    	hdr->TYPE = FEF;
 		char tmp[9];
 		strncpy(tmp,(char*)hdr->AS.Header+8,8);
@@ -1815,7 +1815,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = GIF;
     	else if (!memcmp(Header1,"GALILEO EEG TRACE FILE",22))
 	    	hdr->TYPE = GTF;
-	else if (!memcmp(Header1,MAGIC_NUMBER_GZIP,3))  {
+	else if (!memcmp(Header1,MAGIC_NUMBER_GZIP,sizeof(MAGIC_NUMBER_GZIP)))  {
 		hdr->TYPE = GZIP;
 //		hdr->FILE.COMPRESSION = 1;
 	}
@@ -3303,8 +3303,7 @@ if (!strncmp(MODE,"r",1))
 	count = ifread(Header1,1,352,hdr);
 	hdr->AS.Header[count]=0;
 
-	const uint8_t MAGIC_NUMBER_GZIP[] = {31,139,8};
-	if (!memcmp(Header1,MAGIC_NUMBER_GZIP,3)) {
+	if (!memcmp(Header1,MAGIC_NUMBER_GZIP,sizeof(MAGIC_NUMBER_GZIP))) {
 #ifdef ZLIB_H
 		ifclose(hdr);
 
@@ -8063,7 +8062,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",(int)SPR,hdr-
 		for (k=0; k < hdr->NS; k++) {
 
 			double skew=0;
-			double byteoffset=0;
+			//double byteoffset=0;
 			double ADCgain=200;
 			double baseline=0;
 			double ADCresolution=12;
@@ -8551,7 +8550,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",(int)SPR,hdr-
 
         else if (hdr->TYPE == NeuroLoggerHEX) {
         	hdr->NS = 8;
-        	uint16_t gdftyp = 2;
+        	// uint16_t gdftyp = 2;
 
 		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 		B4C_ERRMSG = "NeuroLogger HEX format not supported, yet";
@@ -10688,14 +10687,10 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 
 
 	if (VERBOSE_LEVEL>6)
-		fprintf(stdout,"SREAD( %p, %i, %i, %s ) MODE=%i\n",data,start, length, hdr->FileName, hdr->FILE.OPEN);
-
-
+		fprintf(stdout,"SREAD( %p, %li, %li, %s ) MODE=%i\n",data, start, length, hdr->FileName, hdr->FILE.OPEN);
 
 	if (start >= (size_t)hdr->NRec) return(0);
 
-int V = VERBOSE_LEVEL;
-//VERBOSE_LEVEL = 9;
 	count = sread_raw(start, length, hdr, 0);
 
 	if (B4C_ERRNUM) return(0);
@@ -11249,7 +11244,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 
 
 	if (VERBOSE_LEVEL>6)
-		fprintf(stdout,"SWRITE( %p, %i, %s ) MODE=%i\n",data, nelem, hdr->FileName, hdr->FILE.OPEN);
+		fprintf(stdout,"SWRITE( %p, %li, %s ) MODE=%i\n",data, nelem, hdr->FileName, hdr->FILE.OPEN);
 
 
 #if (__BYTE_ORDER == __BIG_ENDIAN)
@@ -11325,7 +11320,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 
 		for (k4 = 0; k4 < (size_t)hdr->NRec; k4++) {
 			if (VERBOSE_LEVEL>7)
-				fprintf(stdout,"swrite 313- #%i: [%i %i] %i %i %i %i %i\n",(int)k1,(int)hdr->data.size[0],(int)hdr->data.size[1],(int)k4,(int)k5,(int)hdr->SPR,(int)DIV,(int)nelem);
+				fprintf(stdout,"swrite 313- #%i: [%i %i] %i %i %i %i %i\n",(int)k1,(int)hdr->data.size[0],(int)hdr->data.size[1],(int)k4,(int)0,(int)hdr->SPR,(int)DIV,(int)nelem);
 
 		for (k5 = 0; k5 < CHptr->SPR; k5++) {
 
@@ -11503,7 +11498,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 		k2++;
 		bi8 += SZ*CHptr->SPR;
 	if (VERBOSE_LEVEL>7)
-		fprintf(stdout,"swrite 314 %i\n",k2);
+		fprintf(stdout,"swrite 314 %i\n",(int)k2);
 
 	}       // end if OnOff
 	}	// end for k1
