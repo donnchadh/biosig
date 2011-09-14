@@ -325,7 +325,7 @@ sopen_hl7aecg.o: t230/sopen_hl7aecg.c biosig-dev.h biosig.h XMLParser/tinyxml.h 
 	$(CXX) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
 
 sopen_scp_read.o: t210/sopen_scp_read.c biosig-dev.h biosig.h biosig.h t210/structures.h
-	$(CXX) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
+	$(CC) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
 
 scp-decode.o: t210/scp-decode.cpp biosig-dev.h biosig.h t210/structures.h t210/codes.h
 	$(CC) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
@@ -336,7 +336,7 @@ getlogin_r.o: win32/getlogin_r.c
 ########### WIN32 ##################
 
 win32/sopen_scp_read.obj: t210/sopen_scp_read.c biosig-dev.h biosig.h t210/structures.h
-	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
+	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
 
 win32/scp-decode.obj: t210/scp-decode.cpp biosig-dev.h biosig.h t210/structures.h t210/codes.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
@@ -361,7 +361,7 @@ win32/sigviewer.exe: win32/libbiosig.a win32/libbiosig.dll
 ########### WIN64 ##################
 
 win64/sopen_scp_read.obj: t210/sopen_scp_read.c biosig-dev.h biosig.h t210/structures.h
-	$(MinGW64CXX) -c $(MinGW64CFLAGS) $(INCPATH) -o "$@" "$<"
+	$(MinGW64CC) -c $(MinGW64CFLAGS) $(INCPATH) -o "$@" "$<"
 
 win64/scp-decode.obj: t210/scp-decode.cpp biosig-dev.h biosig.h t210/structures.h t210/codes.h
 	$(MinGW64CXX) -c $(MinGW64CFLAGS) $(INCPATH) -o "$@" "$<"

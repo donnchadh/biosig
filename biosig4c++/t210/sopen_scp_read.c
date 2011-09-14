@@ -36,28 +36,30 @@ static const uint8_t _NUM_SECTION = 12U;	//consider first 11 sections of SCP
 static bool add_filter = true;             // additional filtering gives better shape, but use with care
 
 #ifndef WITHOUT_SCP_DECODE
-int scp_decode(HDRTYPE*, pointer_section*, DATA_DECODE&, DATA_RECORD&, DATA_INFO&, bool&);
+int scp_decode(HDRTYPE* hdr, struct pointer_section *section, struct DATA_DECODE , struct DATA_RECORD , struct DATA_INFO , bool );
 #endif
 
 // Huffman Tables         	
 uint16_t NHT; 	/* number of Huffman tables */
-struct table_t {
+typedef struct table_t {
 	uint8_t PrefixLength;
        	uint8_t CodeLength;
        	uint8_t TableModeSwitch;
        	int16_t BaseValue;
        	uint32_t BaseCode;
-}; 
-struct huffman_t {
+} table_t; 
+typedef struct huffman_t {
       	uint16_t NCT; 	/* number of Code structures in Table #1 */
        	table_t *Table; 
-} *Huffman;
+} huffman_t; 
+huffman_t *Huffman;
 
-struct htree_t {
-	htree_t* child0;
-	htree_t* child1;
+typedef struct htree_t {
+	struct htree_t* child0;
+	struct htree_t* child1;
 	uint16_t idxTable;
-} **HTrees;
+} htree_t;
+htree_t **HTrees;
 
 table_t DefaultTable[19] = {
 	{ 1,  1, 1, 0, 0 },
@@ -84,7 +86,7 @@ table_t DefaultTable[19] = {
 /*
 	This structure defines the fields used for "Annotated ECG" 
  */
-struct en1064_t {
+typedef struct en1064_t {
 	char*		test;		/* test field for annotated ECG */
 	
 	float		diastolicBloodPressure;				
@@ -168,7 +170,8 @@ struct en1064_t {
         	uint16_t *inlen;
         	int32_t  *datablock;
         } Section6;
-} en1064;
+} en1064_t;
+en1064_t en1064;
 
 /* new node in Huffman tree */
 htree_t* newNode() {
@@ -293,7 +296,8 @@ int DecodeHuffman(htree_t *HTrees[], huffman_t *HuffmanTables, uint8_t* indata, 
 void deallocEN1064(en1064_t en1064) {	
 	/* free allocated memory */ 
 	if (en1064.FLAG.HUFFMAN) {
-		for (size_t k1=0; k1<en1064.FLAG.HUFFMAN; k1++) {
+		size_t k1=0;
+		for (; k1<en1064.FLAG.HUFFMAN; k1++) {
 		 	if (NHT!=19999) free(Huffman[k1].Table);
 		 	freeTree(HTrees[k1]); 
 		} 
@@ -436,13 +440,14 @@ EXTERN_C int sopen_SCP_read(HDRTYPE* hdr) {
 	section[0].ID	  = 0; 	
 	section[0].length = len; 	
 	section[0].index  = 6+16;
-	for (int K=1; K<_NUM_SECTION; K++) {
+	int K;
+	for (K=1; K<_NUM_SECTION; K++) {
 		section[K].ID	  = K; 	
 		section[K].length = 0; 	
 		section[K].index  = 0;
 	}
 
-	for (int K=1; K<NSections; K++)	{
+	for (K=1; K<NSections; K++)	{
 		// this is needed because fields are not always sorted
 		curSect = leu32p(ptr+6+16+K*10); 
 		if (curSect < NSections) {
@@ -452,7 +457,7 @@ EXTERN_C int sopen_SCP_read(HDRTYPE* hdr) {
 		}
 	}
 
-	for (int K=1; K<NSections; K++)	{
+	for (K=1; K<NSections; K++)	{
 
 	if (VERBOSE_LEVEL>8)
 		fprintf(stdout,"%s(%i) ",hdr->FileName,K);
@@ -689,7 +694,8 @@ EXTERN_C int sopen_SCP_read(HDRTYPE* hdr) {
 				}
 				else if (tag==32) {
 					if (PtrCurSect[curSectPos]==0) {
-						for (unsigned k=1; k < len1; k++) {
+						unsigned k=1;
+						for (; k < len1; k++) {
 							if ((PtrCurSect[curSectPos+k] > 9) && (PtrCurSect[curSectPos+k] < 40)) 
 								hdr->Patient.Impairment.Heart = 2; 
 							else if (PtrCurSect[curSectPos+k]==1) 
@@ -1124,7 +1130,8 @@ EXTERN_C int sopen_SCP_read(HDRTYPE* hdr) {
 			aECG->Section8.NumberOfStatements = *(uint8_t*)(PtrCurSect+curSectPos+8);
 			aECG->Section8.Statements= (char**)malloc(aECG->Section8.NumberOfStatements*sizeof(char*));
 			curSectPos += 9;
-			for (uint8_t k=0; k<aECG->Section8.NumberOfStatements;k++) {
+			uint8_t k=0;
+			for (; k<aECG->Section8.NumberOfStatements;k++) {
 				aECG->Section8.Statements[k] = (char*)(PtrCurSect+curSectPos+3);
 				curSectPos += 3+leu16p(PtrCurSect+curSectPos+1);
 			}
@@ -1152,7 +1159,8 @@ EXTERN_C int sopen_SCP_read(HDRTYPE* hdr) {
 			aECG->Section11.NumberOfStatements = *(uint8_t*)(PtrCurSect+curSectPos+8);
 			aECG->Section11.Statements= (char**)malloc(aECG->Section11.NumberOfStatements*sizeof(char*));
 			curSectPos += 9;
-			for (uint8_t k=0; k<aECG->Section11.NumberOfStatements;k++) {
+			uint8_t k=0;
+			for (; k<aECG->Section11.NumberOfStatements;k++) {
 				aECG->Section11.Statements[k] = (char*)(PtrCurSect+curSectPos+4);
 				curSectPos += 3+leu16p(PtrCurSect+curSectPos+1);
 			}
