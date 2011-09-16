@@ -33,7 +33,7 @@
 %% for @code{'<'}, the one-sided alternative PROB (@var{x} > @var{y}) <
 %% 1/2 is considered.  The default is the two-sided case.
 %% If @var{x} and @var{y} are matrices (must have same size), the test
-%% is applied to each column, 
+%% is applied to each column.
 %%
 %% The p-value and z-score of the test are returned in @var{pval} and
 %% @var{z}, resp.

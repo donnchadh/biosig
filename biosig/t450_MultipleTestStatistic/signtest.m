@@ -1,13 +1,14 @@
 %% Copyright (C) 1995, 1996, 1997  Kurt Hornik
+%%               2006, 2011 Alois Schloegl
 %%
 %% This file is part of Octave.
 %%
-%% Octave is free software; you can redistribute it and/or modify it
+%% biosig is free software; you can redistribute it and/or modify it
 %% under the terms of the GNU General Public License as published by
-%% the Free Software Foundation; either version 2, or (at your option)
+%% the Free Software Foundation; either version 3, or (at your option)
 %% any later version.
 %%
-%% Octave is distributed in the hope that it will be useful, but
+%% Biosig is distributed in the hope that it will be useful, but
 %% WITHOUT ANY WARRANTY; without even the implied warranty of
 %% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 %% General Public License for more details.
@@ -33,7 +34,9 @@
 %% stochastically greater than y') is considered.  Similarly for
 %% @code{'<'}, the one-sided alternative PROB (@var{x} > @var{y}) < 1/2
 %% ('x is stochastically less than y') is considered.  The default is
-%% the two-sided case.
+%% the two-sided case. 
+%% If @var{x} and @var{y} are matrices (must have same size), the test
+%% is applied to each column.
 %%
 %% The p-value of the test is returned in @var{pval}.
 %%
@@ -53,15 +56,9 @@ function [pval, b, n] = signtest (x, y, alpha, alt)
   	alpha=.05; 
   end; 
 
-  %modified for Matlab
-  %if (~ (isvector (x) && isvector (y) && (length (x) == length (y))))
-  %  error ('sign_test: x and y must be vectors of the same length');
-  %end
-
-  n   = length (x);
-  x   = reshape (x, 1, n);
-  y   = reshape (y, 1, n);
-  n   = sum (x ~= y);
+  d   = x - y;
+  n   = sumskipnan(d,1);
+  n   = sum ( d~=0 & ~isnan(d));
   b   = sum (x > y);
   cdf = binocdf (b, n, 1/2);
 

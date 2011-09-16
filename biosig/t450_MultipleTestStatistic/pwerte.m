@@ -45,10 +45,7 @@ switch samp
             case 'wilcox'     %Wilcoxen signed rank test
                 q = wilcoxon_test(X, Y, tail); % Wilcoxentest fuer gepaarte Stichproben
             case 'sign'       %sign test
-                q=zeros(1,k);
-                    for j=1:k,
-                        [q(j),h]= signtest(X(:,j),Y(:,j),alpha,tail); %Vorzeichentest
-                    end;%for
+                [q,h]= signtest(X,Y,alpha,tail); %Vorzeichentest
         end %switch test sing
 
     Richtung=[q<=0.5];
@@ -92,10 +89,7 @@ switch samp
                     case 'wilcox'     %Wilcoxen signed rank test
                         p= wilcoxon_test(X1, Y1, tail); % Wilcoxentest fuer gepaarte Stichproben
                     case 'sign'       %sign test
-                    p=zeros(1,k);
-                        for e=1:k,
-                        [p(e),h]= signtest(X1(:,e),Y1(:,e),alpha,tail); %Vorzeichentest
-                        end;%for
+                        [p,h]= signtest(X1,Y1,alpha,tail); %Vorzeichentest
                 end %switch test sing     
          
                 if strcmp(test,'ttest')
@@ -129,10 +123,7 @@ switch samp
             case 'wilcox'   %Wilcoxen signed rank test
                 q = wilcoxon_test(X, Y, tail); % Wilcoxentest fuer gepaarte Stichproben
             case 'sign'     %sign test
-                q=zeros(1,k);
-                    for j=1:k,
-                        [q(j),h]= signtest(X(:,j),Y(:,j),alpha,tail); %Vorzeichentest
-                    end;%for
+                [q,h]= signtest(X,Y,alpha,tail); %Vorzeichentest
         end %switch test pair
                   
     Richtung=[q<=0.5];
@@ -179,10 +170,7 @@ switch samp
                     case 'wilcox'   %Wilcoxen signed rank test
                         p = wilcoxon_test(X1, Y1, tail); % Wilcoxentest fuer gepaarte Stichproben
                     case 'sign'     %sign test
-                    p=zeros(1,k);
-                        for e=1:k,
-                        [p(e),h]= signtest(X1(:,e),Y1(:,e),alpha,tail); %Vorzeichentest
-                        end;%for
+                        [p,h]= signtest(X1,Y1,alpha,tail); %Vorzeichentest
                 end %switch test pair
                       
                 if strcmp(test,'ttest')

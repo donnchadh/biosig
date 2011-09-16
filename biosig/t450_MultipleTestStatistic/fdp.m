@@ -423,25 +423,19 @@ if strcmp(samp,'single')       %for single sample
   	  case 'wilcox'     %Wilcoxen signed rank test
             p = wilcoxon_test(X, Y, tail); % Wilcoxentest für gepaarte Stichproben
       case 'sign'       %sign test
-          p=zeros(1,k);
-          for j=1:k,
-            [p(j),h] = signtest(X(:,j),Y(:,j),alpha,tail); %Vorzeichentest
-          end;%for
+            [p,h] = signtest(X,Y,alpha,tail); %Vorzeichentest
    	end %switch test sing
 elseif strcmp(samp,'paired')  %for paired sample
    	switch test          %chose test  
-    	 case 'ttest'    %t-Test
+    	case 'ttest'    %t-Test
 	    t=ttestC(X-Y); 
         FG=n1-1;
     %einseitiger p-Wert des t-Tests  
         p=tcdf(t,FG);
-    	 case 'wilcox'   %Wilcoxen signed rank test
+    	case 'wilcox'   %Wilcoxen signed rank test
             p = wilcoxon_test(X, Y, tail); % Wilcoxentest für gepaarte Stichproben
-    	 case 'sign'     %sign test
-      	  p=zeros(1,k);
-          for j=1:k,
-            [p(j),h] = signtest(X(:,j),Y(:,j),alpha,tail); %Vorzeichentest
-          end;%for
+    	case 'sign'     %sign test
+            [p,h] = signtest(X, Y, alpha, tail); %Vorzeichentest
 	end %switch test pair
 else    % for independent sample
         switch test %chose test
