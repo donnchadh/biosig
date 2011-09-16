@@ -43,10 +43,7 @@ switch samp
                 FG=n1-1;
                 q=tcdf(t,n1-1);
             case 'wilcox'     %Wilcoxen signed rank test
-                q=zeros(1,k);
-                    for j=1:k,
-                        [q(j),h]= wilcoxon_test(X(:,j),Y(:,j),alpha,tail); % Wilcoxentest fuer gepaarte Stichproben
-                    end;%for
+                q = wilcoxon_test(X, Y, tail); % Wilcoxentest fuer gepaarte Stichproben
             case 'sign'       %sign test
                 q=zeros(1,k);
                     for j=1:k,
@@ -93,10 +90,7 @@ switch samp
                     p=tcdf(t,n1-1);
       
                     case 'wilcox'     %Wilcoxen signed rank test
-                    p=zeros(1,k);
-                        for e=1:k,
-                        [p(e),h]= wilcoxon_test(X1(:,e),Y1(:,e),alpha,tail); % Wilcoxentest fuer gepaarte Stichproben
-                        end;%for
+                        p= wilcoxon_test(X1, Y1, tail); % Wilcoxentest fuer gepaarte Stichproben
                     case 'sign'       %sign test
                     p=zeros(1,k);
                         for e=1:k,
@@ -133,10 +127,7 @@ switch samp
                 %einseitiger p-Wert des t-Tests  
                 q=tcdf(t,FG);
             case 'wilcox'   %Wilcoxen signed rank test
-                q=zeros(1,k);
-                    for j=1:k,
-                        [q(j),h]= wilcoxon_test(X(:,j),Y(:,j),alpha,tail); % Wilcoxentest fuer gepaarte Stichproben
-                    end;%for
+                q = wilcoxon_test(X, Y, tail); % Wilcoxentest fuer gepaarte Stichproben
             case 'sign'     %sign test
                 q=zeros(1,k);
                     for j=1:k,
@@ -186,10 +177,7 @@ switch samp
                     t=ttestC(Z);
                     p=tcdf(t,n1-1);
                     case 'wilcox'   %Wilcoxen signed rank test
-                    p=zeros(1,k);
-                        for e=1:k,
-                        [p(e),h]= wilcoxon_test(X1(:,e),Y1(:,e),alpha,tail); % Wilcoxentest fuer gepaarte Stichproben
-                        end;%for
+                        p = wilcoxon_test(X1, Y1, tail); % Wilcoxentest fuer gepaarte Stichproben
                     case 'sign'     %sign test
                     p=zeros(1,k);
                         for e=1:k,

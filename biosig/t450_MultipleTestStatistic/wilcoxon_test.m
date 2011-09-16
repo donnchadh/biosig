@@ -1,13 +1,14 @@
 %% Copyright (C) 1995, 1996, 1997  Kurt Hornik
+%%               2006, 2011 Alois Schloegl 
 %%
-%% This file is part of Octave.
+%% This file is part of Biosig.
 %%
-%% Octave is free software; you can redistribute it and/or modify it
+%% Biosig is free software; you can redistribute it and/or modify it
 %% under the terms of the GNU General Public License as published by
-%% the Free Software Foundation; either version 2, or (at your option)
+%% the Free Software Foundation; either version 3, or (at your option)
 %% any later version.
 %%
-%% Octave is distributed in the hope that it will be useful, but
+%% Biosig is distributed in the hope that it will be useful, but
 %% WITHOUT ANY WARRANTY; without even the implied warranty of
 %% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 %% General Public License for more details.
@@ -31,53 +32,45 @@
 %% alternative PROB (@var{x} > @var{y}) > 1/2 is considered.  Similarly
 %% for @code{'<'}, the one-sided alternative PROB (@var{x} > @var{y}) <
 %% 1/2 is considered.  The default is the two-sided case.
+%% If @var{x} and @var{y} are matrices (must have same size), the test
+%% is applied to each column, 
 %%
-%% The p-value of the test is returned in @var{pval}.
+%% The p-value and z-score of the test are returned in @var{pval} and
+%% @var{z}, resp.
 %%
 %% If no output argument is given, the p-value of the test is displayed.
 %% @end deftypefn
 
 %% Author: KH <Kurt.Hornik@wu-wien.ac.at>
 %% Description: Wilcoxon signed-rank test
-%% Adapted for the use with M*tlab by AS <a.schloegl@ieee.org> Dec 2006
 
-function [pval, z] = wilcoxon_test (x, y, alpha, alt)
+function [pval, z] = wilcoxon_test (x, y, alt)
 
-  if ((nargin < 2) | (nargin > 4))
-    error;
+  if ((nargin < 2) || (nargin > 3))
+    help wilcoxon_test;
   end
 
-  %modified for Matlab
-%  if (~ (isvector (x) && isvector (y) && (length (x) == length (y))))
-%    error ('wilcoxon_test: x and y must be vectors of the same length');
-%  end
-
-  n = length (x);
-  %x = reshape (x, 1, n); % modified by CH <c.hemmelmann@imsid.uni-jena.de>
-  %y = reshape (y, 1, n); % because ranks() need a column
   d = x - y;
-  d = d (find (d ~= 0));
-  n = length (d);
-  if (n > 0)
-    r = ranks (abs (d));
-    z = sum (r (find (d > 0)));
-    z = ((z - n * (n + 1) / 4) / sqrt (n * (n + 1) * (2 * n + 1) / 24));
-  else
-    z = 0;
-  end
+  d(d==0) = NaN;	
+  n = sum(~isnan(d),1);
+  r = ranks (abs (d), 1);
+  r(d <= 0) = NaN; 
+  z = sumskipnan(r,1);	
 
-  %cdf = stdnormal_cdf (z);
+  z = ((z - n .* (n + 1) / 4) ./ sqrt (n .* (n + 1) .* (2 * n + 1) / 24));
+  z(n<=0) = 0;	
+
   cdf = normcdf(z,0,1);
 
   if (nargin == 2)
     alt = '~=';
   end
 
-  if (strcmp (alt, '~=') | strcmp (alt, '<>') || (alt==0))
+  if (strcmp (alt, '~=') || strcmp (alt, '<>') || (alt==0))
     pval = 2 * min (cdf, 1 - cdf);
-  elseif (strcmp (alt, '>') | (alt==1))
+  elseif (strcmp (alt, '>') || (alt==1))
     pval = 1 - cdf;
-  elseif (strcmp (alt, '<') | (alt==-1))
+  elseif (strcmp (alt, '<') || (alt==-1))
     pval = cdf;
   else
     error ('wilcoxon_test: option %s not recognized', alt);
@@ -85,8 +78,6 @@ function [pval, z] = wilcoxon_test (x, y, alpha, alt)
 
   if (nargout == 0)
     printf ('  pval: %g\n', pval);
-  elseif nargout > 1,
-    z = (pval<alpha);
   end
 
 end
