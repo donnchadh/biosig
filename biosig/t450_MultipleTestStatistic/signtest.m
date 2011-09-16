@@ -49,7 +49,7 @@
 
 function [pval, b, n] = signtest (x, y, alpha, alt)
 
-  if ((nargin < 2) | (nargin > 4))
+  if ((nargin < 2) || (nargin > 4))
     error;
   end
   if nargin<3,
@@ -66,11 +66,11 @@ function [pval, b, n] = signtest (x, y, alpha, alt)
     alt  = '~=';
   end
 
-  if (strcmp (alt, '~=') | strcmp (alt, '<>') | (alt==0))
+  if (strcmp (alt, '~=') || strcmp (alt, '<>') || (alt==0))
     pval = 2 * min (cdf, 1 - cdf);
-  elseif (strcmp (alt, '>') | (alt==1))
+  elseif (strcmp (alt, '>') || (alt==1))
     pval = 1 - cdf;
-  elseif (strcmp (alt, '<') | (alt==-1))
+  elseif (strcmp (alt, '<') || (alt==-1))
     pval = cdf;
   else
     error ('sign_test: option %s not recognized', alt);
