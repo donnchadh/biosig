@@ -36,10 +36,13 @@ function RES = evaluate_event_detection(D, trig)
 % a simple algorithm not resolving ties is used.  
 % d = ranks(D);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-d = zeros(size(X));
-[sX, ix] = sort(X,1);
-[tmp,d]  = sort(ix,1);     % r yields the rank of each element         
-d(isnan(X)) = nan;
+d = zeros(size(D));
+[TH, I] = sort(D,1);
+for k=1:size(D,2)
+	[tmp,d(:,k)]  = sort(I(:,k),1);     % d yields the rank of each element         
+	x(:,k) = r(I(:,k));
+end;
+d(isnan(D)) = nan;
     
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -111,16 +114,81 @@ while (1)
 	if all([d11,d21,d22,d12] <= 0) break; end; 
 	if -IX2 >= IX1, break end; 	% no convergence
 end;
-RES.WIN = [IX2:IX1];
-if isempty(RES.WIN) return; end; 
+RES.WIN = [IX2,IX1];
+if RES.WIN*[1;1]>0, return; end; 
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %  ROC analysis: get AUC, and Threshold with maximum kappa
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-R = roc2(D,r); 
 
-R.THRESHOLD = 
+%[TH,I] = sort(D); % already done above 
+% x(:,k) = r(I(:,k));
+
+
+FNR = cumsum(x==1)/sum(x==1);
+TPR = 1-FNR;
+
+TNR = cumsum(x==0)/sum(x==0);
+FPR = 1-TNR;
+
+FN = cumsum(x==1);
+TP = sum(x==1)-FN;
+
+TN = cumsum(x==0);
+FP = sum(x==0)-TN;
+
+ACC = (TP+TN)./N;
+
+%%% compute Cohen's kappa coefficient
+N = size(d,1);
+% H = [TP,FN;FP,TN];
+p_i = [TP+FP,FN+TN];%sum(H,1);
+pi_ = [FP+FN,FP+TN];%sum(H,2)';
+pe  = sum(p_i.*pi_,2)/(N*N);  % estimate of change agreement
+kap = (ACC-pe)./(1-pe);
+
+% area under the ROC curve
+RES.AUC = -diff(FPR)' * (TPR(1:end-1)+TPR(2:end))/2;
+
+% Youden index
+YI = (TP+TN)/N-1;
+
+RES.YI = YI; 
+RES.ACC = ACC; 
+RES.KAPPA = kap; 
+
+[tmp,ix] = max(kap);
+RES.THRESHOLD.maxKAPPA = TH(ix); 
+
+% find optimal threshold 
+[tmp,ix] = max(SEN+SPEC-1);
+RES.THRESHOLD.maxYI = TH(ix);
+[tmp,ix] = max(kap);
+RES.THRESHOLD.maxKAPPA = TH(ix); 
+[tmp,ix] = max(ACC);
+RES.THRESHOLD.maxACC = TH(ix); 
+RES.H = [TP(ix),FN(ix);FP(ix),TN(ix)];
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Sample-based analysis 
+%    compute the confusion matrix
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+x1 = D > R.THRESHOLD.thMaxKappa; 
+v  = ~isnan(D);
+
+[ix,iy] = meshgrid(trig, IX2:IX1);
+ix = ix(:) + iy(:);
+ix = ix(0 < ix & ix <= N);
+x0 = full(sparse(ix, 1, 1, N, 1));
+
+RES.d.sum = [sum(x0),sum(x1),size(x0),size(x1),sum(v)];
+
+D = histo4([x0(v),x1(v)]);
+RES.D = D; 
+RES.K = kappa(full(sparse(D.X(:,1)+1, D.X(:,2)+1, D.H, 2, 2)));
+
 
 
 
@@ -128,6 +196,35 @@ R.THRESHOLD =
 % Event-based analysis 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+TP = 0; 
+%TN = 0;
+FP = 0;
+FN = 0;
+
+t = 0; 
+k1 = 1; k0=1;
+
+t0 = trig;
+t1 = find(diff([0;x0])>0);
+t0(end+1)=inf;
+t1(end+1)=inf;
+while (t1(k1)<inf && t0(k0)<inf)
+        t = min(t0(k0), t1(k1)); 
+        
+        if t0(k0) + winlen < t1(k1), 
+                k0=k0+1;
+                FN=FN+1;
+        elseif t1(k1) + winlen < t0(k0), 
+                k1=k1+1;
+                FP=FP+1;
+        else 
+                k0=k0+1;
+                k1=k1+1;
+                TP=TP+1;        
+        end; 
+end; 
+
+RES.H = [TP,FP,FN];
 
 
 
