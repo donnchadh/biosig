@@ -6,8 +6,9 @@
 % QCMAHAL	"quality" of a mahalanobis based classifier
 % MUTINFO	mutual information [2,3]
 % Wolpaw_Entropy [3]
-% BCI3EVAL	typical bci evaluation [4]
-% CRITERIA4ASYNCBCI     criterion for asychronous BCI 
+% BCI3EVAL			typical bci evaluation [4]
+% CRITERIA4ASYNCBCI     	criterion for asychronous BCI 
+% EVALUATE_EVENT_DETECTION 	evaluates event detection
 % 
 % see also: NaN/COVM, DECOVM
 %
