@@ -8504,6 +8504,18 @@ elseif strncmp(HDR.TYPE,'BrainVision',11),
         end;
 
         HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,HDR.BV.DataFile),PERMISSION,'ieee-le');
+	try % Octave: catch if native2unicode and unicode2native are not supported 
+	        if HDR.FILE.FID < 0,
+        		DataFile = native2unicode(HDR.BV.DataFile);
+		        HDR.FILE.FID    = fopen(fullfile(HDR.FILE.Path,DataFile),PERMISSION,'ieee-le');
+		end;        
+        	if HDR.FILE.FID < 0,
+        		DataFile = unicode2native(HDR.BV.DataFile);
+		        HDR.FILE.FID    = fopen(fullfile(HDR.FILE.Path,DataFile),PERMISSION,'ieee-le');
+		end;        
+	catch 
+		warning('native2unicode/unicode2native failed');
+	end; 
         if HDR.FILE.FID < 0,
                 fprintf(HDR.FILE.stderr,'ERROR SOPEN BV: could not open file %s\n',fullfile(HDR.FILE.Path,HDR.BV.DataFile));
         	HDR.BV.DataFile = [HDR.FILE.Name,'.dat'];
