@@ -8505,9 +8505,15 @@ elseif strncmp(HDR.TYPE,'BrainVision',11),
 
         HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,HDR.BV.DataFile),PERMISSION,'ieee-le');
         if HDR.FILE.FID < 0,
+                fprintf(HDR.FILE.stderr,'ERROR SOPEN BV: could not open file %s\n',fullfile(HDR.FILE.Path,HDR.BV.DataFile));
         	HDR.BV.DataFile = [HDR.FILE.Name,'.dat'];
 	        HDR.FILE.FID    = fopen(fullfile(HDR.FILE.Path,HDR.BV.DataFile),PERMISSION,'ieee-le');
 	end;        
+        if HDR.FILE.FID < 0,
+                fprintf(HDR.FILE.stderr,'ERROR SOPEN BV: could not open file %s\n',fullfile(HDR.FILE.Path,HDR.BV.DataFile));
+        	HDR.BV.DataFile = [HDR.FILE.Name,'.eeg'];
+	        HDR.FILE.FID    = fopen(fullfile(HDR.FILE.Path,HDR.BV.DataFile),PERMISSION,'ieee-le');
+	end;
         if HDR.FILE.FID < 0,
                 fprintf(HDR.FILE.stderr,'ERROR SOPEN BV: could not open file %s\n',fullfile(HDR.FILE.Path,HDR.BV.DataFile));
                 return;
