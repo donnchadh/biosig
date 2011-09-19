@@ -40,10 +40,10 @@ d = zeros(size(D));
 [TH, I] = sort(D,1);
 for k=1:size(D,2)
 	[tmp,d(:,k)]  = sort(I(:,k),1);     % d yields the rank of each element         
-	x(:,k) = r(I(:,k));
+%	x(:,k) = r(I(:,k));
 end;
 d(isnan(D)) = nan;
-    
+N = sum(~isnan(D));    
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Find onset and offset of optimal detection window. 
@@ -57,65 +57,79 @@ d(isnan(D)) = nan;
 IX1 = 0; 
 IX2 = 0;
 %% reference
+d = zscore(d); 
+
 r = zeros(size(D));
 r(trig) = 1;
 R0 = corrcoef(d,r);
+flag_improved = 1; 
+while (flag_improved) 
+	flag_improved = 0; 
 
-while (1) 
 	IX1 = IX1+1;
-	r(trig + IX1) = 1;
-	R1 = corrcoef(d,r);
+	t = trig(trig <= size(r,1) - IX1) + IX1;
+	r(t) = 1;
+	R1 = mean(d.*zscore(r)); %corrcoef(d,r);
 	d11 = R1-R0;
 	if R1 > R0,
 		R0 = R1; 
+		flag_improved = 1; 
 		d12 = 0;  
 	else 
 		% no improvement, revert. 
-		r(trig + IX1) = 0;
+		r(t) = 0;
 		IX1 = IX1-1;
 		% go opposite direction 
-		r(trig + IX1) = 0;
+		t = trig(trig <= size(r,1) - IX1) + IX1;
+		r(t) = 0;
 		IX1 = IX1-1;
-		R1  = corrcoef(d,r);
+		R1  = mean(d.*zscore(r)); %corrcoef(d,r);
 		d12 = -(R1 - R0);
 		if R1 > R0,
 			R0 = R1; 
+			flag_improved = 1; 
 		else
 			% no improvement, revert. 
-			IX1=IX1+1;
-			r(trig + IX1) = 1;
+			IX1 = IX1+1;
+			r(t) = 1;
 		end 
 	end		
 
 	IX2 = IX2-1;
-	r(trig + IX2) = 1;
-	R2 = corrcoef(d,r);
+	t = trig(trig > -IX2) + IX2;
+	r(t) = 1;
+	R2 = mean(d.*zscore(r)); %corrcoef(d,r);
 	d21 = R2 - R0;
 	if R2 > R0,
 		R0 = R2;
+		flag_improved = 1; 
 		d22 = 0;  
 	else 
 		% no improvement, revert. 
-		r(trig + IX2) = 0;
+		r(t) = 0;
 		IX2 = IX2+1;
 		% go opposite direction 
-		r(trig + IX2) = 0;
-		IX2 = IX2-1;
-		R2  = corrcoef(d,r);
+		t = trig(trig > -IX2) + IX2;
+		r(t) = 0;
+		IX2 = IX2+1;
+		R2  = mean(d.*zscore(r)); %corrcoef(d,r);
 		d22 = -(R2 - R0);
 		if R2 > R0,
 			R0  = R2; 
+			flag_improved = 1; 
 		else
 			% no improvement, revert. 
 			IX2 = IX2-1;
-			r(trig + IX2) = 1;
+			r(t) = 1;
 		end 
-	end		
+	end	
+%[IX2,IX1],R0,[d11,d21,d22,d12],
 	if all([d11,d21,d22,d12] <= 0) break; end; 
-	if -IX2 >= IX1, break end; 	% no convergence
+	if IX2 > IX1, break end; 	% no convergence
 end;
 RES.WIN = [IX2,IX1];
-if RES.WIN*[1;1]>0, return; end; 
+RES.corrcoef = R0; 
+if RES.WIN(2)<RES.WIN(1), return; end; 
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -123,7 +137,11 @@ if RES.WIN*[1;1]>0, return; end;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %[TH,I] = sort(D); % already done above 
-% x(:,k) = r(I(:,k));
+for k=1:size(D,2)
+	[tmp,d(:,k)]  = sort(I(:,k),1);     % d yields the rank of each element         
+	x(:,k) = r(I(:,k));
+end;
+d(isnan(D)) = nan;
 
 
 FNR = cumsum(x==1)/sum(x==1);
@@ -152,17 +170,18 @@ kap = (ACC-pe)./(1-pe);
 RES.AUC = -diff(FPR)' * (TPR(1:end-1)+TPR(2:end))/2;
 
 % Youden index
-YI = (TP+TN)/N-1;
+YI = (TP+TN)/N;
 
 RES.YI = YI; 
 RES.ACC = ACC; 
 RES.KAPPA = kap; 
+RES.TH = TH;
 
 [tmp,ix] = max(kap);
 RES.THRESHOLD.maxKAPPA = TH(ix); 
 
 % find optimal threshold 
-[tmp,ix] = max(SEN+SPEC-1);
+[tmp,ix] = max(YI);
 RES.THRESHOLD.maxYI = TH(ix);
 [tmp,ix] = max(kap);
 RES.THRESHOLD.maxKAPPA = TH(ix); 
@@ -175,13 +194,13 @@ RES.H = [TP(ix),FN(ix);FP(ix),TN(ix)];
 % Sample-based analysis 
 %    compute the confusion matrix
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-x1 = D > R.THRESHOLD.thMaxKappa; 
+x1 = D > RES.THRESHOLD.maxKAPPA; 
 v  = ~isnan(D);
 
 [ix,iy] = meshgrid(trig, IX2:IX1);
 ix = ix(:) + iy(:);
 ix = ix(0 < ix & ix <= N);
-x0 = full(sparse(ix, 1, 1, N, 1));
+x0 = full(sparse(ix, 1, 1, N, 1)>0);
 
 RES.d.sum = [sum(x0),sum(x1),size(x0),size(x1),sum(v)];
 
@@ -190,11 +209,16 @@ RES.D = D;
 RES.K = kappa(full(sparse(D.X(:,1)+1, D.X(:,2)+1, D.H, 2, 2)));
 
 
+return;
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Event-based analysis 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% see spikerror.m from analysis for JK
+
+%% TODO: support for window with defined onset and offset
+
 
 TP = 0; 
 %TN = 0;
@@ -225,6 +249,4 @@ while (t1(k1)<inf && t0(k0)<inf)
 end; 
 
 RES.H = [TP,FP,FN];
-
-
 
