@@ -1,17 +1,27 @@
-function [H2,HDR,s] = qrsdetect(fn,arg2,arg3)
+function [H2,HDR,s] = qrsdetect(fn,arg2,arg3,varargin)
 % QRSDETECT - detection of QRS-complexes
 %
 %   HDR = qrsdetect(fn,chan,Mode)
 %   HDR = qrsdetect(s,Fs,Mode)
+%   ... = qrsdetect(... ,'-o',outputFilename)
+%   ... = qrsdetect(... ,'-e',eventFilename)
 %
 % INPUT
-%   fn	        filename
-%   chan        channel number of ecg data
-%   s           ecg signal data 
-%   Fs          sample rate 
-%   Mode        optional - default is 2
+%   	fn	filename
+%   	chan    channel number of ecg data
+%   	s       ecg signal data 
+%   	Fs      sample rate 
+%   	Mode    optional - default is 2
 %               1: method [1] is used
-%		2: method [2] is used	
+%		2: method [2] is used
+%	outputFilename
+%		name of file for storing the resulting data with the
+%		detected spikes and bursts in GDF format.
+%	eventFilename
+%		filename to store event inforamation in GDF format. this is similar to 
+%		the outputFile, except that the signal data is not included and is, therefore,
+%		much smaller than the outputFile
+%
 % OUTPUT
 %   HDR.EVENT  fiducial points of qrs complexes	
 %
@@ -25,7 +35,7 @@ function [H2,HDR,s] = qrsdetect(fn,arg2,arg3)
 % 	IEEE Trans. Biomed. Eng. 46(2):192-202, Feb. 1999.
 
 % $Id$
-% Copyright (C) 2000-2003,2006,2009 by Alois Schloegl <a.schloegl@ieee.org>	
+% Copyright (C) 2000-2003,2006,2009,2011 by Alois Schloegl <alois.schloegl@gmail.com>
 % This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % BIOSIG is free software; you can redistribute it and/or
@@ -45,22 +55,44 @@ function [H2,HDR,s] = qrsdetect(fn,arg2,arg3)
 
 
 chan = 0; 
-MODE = 2;       % default: 
+MODE = 2;       % default
 if (nargin==2) 
 	if isnumeric(arg2)
 		chan = arg2;
 	else
-		MODE = arg3; 
+		MODE = arg3;
 	end;
 elseif (nargin==3) 
-	chan = arg2; 
+	chan = arg2;
 	MODE = arg3;
 end;
 
+%%%%% default settings %%%%%
+outFile = [];
+evtFile = [];
+
+%%%%% analyze input arguments %%%%%
+k = 1;
+while k <= length(varargin)
+	if ischar(varargin{k})
+		if (strcmp(varargin{k},'-o'))
+			k = k + 1;
+			outFile = varargin{k};
+		elseif (strcmp(varargin{k},'-e'))
+			k = k + 1;
+			evtFile = varargin{k};
+		else
+			warning(sprintf('unknown input argument <%s>- ignored',varargin{k}));
+		end;
+	end;
+	k = k+1;
+end;
+
+
 if isnumeric(fn),
-	s = fn; 
+	s = fn;
 	HDR.SampleRate = arg2;
-	chan = 1:size(s,2); 
+	chan = 1:size(s,2);
 else
 	HDR = sopen(fn,'r',chan);
 	if chan==0;
@@ -69,12 +101,12 @@ else
 			HDR = sclose(HDR);
 			HDR = sopen(fn,'r',chan);
 		else
-			chan = 1:HDR.NS;	
+			chan = 1:HDR.NS;
 		end;	
 	end;	
 	[s,HDR] = sread(HDR);
 	HDR = sclose(HDR);
-end;	
+end;
 
 ET = [];
 for k = 1:size(s,2),
@@ -91,7 +123,7 @@ for k = 1:size(s,2),
 
         else %if Mode== ???     % other QRS detection algorithms
 		fprintf(2,'Error QRSDETECT: Mode=%i not supported',Mode);
-		return; 
+		return;
         end;
 
         % difference between R-peak and fiducial point
@@ -105,14 +137,69 @@ end;
 
 [tmp,ix] = sort(ET(:,1));
 if isfield(HDR,'T0')
-	H2.T0 = HDR.T0; 
-end;	
+	H2.T0 = HDR.T0;
+end;
 if isfield(HDR,'Patient')
 	H2.Patient = HDR.Patient;
-end;	
+end;
 H2.EVENT.POS = ET(ix,1);
 H2.EVENT.TYP = ET(ix,2);
 H2.EVENT.CHN = ET(ix,3);
 H2.EVENT.DUR = ET(ix,4);
 H2.EVENT.SampleRate = HDR.SampleRate;
-H2.TYPE = 'EVENT'; 
+H2.TYPE = 'EVENT';
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%	Output
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+if ~isempty(outFile)
+		%%% write data to output
+		HDR.TYPE  = 'GDF';
+		HDR.VERSION = 3;
+		%[p,f,e]=fileparts(fn);
+		HDR.FILE = [];
+		HDR.FileName  = outFile;
+		HDR.FILE.Path = '';
+		HDR.PhysMax   = max(s);
+		HDR.PhysMin   = min(s);
+		HDR.DigMax(:) =  2^15-1;
+		HDR.DigMin(:) = -2^15;
+		HDR.GDFTYP(:) = 3;
+		HDR.FLAG.UCAL = 0;
+		HDR.NRec = size(s,1);
+		HDR.SPR = 1;
+		HDR.NS  = size(s,2);
+		HDR.Dur = 1/HDR.SampleRate;
+		HDR = rmfield(HDR,'AS');
+		HDR.EVENT = H2.EVENT; 
+		HDR = sopen(HDR,'w');
+		if (HDR.FILE.FID < 0) 
+			fprintf(2,'Warning can not open file <%s> - GDF file can not be written\n',HDR.FileName);
+		else
+			HDR = swrite(HDR,s);
+			HDR = sclose(HDR);
+		end; 
+end;
+
+if ~isempty(evtFile)
+		%%% write data to output
+		H2.TYPE  = 'EVENT';
+		H2.VERSION = 3;
+		%[p,f,e]=fileparts(fn);
+		H2.FILE = [];
+		H2.FileName  = evtFile;
+		H2.FILE.Path = '';
+		H2.NRec = 0;
+		H2.SPR = 0;
+		H2.Dur = 1/HDR.SampleRate;
+		%H2 = rmfield(HDR,'AS');
+		H2 = sopen(H2, 'w');
+		if (H2.FILE.FID<0) 
+			fprintf(2,'Warning can not open file <%s> - EVT file can not be written\n',H2.FileName); 
+		else
+			H2 = sclose(H2);
+ 		end;
+end;
+
+

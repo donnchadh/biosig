@@ -1,26 +1,27 @@
-function [Y0,EVENT] = OAHE(S,Fs)
+function [Y0,EVENT] = OAHE(S,Fs,varargin)
 % OAHE detectes obstructive Apnea/Hypopnea event
 %
 %    [Y,EVENT] = OAHE(X,Fs)
 %    [Y,EVENT] = OAHE(filename,CHAN)
+%   ... = OAHE(... ,'-o',outputFilename)
+%   ... = OAHE(... ,'-e',eventFilename)
 %
 % INPUT:
 %       X   respiratory channel
 %       Fs  sampleing rate
 %       filename        source filename 
 %       CHAN            respiratory channels for calculating OAHE
+%	outputFilename
+%		name of file for storing the resulting data with the
+%		detected spikes and bursts in GDF format.
+%	eventFilename
+%		filename to store event inforamation in GDF format. this is similar to 
+%		the outputFile, except that the signal data is not included and is, therefore,
+%		much smaller than the outputFile
 %
 % OUTPUT: 
 %       Y       detection trace
 %       EVENT   event structure as used in BIOSIG  
-%
-% The following commands store the events in an EVENT-file, which can
-% be visualized with SVIEWER
-%       HDR.FileName = 'filename.evt';
-%       HDR.EVENT = EVENT; 
-%       HDR.TYPE = 'EVENT'
-%       HDR=sopen(HDR,'w'); HDR=sclose(HDR);
-%  
 %
 % see also: SVIEWER, SLOAD 
 %
@@ -62,6 +63,27 @@ function [Y0,EVENT] = OAHE(S,Fs)
 % License along with this library; if not, write to the
 % Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 % Boston, MA  02111-1307, USA.
+
+%%%%% default settings %%%%%
+outFile = [];
+evtFile = [];
+
+%%%%% analyze input arguments %%%%%
+k = 1;
+while k <= length(varargin)
+	if ischar(varargin{k})
+		if (strcmp(varargin{k},'-o'))
+			k = k + 1;
+			outFile = varargin{k};
+		elseif (strcmp(varargin{k},'-e'))
+			k = k + 1;
+			evtFile = varargin{k};
+		else
+			warning(sprintf('unknown input argument <%s>- ignored',varargin{k}));
+		end;
+	end;
+	k = k+1;
+end;
 
 if ischar(S)
         [S,HDR]=sload(S,Fs);
@@ -117,4 +139,59 @@ for k=1:nc;
 	EVENT.DUR(N+1:N+L,1) = (find(tmp1<0)-tmp2)*Fs;
 	EVENT.CHN(N+1:N+L,1) = HDR.InChanSelect(k);
 end;
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%	Output
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+if ~isempty(outFile)
+		%%% write data to output
+		HDR.TYPE  = 'GDF';
+		HDR.VERSION = 3;
+		%[p,f,e]=fileparts(fn);
+		HDR.FILE = [];
+		HDR.FileName  = outFile;
+		HDR.FILE.Path = '';
+		HDR.PhysMax   = max(s);
+		HDR.PhysMin   = min(s);
+		HDR.DigMax(:) =  2^15-1;
+		HDR.DigMin(:) = -2^15;
+		HDR.GDFTYP(:) = 3;
+		HDR.FLAG.UCAL = 0;
+		HDR.NRec = size(s,1);
+		HDR.SPR = 1;
+		HDR.NS  = size(s,2);
+		HDR.Dur = 1/HDR.SampleRate;
+		HDR = rmfield(HDR,'AS');
+		HDR.EVENT = EVENT; 
+		HDR = sopen(HDR,'w');
+		if (HDR.FILE.FID < 0) 
+			fprintf(2,'Warning can not open file <%s> - GDF file can not be written\n',HDR.FileName);
+		else
+			HDR = swrite(HDR,s);
+			HDR = sclose(HDR);
+		end; 
+end;
+
+if ~isempty(evtFile)
+		%%% write data to output
+		HDR.TYPE  = 'EVENT';
+		HDR.VERSION = 3;
+		%[p,f,e]=fileparts(fn);
+		HDR.FILE = [];
+		HDR.FileName  = evtFile;
+		HDR.FILE.Path = '';
+		HDR.NRec = 0;
+		HDR.SPR = 0;
+		HDR.Dur = 1/HDR.SampleRate;
+		HDR = rmfield(HDR,'AS');
+		HDR = sopen(HDR, 'w');
+		if (HDR.FILE.FID<0) 
+			fprintf(2,'Warning can not open file <%s> - EVT file can not be written\n', HDR.FileName); 
+		else
+			HDR = sclose(HDR);
+ 		end;
+end;
+
 
