@@ -1,4 +1,4 @@
-%function RES = burst_onset_phase(fn,ch,band, EVT)
+function RES = burst_onset_phase(fn,ch,band, EVT)
 % BURST_ONSET_PHASE computes the phase of burst onsets 
 %
 % ... = burst_onset_phase(fn, ch, [f1, f2], EVT)
