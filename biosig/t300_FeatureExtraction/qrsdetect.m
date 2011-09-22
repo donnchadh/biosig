@@ -2,13 +2,15 @@ function [H2,HDR,s] = qrsdetect(fn,arg2,arg3,varargin)
 % QRSDETECT - detection of QRS-complexes
 %
 %   HDR = qrsdetect(fn,chan,Mode)
-%   HDR = qrsdetect(s,Fs,Mode)
-%   ... = qrsdetect(... ,'-o',outputFilename)
+%   ... = qrsdetect(fn, 0, Mode, '-o',outputFilename)
 %   ... = qrsdetect(... ,'-e',eventFilename)
+%   HDR = qrsdetect(s,Fs,Mode) 
 %
 % INPUT
 %   	fn	filename
 %   	chan    channel number of ecg data
+%		if chan is empty, all channels which contain ECG, ecg, or EKG in HDR.Label 
+%		are used. 
 %   	s       ecg signal data 
 %   	Fs      sample rate 
 %   	Mode    optional - default is 2
@@ -17,6 +19,7 @@ function [H2,HDR,s] = qrsdetect(fn,arg2,arg3,varargin)
 %	outputFilename
 %		name of file for storing the resulting data with the
 %		detected spikes and bursts in GDF format.
+%		
 %	eventFilename
 %		filename to store event inforamation in GDF format. this is similar to 
 %		the outputFile, except that the signal data is not included and is, therefore,
@@ -29,7 +32,7 @@ function [H2,HDR,s] = qrsdetect(fn,arg2,arg3,varargin)
 % see also: PROCESSING, EVENTCODES.TXT, SLOAD 
 %
 % Reference(s):
-% [1] M.-E. Nygards, L. Sörnmo, Delineation of the QRS complex using the envelope of the e.c.g
+% [1] M.-E. Nygards, L. SÃ¶rnmo, Delineation of the QRS complex using the envelope of the e.c.g
 %       Med. & Biol. Eng. & Comput., 1983, 21, 538-547.
 % [2] V. Afonso, W. Tompkins, T. Nguyen, and S. Luo, "ECG beat detection using filter banks."
 % 	IEEE Trans. Biomed. Eng. 46(2):192-202, Feb. 1999.
@@ -62,7 +65,7 @@ if (nargin==2)
 	else
 		MODE = arg3;
 	end;
-elseif (nargin==3) 
+elseif (nargin>=3) 
 	chan = arg2;
 	MODE = arg3;
 end;
@@ -92,24 +95,31 @@ end;
 if isnumeric(fn),
 	s = fn;
 	HDR.SampleRate = arg2;
+	HDR.NS = size(s,2);
 	chan = 1:size(s,2);
+	CHAN = 1:size(s,2);
 else
-	HDR = sopen(fn,'r',chan);
-	if chan==0;
-		chan = strmatch('ecg',HDR.Label);
-		if length(chan)==1,
-			HDR = sclose(HDR);
-			HDR = sopen(fn,'r',chan);
-		else
-			chan = 1:HDR.NS;
+	if ~isempty(outFile) 
+		[s,HDR] = sload(fn);
+		if chan==0 || isempty(chan);
+			chan = unique([strmatch('ecg',HDR.Label),strmatch('ECG',HDR.Label),strmatch('EKG',HDR.Label)]);
 		end;	
-	end;	
-	[s,HDR] = sread(HDR);
-	HDR = sclose(HDR);
+		CHAN = chan;
+	else 
+		HDR = sopen(fn,'r',chan);HDR = sclose(HDR);
+		if chan==0 || isempty(chan);
+			chan = unique([strmatch('ecg',HDR.Label),strmatch('ECG',HDR.Label),strmatch('EKG',HDR.Label)]);
+		end;	
+		[s,HDR] = sload(fn,chan);
+		CHAN = chan;
+		chan = 1:length(CHAN);
+	end; 
 end;
 
 ET = [];
-for k = 1:size(s,2),
+for ch = 1:length(chan)',
+	k = chan(ch);
+
 	if 0,
 
         elseif MODE==2,     % QRS detection based on Afonso et al. 1999
@@ -131,7 +141,7 @@ for k = 1:size(s,2),
         [tmp,ix] = max(abs(mean(reshape(t,sz(2:3)),2)));
         delay = HDR.SampleRate + 1 - ix;
 
-        ET = [ET; [POS-delay, repmat([hex2dec('0501'),chan(k),0], size(POS,1),1)]];
+        ET = [ET; [POS-delay, repmat([hex2dec('0501'),CHAN(ch),0], size(POS,1),1)]];
 end;
 
 
