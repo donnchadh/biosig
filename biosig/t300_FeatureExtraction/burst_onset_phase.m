@@ -1,7 +1,8 @@
-function RES = burst_onset_phase(fn,ch,band, EVT)
+function RES = burst_onset_phase(fn, ch, band, EVT, varargin)
 % BURST_ONSET_PHASE computes the phase of burst onsets 
 %
 % ... = burst_onset_phase(fn, ch, [f1, f2], EVT)
+% ... = burst_onset_phase(..., '-o', outputFilename)
 % ... = burst_onset_phase(s, HDR, [f1, f2], EVT)
 % [RES] = burst_onset_phase(...)
 % 
@@ -57,9 +58,15 @@ if ~isfield(EVT,'EVENT')
 	error('arg4 (EVT) does not contain event structure');
 end; 
 
+outFile = [];
+if length(varargin)>1 && strcmp(varargin{1},'-o'),
+	outFile = varargin{2};
+end; 
+
+
 winlen = 20000;
 
-[s, HDR] = sload(fn, 1, 'NUMBER_OF_NAN_IN_BREAK', winlen);
+[s, HDR]    = sload(fn, ch, 'NUMBER_OF_NAN_IN_BREAK', winlen);
 ixSegStart0 = sort([1; HDR.EVENT.POS(HDR.EVENT.TYP==hex2dec('7ffe')); size(s,1)+1]);
 ixSegStart1 = sort([1; EVT.EVENT.POS(EVT.EVENT.TYP==hex2dec('7ffe')); size(s,1)+1]);
 
@@ -68,32 +75,78 @@ if length(ixSegStart0)-length(ixSegStart1)
 	return; 
 end
 
+if ~isempty(outFile)
+	%% keep copy of s for outFile 
+	s0 = s; 
+end
+
+%%% handle missing values
 iv = isnan(s);
 s(iv) = 0;
 
-S = fft(s,[],1); 
-f = (0:size(s,1)-1)*HDR.SampleRate/size(s,1);
 
-S(f1 > f | f > f2, :) = 0; 
-if f1==0, S(f==0, : ) = S(f==0, : ) / 2; end; 
+%%% transform to spectral domain, filter, and transform 
+s = fft(s,[],1); 
+f = (0 : size(s,1) - 1) * HDR.SampleRate / size(s,1);
+s( f < f1 | f2 < f, :) = 0; 
+if f1==0, s(f==0, : ) = s(f==0, : ) / 2; end; 
+s = 2 * ifft(s,[],1); 
 
-s     = 2 * ifft(S,[],1); 
+
 s(iv) = NaN; 
 
-tixOn = EVT.EVENT.POS(EVT.EVENT.TYP==hex2dec('0202'));
-ix = []; 
+
+%%% rearrange marker to account for NUMBER_OF_NAN_IN_BREAK
+tixOn = EVT.EVENT.POS; %(EVT.EVENT.TYP==hex2dec('0202'));
+ix    = []; 
 for k = 1:length(ixSegStart0)-1,
 	ix0 = ixSegStart0(k); 
 	ix1 = ixSegStart1(k);
-	t = tixOn(ixSegStart1(k) <= tixOn & tixOn < ixSegStart1(k+1));
-	ix = [ix; ix0 - ix1 + t(:)];
+	t   = tixOn( ixSegStart1(k) <= tixOn & tixOn < ixSegStart1(k+1) );
+	ix  = [ix; ix0 - ix1 + t(:)];
 end; 
+EVT.EVENT.POS = ix; 
+
 
 %%% hack: workaround to nonsense markers 
-ix = ix(ix<size(s,1));
+if any( ix > size(s,1) )
+	fprintf(2, '\nWarning: events after end of data found\n');
+	for k = find( ix > size(s,1) )
+		fprintf(2, '\t%d\t%x\n', EVT.EVENT.POS(k), EVT.EVENT.TYP(k));
+	end; 
+	ix = ix( ix <= size(s,1) );
+end; 
 
-RES = s(ix,:);
+
+%%% return output: extract phase at burst onset time 
+tix = EVT.EVENT.POS( EVT.EVENT.TYP==hex2dec('0202') );
+RES = s( tix( tix < size(s,1) ), :);
 
 
 
+if ~isempty(outFile)
+	HDR2.EVENT = EVT.EVENT; 
+	HDR2.TYPE  = 'GDF'; 
+	HDR2.FileName = outFile; 
+	HDR2.FILE  = [];
+	HDR2.Patient = HDR.Patient; 
+	HDR2.T0    = HDR.T0; 
+	HDR2.NS    = length(ch)*2; 
+	HDR2.SPR   = 1; 
+	HDR2.SampleRate = HDR.SampleRate; 
+	HDR2.Label = {HDR.Label{ch}; HDR.Label{ch}};	
+	HDR2.DigMax  = [HDR.DigMax(ch);  HDR.DigMax(ch)];
+	HDR2.DigMin  = [HDR.DigMin(ch);  HDR.DigMin(ch)];
+	HDR2.PhysMax = [HDR.PhysMax(ch); HDR.PhysMax(ch)];
+	HDR2.PhysMin = [HDR.PhysMin(ch); HDR.PhysMin(ch)];
+	HDR2.GDFTYP  = repmat(16, 1, HDR.NS);
+	HDR2.PhysDimCode = [HDR.PhysDimCode(ch);HDR.PhysDimCode(ch)];
+	HDR2.Filter.LowPass  = [HDR.Filter.LowPass(ch);	 repmat(f2, length(ch), 1)]; 
+	HDR2.Filter.HighPass = [HDR.Filter.HighPass(ch); repmat(f1, length(ch), 1)]; 
+	HDR2.Filter.Notch    = [HDR.Filter.Notch(ch);    HDR.Filter.Notch(ch)]; 
+	HDR2.FLAG.UCAL = 0; 
 
+	HDR2 = sopen(HDR2,'w');
+	HDR2 = swrite(HDR2, [s0, s]);
+	HDR2 = sclose(HDR2); 
+end; 
