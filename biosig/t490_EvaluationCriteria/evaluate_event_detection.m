@@ -209,9 +209,6 @@ RES.D = D;
 RES.K = kappa(full(sparse(D.X(:,1)+1, D.X(:,2)+1, D.H, 2, 2)));
 
 
-return;
-
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Event-based analysis 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -228,8 +225,9 @@ FN = 0;
 t = 0; 
 k1 = 1; k0=1;
 
-t0 = trig;
-t1 = find(diff([0;x0])>0);
+t0 = trig + IX2;
+t1 = find(diff([0;x1])>0);
+winlen = IX1-IX2;
 t0(end+1)=inf;
 t1(end+1)=inf;
 while (t1(k1)<inf && t0(k0)<inf)
@@ -248,5 +246,5 @@ while (t1(k1)<inf && t0(k0)<inf)
         end; 
 end; 
 
-RES.H = [TP,FP,FN];
+RES.EVT.H = [TP,FP;FN,NaN];
 
