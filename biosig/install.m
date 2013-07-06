@@ -42,6 +42,7 @@ path([BIOSIG_HOME,'/biosig/doc'],path);		% docus, Eventtable etc.
 path([BIOSIG_HOME,'/biosig/t200_FileAccess'],path);		% dataformat
 path([BIOSIG_HOME,'/biosig/t250_ArtifactPreProcessingQualityControl'],path);		% trigger and quality control
 path([BIOSIG_HOME,'/biosig/t300_FeatureExtraction'],path);		% signal processing and feature extraction
+path([BIOSIG_HOME,'/biosig/t310_ERDSMaps'],path); 
 path([BIOSIG_HOME,'/biosig/t400_Classification'],path);		% classification
 path([BIOSIG_HOME,'/biosig/t450_MultipleTestStatistic'],path);		% statistics, false discovery rates
 path([BIOSIG_HOME,'/biosig/t490_EvaluationCriteria'],path);		% evaluation criteria
