@@ -55,9 +55,10 @@ if isempty(Mode),
 	Mode = 'CSP3';
 end; 	
 
-COV = zeros(size(ECM)-[1,1,0]);
+COV = zeros(size(ECM)-[1,1,1]);
 for k=1:sz(1),
-  	[mu,sd,COV(:,:,k),xc,N,R2]=decovm(squeeze(ECM(k,:,:)));
+  	[mu,sd,val,xc,N,R2]=decovm(squeeze(ECM(k,:,:)));
+	COV(k,:,:) = val;
 end; 
 
 
@@ -85,7 +86,10 @@ elseif strcmpi(Mode,'CSP3');
 	%% do actual CSP calculation as generalized eigenvalues
 	%% R = permute(COV,[2,3,1]);
 	for k = 1:sz(1), 
-		[W,D] = eig(COV(:,:,k),sum(COV,3));
+        
+		a = squeeze(COV(k,:,:));
+		b = squeeze(sum(COV,1));
+		[W,D] = eig(a,b);
 		V(:,2*k+[1-p:0]) = W(:,[1,end]);
 	end;
 end; 
